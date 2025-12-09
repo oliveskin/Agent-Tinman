@@ -1,0 +1,321 @@
+/* Tinman TUI - Retro Terminal Styles */
+
+/* Color scheme - amber/green CRT aesthetic */
+$crt-amber: #ffb000;
+$crt-green: #33ff33;
+$crt-dim: #666600;
+$crt-bg: #0a0a0a;
+$crt-border: #444400;
+$danger: #ff3333;
+$warning: #ffaa00;
+$success: #33ff33;
+
+Screen {
+    background: $crt-bg;
+}
+
+/* Main container */
+#main-container {
+    width: 100%;
+    height: 100%;
+    background: $crt-bg;
+}
+
+/* Header with ASCII art */
+#header {
+    height: 9;
+    width: 100%;
+    background: $crt-bg;
+    border: solid $crt-border;
+    padding: 0 1;
+}
+
+#header Static {
+    color: $crt-amber;
+    text-style: bold;
+}
+
+#status-line {
+    dock: right;
+    width: auto;
+    height: 3;
+    padding-right: 2;
+}
+
+/* Navigation bar */
+#nav-bar {
+    height: 3;
+    width: 100%;
+    background: #1a1a00;
+    border: solid $crt-border;
+    padding: 0 1;
+}
+
+#nav-bar Button {
+    background: transparent;
+    color: $crt-amber;
+    border: none;
+    min-width: 16;
+    margin: 0 1;
+}
+
+#nav-bar Button:hover {
+    background: #333300;
+    color: $crt-green;
+}
+
+#nav-bar Button:focus {
+    background: #444400;
+    color: $crt-green;
+    text-style: bold;
+}
+
+#nav-bar Button.-active {
+    background: #444400;
+    color: $crt-green;
+    text-style: bold;
+}
+
+/* Main content area */
+#content {
+    width: 100%;
+    height: 1fr;
+    background: $crt-bg;
+}
+
+/* Panel styling */
+.panel {
+    border: solid $crt-border;
+    background: $crt-bg;
+    padding: 1;
+}
+
+.panel-title {
+    color: $crt-amber;
+    text-style: bold;
+    background: #1a1a00;
+    padding: 0 1;
+}
+
+/* Log/Activity panel */
+#activity-log {
+    height: 100%;
+    border: solid $crt-border;
+    background: #050505;
+    padding: 1;
+}
+
+#activity-log .log-entry {
+    color: $crt-green;
+}
+
+#activity-log .log-entry-error {
+    color: $danger;
+}
+
+#activity-log .log-entry-warning {
+    color: $warning;
+}
+
+#activity-log .log-entry-success {
+    color: $success;
+}
+
+/* Research panel */
+#research-panel {
+    padding: 1;
+}
+
+.progress-item {
+    margin-bottom: 1;
+}
+
+.progress-label {
+    color: $crt-amber;
+}
+
+/* Hypotheses panel */
+#hypotheses-panel DataTable {
+    height: 100%;
+}
+
+#hypotheses-panel DataTable > .datatable--header {
+    background: #1a1a00;
+    color: $crt-amber;
+    text-style: bold;
+}
+
+#hypotheses-panel DataTable > .datatable--cursor {
+    background: #333300;
+    color: $crt-green;
+}
+
+/* Failures panel */
+#failures-panel DataTable {
+    height: 100%;
+}
+
+.severity-s4 {
+    color: #ff0000;
+    text-style: bold;
+}
+
+.severity-s3 {
+    color: #ff6600;
+    text-style: bold;
+}
+
+.severity-s2 {
+    color: #ffaa00;
+}
+
+.severity-s1 {
+    color: #ffff00;
+}
+
+.severity-s0 {
+    color: #aaaaaa;
+}
+
+/* Intervention panel */
+#intervention-panel {
+    padding: 1;
+}
+
+/* Discuss/Chat panel */
+#discuss-panel {
+    padding: 1;
+}
+
+#chat-log {
+    height: 1fr;
+    border: solid $crt-border;
+    background: #050505;
+    padding: 1;
+    margin-bottom: 1;
+}
+
+#chat-input {
+    height: 3;
+    border: solid $crt-amber;
+    background: #0a0a0a;
+    color: $crt-green;
+}
+
+#chat-input:focus {
+    border: solid $crt-green;
+}
+
+.user-message {
+    color: $crt-amber;
+    margin-bottom: 1;
+}
+
+.assistant-message {
+    color: $crt-green;
+    margin-bottom: 1;
+}
+
+/* Approval modal */
+#approval-modal {
+    align: center middle;
+    width: 70;
+    height: auto;
+    max-height: 80%;
+    border: double $warning;
+    background: #1a1a00;
+    padding: 1 2;
+}
+
+#approval-modal .modal-title {
+    color: $warning;
+    text-style: bold;
+    text-align: center;
+    padding-bottom: 1;
+}
+
+#approval-modal .modal-content {
+    color: $crt-amber;
+    padding: 1 0;
+}
+
+#approval-modal .modal-actions {
+    layout: horizontal;
+    align: center middle;
+    height: auto;
+    padding-top: 1;
+}
+
+#approval-modal Button {
+    margin: 0 2;
+    min-width: 12;
+}
+
+#approval-modal #approve-btn {
+    background: #004400;
+    color: $success;
+    border: solid $success;
+}
+
+#approval-modal #reject-btn {
+    background: #440000;
+    color: $danger;
+    border: solid $danger;
+}
+
+#approval-modal #details-btn {
+    background: #444400;
+    color: $crt-amber;
+    border: solid $crt-amber;
+}
+
+/* Footer/Status bar */
+#footer {
+    height: 3;
+    width: 100%;
+    background: #1a1a00;
+    border: solid $crt-border;
+    padding: 0 1;
+}
+
+#footer Static {
+    color: $crt-dim;
+}
+
+.metric {
+    margin-right: 3;
+}
+
+.metric-label {
+    color: $crt-dim;
+}
+
+.metric-value {
+    color: $crt-amber;
+    text-style: bold;
+}
+
+/* Scrollbars - minimal retro style */
+Scrollbar {
+    background: #1a1a00;
+}
+
+ScrollbarSlider {
+    background: $crt-border;
+}
+
+ScrollbarSlider:hover {
+    background: $crt-amber;
+}
+
+/* Loading indicator */
+LoadingIndicator {
+    color: $crt-amber;
+}
+
+/* Placeholder text */
+.placeholder {
+    color: $crt-dim;
+    text-align: center;
+    padding: 2;
+}
