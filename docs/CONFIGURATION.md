@@ -20,6 +20,9 @@ This document provides a complete reference for all Tinman configuration options
    - [approval](#approval)
    - [reporting](#reporting)
    - [logging](#logging)
+   - [cost](#cost)
+   - [metrics](#metrics)
+   - [service](#service)
 4. [Environment Variables](#environment-variables)
 5. [Programmatic Configuration](#programmatic-configuration)
 6. [Configuration Validation](#configuration-validation)
@@ -452,6 +455,162 @@ logging:
 
 ---
 
+### cost
+
+Budget and cost tracking settings.
+
+```yaml
+cost:
+  budget_usd: 100.0
+  period: daily
+  warn_threshold: 0.8
+  hard_limit: true
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `budget_usd` | float | `100.0` | Maximum spend per period |
+| `period` | string | `daily` | Budget reset period |
+| `warn_threshold` | float | `0.8` | Warning threshold (0-1) |
+| `hard_limit` | bool | `true` | Block operations when exceeded |
+
+**Budget Periods:**
+- `hourly` - Reset every hour
+- `daily` - Reset every day (default)
+- `weekly` - Reset every week
+- `monthly` - Reset every month
+
+**Example with enforcement:**
+```yaml
+cost:
+  budget_usd: 50.0
+  period: daily
+  warn_threshold: 0.75
+  hard_limit: true
+  notify_on_warning: true
+```
+
+---
+
+### metrics
+
+Prometheus metrics server settings.
+
+```yaml
+metrics:
+  enabled: true
+  port: 9090
+  path: /metrics
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `enabled` | bool | `true` | Enable metrics server |
+| `port` | int | `9090` | Metrics server port |
+| `path` | string | `/metrics` | Metrics endpoint path |
+
+**Available Metrics:**
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `tinman_research_cycles_total` | Counter | Total research cycles |
+| `tinman_failures_discovered_total` | Counter | Failures by severity/class |
+| `tinman_approval_decisions_total` | Counter | Approvals by decision/tier |
+| `tinman_cost_usd_total` | Counter | Costs by source/model |
+| `tinman_llm_requests_total` | Counter | LLM requests by model/status |
+| `tinman_llm_latency_seconds` | Histogram | LLM request latency |
+| `tinman_pending_approvals` | Gauge | Current pending approvals |
+
+---
+
+### service
+
+HTTP service settings (for `tinman serve`).
+
+```yaml
+service:
+  host: 0.0.0.0
+  port: 8000
+  workers: 4
+  cors_origins: ["*"]
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `host` | string | `0.0.0.0` | Bind host |
+| `port` | int | `8000` | Bind port |
+| `workers` | int | `1` | Number of workers |
+| `cors_origins` | list | `["*"]` | CORS allowed origins |
+
+**Available Endpoints:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Health check with component status |
+| `/ready` | GET | Kubernetes readiness probe |
+| `/live` | GET | Kubernetes liveness probe |
+| `/status` | GET | Current Tinman state |
+| `/research/cycle` | POST | Run a research cycle |
+| `/approvals/pending` | GET | List pending approvals |
+| `/approvals/{id}/decide` | POST | Decide on approval |
+| `/discuss` | POST | Interactive discussion |
+| `/mode` | GET | Current mode |
+| `/mode/transition` | POST | Transition modes |
+| `/metrics` | GET | Prometheus metrics |
+
+---
+
+### risk_policy
+
+External risk policy configuration file.
+
+```yaml
+risk_policy:
+  path: ./risk_policy.yaml
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `path` | string | null | Path to risk policy YAML |
+
+**Risk Policy File Format:**
+
+```yaml
+# risk_policy.yaml
+base_matrix:
+  lab:
+    S0: safe
+    S1: safe
+    S2: review
+    S3: review
+    S4: block
+  shadow:
+    S0: safe
+    S1: review
+    S2: review
+    S3: block
+    S4: block
+  production:
+    S0: review
+    S1: review
+    S2: block
+    S3: block
+    S4: block
+
+action_overrides:
+  DEPLOY_INTERVENTION:
+    production: block
+  DESTRUCTIVE_TEST:
+    shadow: block
+    production: block
+
+cost_thresholds:
+  low_cost_max: 1.0
+  high_cost_min: 10.0
+```
+
+---
+
 ## Environment Variables
 
 Environment variables override configuration file values.
@@ -465,6 +624,10 @@ Environment variables override configuration file values.
 | `DATABASE_URL` | Database connection URL | `postgresql://...` |
 | `TINMAN_MODE` | Operating mode | `lab`, `shadow`, `production` |
 | `TINMAN_LOG_LEVEL` | Log level | `DEBUG`, `INFO`, etc. |
+| `TINMAN_DATABASE_URL` | Database connection URL | `postgresql://...` |
+| `TINMAN_BUDGET_USD` | Budget limit | `100.0` |
+| `TINMAN_METRICS_PORT` | Metrics server port | `9090` |
+| `TINMAN_SERVICE_PORT` | HTTP service port | `8000` |
 
 ### Using Environment Variables in Config
 
@@ -739,6 +902,10 @@ Key configuration areas:
 | `shadow` | Traffic mirroring for SHADOW mode |
 | `reporting` | Output generation |
 | `logging` | Log configuration |
+| `cost` | Budget and cost tracking |
+| `metrics` | Prometheus metrics server |
+| `service` | HTTP API service settings |
+| `risk_policy` | External risk policy file |
 
 Configuration precedence:
 1. CLI arguments (highest)
@@ -753,3 +920,4 @@ Configuration precedence:
 - [MODES.md](MODES.md) - Detailed mode behavior
 - [HITL.md](HITL.md) - Approval configuration details
 - [INTEGRATION.md](INTEGRATION.md) - Pipeline integration
+- [PRODUCTION.md](PRODUCTION.md) - Production deployment guide

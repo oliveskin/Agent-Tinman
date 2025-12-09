@@ -341,6 +341,30 @@ tinman discuss "What's the most critical failure?"
 tinman discuss "How should I prioritize fixes?"
 ```
 
+### Service Mode
+
+```bash
+# Start HTTP service
+tinman serve --host 0.0.0.0 --port 8000
+
+# Or with specific mode
+TINMAN_MODE=shadow tinman serve
+
+# Health check
+curl http://localhost:8000/health
+
+# Run research cycle via API
+curl -X POST http://localhost:8000/research/cycle \
+  -H "Content-Type: application/json" \
+  -d '{"focus": "tool_use", "max_hypotheses": 5}'
+
+# Get status
+curl http://localhost:8000/status
+
+# Get pending approvals
+curl http://localhost:8000/approvals/pending
+```
+
 ---
 
 ## What's Next?
@@ -379,6 +403,15 @@ Read [INTEGRATION.md](INTEGRATION.md) for:
 - Embedding Tinman in existing systems
 - Using the PipelineAdapter
 - Custom approval workflows
+
+### Deploy to Production
+
+Read [PRODUCTION.md](PRODUCTION.md) for:
+- Docker/Kubernetes deployment
+- Database migrations with Alembic
+- Prometheus metrics setup
+- Cost controls and budget enforcement
+- Operational runbook
 
 ---
 

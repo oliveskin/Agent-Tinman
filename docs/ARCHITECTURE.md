@@ -118,12 +118,31 @@ tinman/
 │   ├── approval_handler.py  # Coordinates HITL approvals
 │   ├── control_plane.py     # System state management
 │   ├── event_bus.py         # Pub/sub event system
-│   └── risk_evaluator.py    # Risk tier assessment
+│   ├── risk_evaluator.py    # Risk tier assessment
+│   ├── tools.py             # Guarded tool execution
+│   ├── risk_policy.py       # Policy-driven risk matrix
+│   ├── cost_tracker.py      # Budget enforcement
+│   └── metrics.py           # Prometheus metrics
 │
 ├── db/                      # Database layer
 │   ├── __init__.py
 │   ├── connection.py        # SQLAlchemy connection
-│   └── models.py            # ORM models
+│   ├── models.py            # ORM models
+│   └── audit.py             # Durable audit trail (AuditLog, ApprovalDecision)
+│
+├── ingest/                  # Trace ingestion adapters
+│   ├── __init__.py
+│   ├── base.py              # TraceAdapter base class
+│   ├── otlp.py              # OpenTelemetry OTLP adapter
+│   ├── datadog.py           # Datadog APM adapter
+│   ├── xray.py              # AWS X-Ray adapter
+│   ├── json_adapter.py      # Generic JSON adapter
+│   └── registry.py          # Auto-detection and registry
+│
+├── service/                 # HTTP API service
+│   ├── __init__.py
+│   ├── app.py               # FastAPI application
+│   └── models.py            # Pydantic request/response models
 │
 ├── integrations/            # External integrations
 │   ├── __init__.py
@@ -145,10 +164,13 @@ tinman/
 │   ├── insight_synthesizer.py # Report generation
 │   └── prompts.py           # Prompt templates
 │
-├── reporting/               # Output generation
+├── reporting/               # Partner-facing reports
 │   ├── __init__.py
-│   ├── lab_reporter.py      # Research reports
-│   └── ops_reporter.py      # Operations reports
+│   ├── base.py              # BaseReport class
+│   ├── executive.py         # ExecutiveSummaryReport
+│   ├── technical.py         # TechnicalAnalysisReport
+│   ├── compliance.py        # ComplianceReport
+│   └── export.py            # Multi-format export (JSON, MD, HTML, PDF, CSV)
 │
 ├── taxonomy/                # Failure classification
 │   ├── __init__.py
@@ -176,7 +198,9 @@ tinman/
 | **Agents** | Execute research tasks | `BaseAgent`, `HypothesisEngine`, etc. |
 | **Memory** | Persistent knowledge store | `MemoryGraph`, `Node`, `Edge` |
 | **Reasoning** | LLM-powered intelligence | `LLMBackbone`, `AdaptiveMemory` |
-| **Core** | Infrastructure services | `ApprovalHandler`, `EventBus`, `RiskEvaluator` |
+| **Core** | Infrastructure services | `ApprovalHandler`, `EventBus`, `RiskEvaluator`, `CostTracker`, `Metrics` |
+| **Service** | HTTP API | `FastAPI app`, `Pydantic models` |
+| **Ingest** | Trace ingestion | `OTLPAdapter`, `DatadogAdapter`, `XRayAdapter` |
 | **Config** | Settings and modes | `Settings`, `Mode` |
 | **Taxonomy** | Failure classification | `FailureClass`, `Severity` |
 | **Integrations** | External systems | `ModelClient`, `PipelineAdapter` |
@@ -877,9 +901,271 @@ result.metrics["llm_cost_usd"]
 
 ---
 
+## Service Mode Architecture
+
+### FastAPI Service
+
+Tinman can run as an HTTP service for production deployments:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     TINMAN SERVICE MODE                          │
+│                                                                  │
+│  HTTP Clients                                                    │
+│       │                                                          │
+│       ▼                                                          │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                    FastAPI App                           │    │
+│  │                                                          │    │
+│  │   /health          - Health checks                       │    │
+│  │   /ready           - Kubernetes readiness                │    │
+│  │   /live            - Kubernetes liveness                 │    │
+│  │   /status          - Current Tinman state                │    │
+│  │   /research/cycle  - Run research cycle                  │    │
+│  │   /approvals/*     - Manage approvals                    │    │
+│  │   /discuss         - Interactive discussion              │    │
+│  │   /mode            - Mode management                     │    │
+│  │   /metrics         - Prometheus metrics                  │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                           │                                      │
+│                           ▼                                      │
+│                    Tinman Orchestrator                           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Starting the Service
+
+```bash
+# CLI command
+tinman serve --host 0.0.0.0 --port 8000
+
+# Or directly with uvicorn
+uvicorn tinman.service.app:app --host 0.0.0.0 --port 8000
+```
+
+---
+
+## Cost Tracking
+
+### Budget Enforcement Architecture
+
+```python
+from tinman.core.cost_tracker import CostTracker, BudgetConfig, BudgetPeriod
+
+# Configure budget
+config = BudgetConfig(
+    limit_usd=100.0,           # Max spend
+    period=BudgetPeriod.DAILY,  # Reset daily
+    warn_threshold=0.8,         # Warn at 80%
+    hard_limit=True,            # Block when exceeded
+)
+
+tracker = CostTracker(budget_config=config)
+
+# Enforce before operations
+tracker.enforce_budget(estimated_cost=5.0)
+
+# Record actual costs
+tracker.record_cost(
+    amount_usd=4.50,
+    source="llm_call",
+    model="claude-3-opus",
+    operation="research",
+)
+```
+
+### Cost Categories
+
+| Source | Description |
+|--------|-------------|
+| `llm_call` | LLM API calls |
+| `research_cycle` | Full research cycle |
+| `experiment` | Individual experiment |
+| `tool_call` | External tool invocation |
+
+---
+
+## Metrics & Observability
+
+### Prometheus Metrics
+
+Tinman exposes comprehensive Prometheus metrics:
+
+```python
+from tinman.core.metrics import start_metrics_server, get_metrics
+
+# Start metrics server
+start_metrics_server(port=9090)
+```
+
+**Key Metrics:**
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `tinman_research_cycles_total` | Counter | Total research cycles |
+| `tinman_failures_discovered_total` | Counter | Failures by severity/class |
+| `tinman_approval_decisions_total` | Counter | Approvals by decision/tier |
+| `tinman_cost_usd_total` | Counter | Costs by source/model |
+| `tinman_llm_requests_total` | Counter | LLM requests by model/status |
+| `tinman_llm_latency_seconds` | Histogram | LLM request latency |
+| `tinman_tool_executions_total` | Counter | Tool calls by status |
+| `tinman_pending_approvals` | Gauge | Current pending approvals |
+| `tinman_current_mode` | Gauge | Active operating mode |
+
+---
+
+## Trace Ingestion
+
+### Supported Formats
+
+Tinman can ingest traces from multiple observability systems:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     TRACE INGESTION                              │
+│                                                                  │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐   │
+│  │   OTLP    │  │  Datadog  │  │  X-Ray    │  │   JSON    │   │
+│  │  Traces   │  │   APM     │  │  Traces   │  │  Generic  │   │
+│  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘  └─────┬─────┘   │
+│        │              │              │              │          │
+│        └──────────────┴──────────────┴──────────────┘          │
+│                           │                                     │
+│                           ▼                                     │
+│                  ┌─────────────────┐                           │
+│                  │  Auto-Detect    │                           │
+│                  │  Registry       │                           │
+│                  └────────┬────────┘                           │
+│                           │                                     │
+│                           ▼                                     │
+│                  ┌─────────────────┐                           │
+│                  │  Unified Trace  │                           │
+│                  │  Model          │                           │
+│                  └────────┬────────┘                           │
+│                           │                                     │
+│                           ▼                                     │
+│                  Tinman Analysis                                │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Usage
+
+```python
+from tinman.ingest import parse_traces, OTLPAdapter
+
+# Auto-detect format
+traces = parse_traces(raw_data)
+
+# Or use specific adapter
+adapter = OTLPAdapter()
+traces = list(adapter.parse(otlp_data))
+
+# Analyze traces
+for trace in traces:
+    for span in trace.error_spans:
+        print(f"Error: {span.name} - {span.status_message}")
+```
+
+---
+
+## Audit Trail
+
+### Durable Audit Logging
+
+All consequential actions are persisted:
+
+```python
+from tinman.db.audit import AuditLogger
+
+audit = AuditLogger(session)
+
+# Query activity
+logs = audit.query(
+    event_types=["approval_decision", "mode_transition"],
+    since=datetime.now() - timedelta(hours=24),
+)
+```
+
+**Audit Tables:**
+
+| Table | Purpose |
+|-------|---------|
+| `audit_logs` | Immutable event log |
+| `approval_decisions` | Human approval records |
+| `mode_transitions` | Mode change history |
+| `tool_executions` | Tool call records |
+
+---
+
+## Risk Policy
+
+### Policy-Driven Risk Evaluation
+
+Risk decisions are configurable via YAML:
+
+```yaml
+# risk_policy.yaml
+base_matrix:
+  lab:
+    S0: safe
+    S1: safe
+    S2: review
+    S3: review
+    S4: block
+  shadow:
+    S0: safe
+    S1: review
+    S2: review
+    S3: block
+    S4: block
+  production:
+    S0: review
+    S1: review
+    S2: block
+    S3: block
+    S4: block
+
+action_overrides:
+  DEPLOY_INTERVENTION:
+    production: block
+  DESTRUCTIVE_TEST:
+    shadow: block
+    production: block
+```
+
+### Guarded Tool Execution
+
+All tool calls go through the safety pipeline:
+
+```python
+from tinman.core.tools import guarded_call, ToolRegistry
+
+@ToolRegistry.register(
+    name="search",
+    risk_level=ToolRiskLevel.LOW,
+)
+async def search_tool(query: str) -> list[str]:
+    return await do_search(query)
+
+# Execution is automatically guarded
+result = await guarded_call(
+    search_tool,
+    action_type=ActionType.TOOL_CALL,
+    description="Search for relevant documents",
+    approval_handler=handler,
+    mode=Mode.PRODUCTION,
+    query="AI safety",
+)
+```
+
+---
+
 ## Next Steps
 
 - [AGENTS.md](AGENTS.md) - Detailed agent documentation
 - [MEMORY.md](MEMORY.md) - Memory graph deep dive
 - [HITL.md](HITL.md) - Approval system details
 - [INTEGRATION.md](INTEGRATION.md) - Integration patterns
+- [PRODUCTION.md](PRODUCTION.md) - Production deployment guide

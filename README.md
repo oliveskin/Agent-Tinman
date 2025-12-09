@@ -388,10 +388,22 @@ tinman/
 │   ├── approval_handler.py
 │   ├── control_plane.py
 │   ├── event_bus.py
-│   └── risk_evaluator.py
+│   ├── risk_evaluator.py
+│   ├── tools.py          # Guarded tool execution
+│   ├── risk_policy.py    # Policy-driven risk matrix
+│   ├── cost_tracker.py   # Budget enforcement
+│   └── metrics.py        # Prometheus metrics
 ├── db/                  # Persistence
 │   ├── connection.py
-│   └── models.py
+│   ├── models.py
+│   └── audit.py          # Durable audit trail
+├── ingest/              # Trace ingestion
+│   ├── otlp.py           # OpenTelemetry adapter
+│   ├── datadog.py        # Datadog APM adapter
+│   └── xray.py           # AWS X-Ray adapter
+├── service/             # HTTP API
+│   ├── app.py            # FastAPI application
+│   └── models.py         # Request/response models
 ├── integrations/        # External integrations
 │   ├── model_client.py
 │   ├── openai_client.py
@@ -406,9 +418,11 @@ tinman/
 │   ├── adaptive_memory.py
 │   ├── insight_synthesizer.py
 │   └── prompts.py
-├── reporting/           # Output generation
-│   ├── lab_reporter.py
-│   └── ops_reporter.py
+├── reporting/           # Partner-facing reports
+│   ├── executive.py      # Executive summary reports
+│   ├── technical.py      # Technical analysis reports
+│   ├── compliance.py     # Compliance/audit reports
+│   └── export.py         # Multi-format export
 ├── taxonomy/            # Failure classification
 │   ├── failure_types.py
 │   ├── classifiers.py
@@ -437,6 +451,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for component details and data 
 | [MEMORY.md](docs/MEMORY.md) | Memory graph and temporal queries |
 | [CONFIGURATION.md](docs/CONFIGURATION.md) | All configuration options |
 | [INTEGRATION.md](docs/INTEGRATION.md) | Pipeline integration patterns |
+| [PRODUCTION.md](docs/PRODUCTION.md) | Production deployment guide |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
 
 ---
