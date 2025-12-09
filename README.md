@@ -1,6 +1,21 @@
-# Tinman
+<p align="center">
+  <img src="assets/tinman.png" alt="Tinman" width="400">
+</p>
 
-**A Forward-Deployed Research Agent for Continuous AI Reliability Discovery**
+<h1 align="center">Tinman</h1>
+
+<p align="center">
+  <strong>A Forward-Deployed Research Agent for Continuous AI Reliability Discovery</strong>
+</p>
+
+<p align="center">
+  <a href="#installation">Installation</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#documentation">Documentation</a> •
+  <a href="#contributing">Contributing</a>
+</p>
+
+---
 
 Tinman is not a testing tool. It's an autonomous research agent that continuously explores your AI system's behavior to discover failure modes you haven't imagined yet.
 
