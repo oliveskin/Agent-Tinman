@@ -407,6 +407,180 @@ Supported models:
 - Claude 3 Sonnet (`claude-3-sonnet-20240229`)
 - Claude 3 Haiku (`claude-3-haiku-20240307`)
 
+---
+
+### Open Model Providers
+
+Tinman supports several providers for open/free models, making it accessible for experimentation without API costs.
+
+#### Provider Comparison
+
+| Provider | Free Tier | Speed | Models | Best For |
+|----------|-----------|-------|--------|----------|
+| **OpenRouter** | Many free models | Good | DeepSeek, Qwen, Llama, Mistral | Variety, free tiers |
+| **Groq** | 14,400 req/day | Ultra-fast | Llama 3.x, Mixtral, Gemma | Speed, high volume |
+| **Ollama** | Unlimited (local) | Varies | Any Ollama model | Privacy, offline |
+| **Together** | $25 credits | Good | DeepSeek, Qwen, Llama | Quality, credits |
+
+---
+
+### OpenRouter Client
+
+Access to 100+ models including DeepSeek, Qwen, Llama, and Mistral with many free tiers.
+
+```python
+from tinman.integrations import OpenRouterClient
+
+client = OpenRouterClient(
+    api_key="sk-or-...",  # Or set OPENROUTER_API_KEY env var
+)
+
+# Use DeepSeek (free tier available)
+tinman = await create_tinman(model_client=client)
+
+# Specify model explicitly
+response = await client.complete(
+    messages=[{"role": "user", "content": "Hello"}],
+    model="deepseek-chat",  # Shorthand
+    # or: model="deepseek/deepseek-chat"  # Full ID
+)
+```
+
+**Available model shorthands:**
+
+| Shorthand | Full Model ID | Notes |
+|-----------|---------------|-------|
+| `deepseek-chat` | `deepseek/deepseek-chat` | Free tier |
+| `deepseek-coder` | `deepseek/deepseek-coder` | Free tier |
+| `deepseek-r1` | `deepseek/deepseek-r1` | Reasoning model |
+| `qwen-2.5-72b` | `qwen/qwen-2.5-72b-instruct` | Strong general |
+| `qwen-2.5-coder-32b` | `qwen/qwen-2.5-coder-32b-instruct` | Code |
+| `llama-3.1-405b` | `meta-llama/llama-3.1-405b-instruct` | Largest |
+| `llama-3.1-70b` | `meta-llama/llama-3.1-70b-instruct` | Balanced |
+| `mixtral-8x22b` | `mistralai/mixtral-8x22b-instruct` | MoE |
+| `phi-3-mini` | `microsoft/phi-3-mini-128k-instruct:free` | Free |
+
+Get API key: https://openrouter.ai/keys
+
+---
+
+### Groq Client
+
+Ultra-fast inference with a generous free tier (14,400 requests/day for smaller models).
+
+```python
+from tinman.integrations import GroqClient
+
+client = GroqClient(
+    api_key="gsk_...",  # Or set GROQ_API_KEY env var
+)
+
+# Use Llama 3.1 70B (very fast!)
+tinman = await create_tinman(model_client=client)
+
+# Specify model
+response = await client.complete(
+    messages=[{"role": "user", "content": "Hello"}],
+    model="llama-3.1-70b",
+)
+```
+
+**Available models:**
+
+| Shorthand | Full Model ID | Context |
+|-----------|---------------|---------|
+| `llama-3.3-70b` | `llama-3.3-70b-versatile` | 128K |
+| `llama-3.1-70b` | `llama-3.1-70b-versatile` | 128K |
+| `llama-3.1-8b` | `llama-3.1-8b-instant` | 128K |
+| `mixtral-8x7b` | `mixtral-8x7b-32768` | 32K |
+| `gemma-2-9b` | `gemma2-9b-it` | 8K |
+
+Get API key: https://console.groq.com/keys
+
+---
+
+### Ollama Client
+
+Run models locally - completely free, no API keys needed, works offline.
+
+```bash
+# Install Ollama first: https://ollama.ai
+ollama pull llama3.1
+ollama pull qwen2.5
+ollama pull deepseek-r1
+```
+
+```python
+from tinman.integrations import OllamaClient
+
+# No API key needed!
+client = OllamaClient(
+    base_url="http://localhost:11434/v1",  # Default
+)
+
+# Use local Llama
+tinman = await create_tinman(model_client=client)
+
+# Use Qwen
+response = await client.complete(
+    messages=[{"role": "user", "content": "Hello"}],
+    model="qwen2.5",
+)
+
+# List locally available models
+models = await client.list_local_models()
+print(models)  # ['llama3.1', 'qwen2.5', ...]
+```
+
+**Popular Ollama models:**
+
+| Model | Command | Size |
+|-------|---------|------|
+| Llama 3.1 | `ollama pull llama3.1` | 8B default |
+| Qwen 2.5 | `ollama pull qwen2.5` | 7B default |
+| DeepSeek R1 | `ollama pull deepseek-r1` | Various |
+| DeepSeek Coder | `ollama pull deepseek-coder-v2` | 16B |
+| Mistral | `ollama pull mistral` | 7B |
+| Mixtral | `ollama pull mixtral` | 8x7B |
+| CodeLlama | `ollama pull codellama` | 7B default |
+
+---
+
+### Together Client
+
+Fast inference for open models with $25 free credits for new accounts.
+
+```python
+from tinman.integrations import TogetherClient
+
+client = TogetherClient(
+    api_key="...",  # Or set TOGETHER_API_KEY env var
+)
+
+# Use DeepSeek V3
+tinman = await create_tinman(model_client=client)
+
+response = await client.complete(
+    messages=[{"role": "user", "content": "Hello"}],
+    model="deepseek-v3",
+)
+```
+
+**Available models:**
+
+| Shorthand | Full Model ID |
+|-----------|---------------|
+| `deepseek-v3` | `deepseek-ai/DeepSeek-V3` |
+| `deepseek-r1` | `deepseek-ai/DeepSeek-R1` |
+| `llama-3.1-405b` | `meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo` |
+| `llama-3.1-70b` | `meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo` |
+| `qwen-2.5-72b` | `Qwen/Qwen2.5-72B-Instruct-Turbo` |
+| `mixtral-8x22b` | `mistralai/Mixtral-8x22B-Instruct-v0.1` |
+
+Get API key: https://api.together.xyz
+
+---
+
 ### Custom Model Client
 
 Implement `ModelClient` for any LLM provider:

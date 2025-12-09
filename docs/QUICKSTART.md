@@ -8,7 +8,18 @@ Get Tinman running and discover your first failure in under 5 minutes.
 
 - Python 3.10 or higher
 - PostgreSQL database (or SQLite for quick testing)
-- API key for OpenAI or Anthropic
+- An LLM API key (see options below)
+
+### Model Provider Options
+
+| Provider | Cost | Setup |
+|----------|------|-------|
+| **Ollama** | Free (local) | `ollama pull llama3.1` |
+| **Groq** | Free tier (14,400/day) | Get key at groq.com |
+| **OpenRouter** | Many free models | Get key at openrouter.ai |
+| **Together** | $25 free credits | Get key at together.xyz |
+| **OpenAI** | Paid | Get key at openai.com |
+| **Anthropic** | Paid | Get key at anthropic.com |
 
 ---
 
@@ -51,10 +62,24 @@ createdb tinman
 ### Step 3: Set Environment Variables
 
 ```bash
-# For OpenAI
+# Pick ONE of these based on your provider:
+
+# For Ollama (local, free) - no key needed!
+# Just make sure Ollama is running: ollama serve
+
+# For Groq (fast, free tier)
+export GROQ_API_KEY="gsk_..."
+
+# For OpenRouter (many free models)
+export OPENROUTER_API_KEY="sk-or-..."
+
+# For Together ($25 free credits)
+export TOGETHER_API_KEY="..."
+
+# For OpenAI (paid)
 export OPENAI_API_KEY="sk-..."
 
-# For Anthropic
+# For Anthropic (paid)
 export ANTHROPIC_API_KEY="sk-ant-..."
 ```
 

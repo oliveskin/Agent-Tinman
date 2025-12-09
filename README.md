@@ -64,8 +64,19 @@ pip install tinman-fdra[all]        # All providers
 
 ### Requirements
 - Python 3.10+
-- PostgreSQL (for persistent memory graph)
-- API key for your LLM provider
+- PostgreSQL (for persistent memory graph) or SQLite for testing
+- An LLM provider (see supported models below)
+
+### Supported Model Providers
+
+| Provider | Cost | Best For |
+|----------|------|----------|
+| **Ollama** | Free (local) | Privacy, offline, unlimited |
+| **Groq** | Free tier | Speed, high volume |
+| **OpenRouter** | Many free models | Variety, DeepSeek, Qwen |
+| **Together** | $25 free credits | Quality open models |
+| **OpenAI** | Paid | GPT-4 |
+| **Anthropic** | Paid | Claude |
 
 ---
 
