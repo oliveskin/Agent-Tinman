@@ -44,6 +44,10 @@ from .taxonomy.classifiers import FailureClassifier
 from .integrations.model_client import ModelClient, ModelResponse
 from .integrations.openai_client import OpenAIClient
 from .integrations.anthropic_client import AnthropicClient
+from .integrations.openrouter_client import OpenRouterClient
+from .integrations.groq_client import GroqClient
+from .integrations.ollama_client import OllamaClient
+from .integrations.together_client import TogetherClient
 from .integrations.pipeline_adapter import PipelineAdapter
 
 # Reporting
@@ -89,11 +93,16 @@ __all__ = [
     "FailureClass",
     "Severity",
     "FailureClassifier",
-    # Integrations
+    # Integrations - Proprietary
     "ModelClient",
     "ModelResponse",
     "OpenAIClient",
     "AnthropicClient",
+    # Integrations - Open Models
+    "OpenRouterClient",  # DeepSeek, Qwen, Llama, Mistral
+    "GroqClient",        # Fast inference, free tier
+    "OllamaClient",      # Local models, free
+    "TogetherClient",    # Open models, free credits
     "PipelineAdapter",
     # Reporting
     "LabReporter",
