@@ -31,6 +31,7 @@ ENV/
 *.swp
 *.swo
 *~
+.claude/
 
 # Testing
 .coverage

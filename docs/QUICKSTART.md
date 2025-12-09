@@ -39,6 +39,11 @@ pip install tinman-fdra[anthropic]
 
 # With all providers
 pip install tinman-fdra[all]
+
+# Development installation (from source)
+git clone https://github.com/oliveskin/agent_tinman.git
+cd agent_tinman
+pip install -e ".[dev]"
 ```
 
 ### Step 2: Set Up Database
@@ -412,6 +417,73 @@ Read [PRODUCTION.md](PRODUCTION.md) for:
 - Prometheus metrics setup
 - Cost controls and budget enforcement
 - Operational runbook
+
+---
+
+## Development & Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run with coverage report
+pytest --cov=tinman
+
+# Run specific test file
+pytest tests/test_risk_evaluation.py
+
+# Run specific test
+pytest tests/test_risk_evaluation.py::TestRiskEvaluator::test_destructive_always_blocked
+
+# Verbose output
+pytest -v
+
+# Stop on first failure
+pytest -x
+```
+
+### Test Categories
+
+| Test File | Coverage |
+|-----------|----------|
+| `test_risk_evaluation.py` | Risk evaluator, severity, policy-driven evaluation |
+| `test_guarded_tools.py` | Tool registry, guarded_call, blocking, approval flow |
+| `test_audit.py` | AuditLogger, approval decisions, mode transitions |
+| `test_approval_flow.py` | Full HITL flow including timeouts |
+| `test_ingest.py` | OTLP, Datadog, X-Ray, JSON trace adapters |
+| `test_agents.py` | Hypothesis engine, experiment executor |
+| `test_memory.py` | Memory graph operations |
+
+### Code Quality
+
+```bash
+# Type checking
+mypy tinman
+
+# Linting
+ruff check tinman
+
+# Format code
+ruff format tinman
+```
+
+### Database Migrations (Development)
+
+```bash
+# Create new migration after model changes
+alembic revision --autogenerate -m "description"
+
+# Apply migrations
+alembic upgrade head
+
+# Rollback one version
+alembic downgrade -1
+
+# Check current version
+alembic current
+```
 
 ---
 

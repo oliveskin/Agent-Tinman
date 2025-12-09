@@ -62,6 +62,27 @@ pip install tinman-fdra[anthropic]  # Anthropic
 pip install tinman-fdra[all]        # All providers
 ```
 
+### Development Setup
+
+```bash
+# Clone and install in development mode
+git clone https://github.com/oliveskin/agent_tinman.git
+cd agent_tinman
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Run tests with coverage
+pytest --cov=tinman
+
+# Type checking
+mypy tinman
+
+# Linting
+ruff check tinman
+```
+
 ### Requirements
 - Python 3.10+
 - PostgreSQL (for persistent memory graph) or SQLite for testing
