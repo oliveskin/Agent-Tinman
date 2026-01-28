@@ -29,16 +29,16 @@ Get Tinman running and discover your first failure in under 5 minutes.
 
 ```bash
 # Basic installation
-pip install tinman-fdra
+pip install AgentTinman
 
 # With OpenAI support
-pip install tinman-fdra[openai]
+pip install AgentTinman[openai]
 
 # With Anthropic support
-pip install tinman-fdra[anthropic]
+pip install AgentTinman[anthropic]
 
 # With all providers
-pip install tinman-fdra[all]
+pip install AgentTinman[all]
 
 # Development installation (from source)
 git clone https://github.com/oliveskin/agent_tinman.git

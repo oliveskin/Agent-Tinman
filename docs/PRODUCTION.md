@@ -12,7 +12,7 @@ This document covers deploying Tinman in a production environment with full safe
 
 ```bash
 # Install with all dependencies
-pip install tinman-fdra[all]
+pip install AgentTinman[all]
 
 # Set required environment variables
 export ANTHROPIC_API_KEY=your-key
