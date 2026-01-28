@@ -119,7 +119,7 @@ models:
       model: deepseek/deepseek-chat
     google:
       api_key: ${GOOGLE_API_KEY}
-      model: gemini-1.5-pro
+      model: gemini-2.5-flash
 
 experiments:
   max_parallel: 5

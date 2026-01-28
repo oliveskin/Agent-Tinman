@@ -14,10 +14,10 @@ class GoogleClient(ModelClient):
     """
     Google Gemini API client.
 
-    Uses the google-generativeai SDK (Gemini).
+    Uses the Google Gen AI SDK (`google-genai`).
     """
 
-    DEFAULT_MODEL = "gemini-1.5-pro"
+    DEFAULT_MODEL = "gemini-2.5-flash"
 
     def __init__(self,
                  api_key: Optional[str] = None,
@@ -31,20 +31,24 @@ class GoogleClient(ModelClient):
         return "google"
 
     def _get_client(self):
-        """Lazy initialization of Gemini client."""
+        """Lazy initialization of Gen AI client."""
         if self._client is None:
             try:
-                import google.generativeai as genai
+                from google import genai
 
-                if not self.api_key:
-                    raise ValueError("GOOGLE_API_KEY (or GEMINI_API_KEY) is required for Gemini.")
-
-                genai.configure(api_key=self.api_key)
-                self._client = genai
+                if self.api_key:
+                    self._client = genai.Client(api_key=self.api_key)
+                else:
+                    # Falls back to GEMINI_API_KEY / GOOGLE_API_KEY in the environment.
+                    if not (os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")):
+                        raise ValueError(
+                            "GOOGLE_API_KEY (or GEMINI_API_KEY) is required for Gemini."
+                        )
+                    self._client = genai.Client()
             except ImportError:
                 raise ImportError(
-                    "Google Gemini client requires 'google-generativeai'. "
-                    "Install with: pip install google-generativeai"
+                    "Google Gemini client requires 'google-genai'. "
+                    "Install with: pip install google-genai"
                 )
 
         return self._client
@@ -76,10 +80,10 @@ class GoogleClient(ModelClient):
         start_time = utc_now()
 
         def _call():
-            gen_model = client.GenerativeModel(model_name)
-            return gen_model.generate_content(
-                prompt,
-                generation_config={
+            return client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config={
                     "temperature": temperature,
                     "max_output_tokens": max_tokens,
                 },
@@ -110,11 +114,23 @@ class GoogleClient(ModelClient):
                      max_tokens: int = 4096,
                      **kwargs):
         """Stream a completion response (best-effort, non-streaming fallback)."""
-        response = await self.complete(
-            messages=messages,
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            **kwargs,
-        )
-        yield response.content
+        client = self._get_client()
+        model_name = model or self.DEFAULT_MODEL
+        prompt = self._build_prompt(messages)
+
+        def _call_stream():
+            return client.models.generate_content_stream(
+                model=model_name,
+                contents=prompt,
+                config={
+                    "temperature": temperature,
+                    "max_output_tokens": max_tokens,
+                },
+                **kwargs,
+            )
+
+        stream = await asyncio.to_thread(_call_stream)
+        for chunk in stream:
+            text = getattr(chunk, "text", "")
+            if text:
+                yield text
