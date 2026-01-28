@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
 import yaml
+from textual.worker import NoActiveWorker, get_current_worker
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -22,6 +23,7 @@ from ..config.settings import Settings, load_settings
 from ..core.risk_evaluator import RiskTier
 from ..core.approval_handler import ApprovalContext
 from ..utils import generate_id
+from .. import __version__
 
 if TYPE_CHECKING:
     from ..tinman import Tinman
@@ -205,21 +207,72 @@ class TinmanApp(App):
         return fallback if fallback.exists() else preferred
 
     def _update_config_model(self, provider: str, model: str) -> None:
-        """Persist model provider/model to config without overwriting secrets."""
-        data = {}
+        """Persist model provider/model to config without overwriting comments."""
+        updated = False
+        lines: list[str] = []
+
         if self.config_path.exists():
-            with self.config_path.open("r", encoding="utf-8") as f:
-                data = yaml.safe_load(f) or {}
+            lines = self.config_path.read_text(encoding="utf-8").splitlines()
 
-        models = data.setdefault("models", {})
-        models["default"] = provider
-        providers = models.setdefault("providers", {})
-        provider_block = providers.setdefault(provider, {})
-        provider_block["model"] = model
+        in_models = False
+        in_providers = False
+        in_target_provider = False
 
-        self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        with self.config_path.open("w", encoding="utf-8") as f:
-            yaml.safe_dump(data, f, sort_keys=False)
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+
+            if stripped.startswith("models:"):
+                in_models = True
+                in_providers = False
+                in_target_provider = False
+                continue
+
+            if in_models and stripped.startswith("providers:"):
+                in_providers = True
+                in_target_provider = False
+                continue
+
+            if in_models and stripped.startswith("default:"):
+                indent = line[:line.find("d")] if "d" in line else ""
+                lines[i] = f"{indent}default: {provider}"
+                updated = True
+                continue
+
+            if in_providers and stripped.endswith(":") and not stripped.startswith("#"):
+                current_provider = stripped[:-1]
+                in_target_provider = current_provider == provider
+                continue
+
+            if in_target_provider and stripped.startswith("model:"):
+                indent = line[:line.find("m")] if "m" in line else "    "
+                lines[i] = f"{indent}model: {model}"
+                updated = True
+                in_target_provider = False
+                continue
+
+            if in_models and stripped == "":
+                in_models = False
+                in_providers = False
+                in_target_provider = False
+
+        if not updated:
+            # Fallback to YAML update if we can't safely edit in place.
+            data = {}
+            if self.config_path.exists():
+                data = yaml.safe_load(self.config_path.read_text(encoding="utf-8")) or {}
+
+            models = data.setdefault("models", {})
+            models["default"] = provider
+            providers = models.setdefault("providers", {})
+            provider_block = providers.setdefault(provider, {})
+            provider_block["model"] = model
+
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
+            with self.config_path.open("w", encoding="utf-8") as f:
+                yaml.safe_dump(data, f, sort_keys=False)
+        else:
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
+            self.config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
         # Update in-memory settings too.
         self.settings.models.default = provider
@@ -236,7 +289,7 @@ class TinmanApp(App):
                 with Horizontal():
                     yield Static(TINMAN_ASCII_SMALL, id="ascii-logo")
                     with Vertical(id="status-line"):
-                        yield Static(f"FDRA v0.1.0", id="version")
+                        yield Static(f"FDRA v{__version__}", id="version")
                         yield Static(f"Mode: {self.mode}", id="mode-display")
                         yield Static(f"Status: {self.status}", id="status-display")
 
@@ -443,8 +496,11 @@ class TinmanApp(App):
         except Exception:
             pass
 
-    async def action_config_model(self) -> None:
+    def action_config_model(self) -> None:
         """Open the model configuration modal."""
+        self.run_worker(self._config_model_worker(), exclusive=True)
+
+    async def _config_model_worker(self) -> None:
         provider = self.settings.models.default
         provider_settings = self.settings.models.providers.get(provider)
         model = provider_settings.model if provider_settings else ""
@@ -473,7 +529,7 @@ class TinmanApp(App):
 
         # Research controls
         if button_id == "start-research":
-            await self._start_research()
+            self.run_worker(self._start_research(), exclusive=True)
         elif button_id == "pause-research":
             self.status = "PAUSED"
             self.query_one("#status-display", Static).update(f"Status: {self.status}")
@@ -499,7 +555,7 @@ class TinmanApp(App):
         elif button_id == "design-intervention":
             await self._design_intervention()
         elif button_id == "simulate-intervention":
-            await self._simulate_intervention()
+            self.run_worker(self._simulate_intervention(), exclusive=True)
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle input submissions."""
@@ -684,14 +740,13 @@ class TinmanApp(App):
         except Exception:
             pass
 
-    async def request_approval(
+    async def _request_approval_modal(
         self,
         action: str,
         risk_tier: RiskTier,
         details: str,
         cost: Optional[str] = None,
     ) -> bool:
-        """Request user approval for an action."""
         tier_str = {
             RiskTier.SAFE: "SAFE (Tier 1)",
             RiskTier.REVIEW: "REVIEW (Tier 2)",
@@ -704,6 +759,24 @@ class TinmanApp(App):
             details=details,
             cost=cost,
         ))
+
+    async def request_approval(
+        self,
+        action: str,
+        risk_tier: RiskTier,
+        details: str,
+        cost: Optional[str] = None,
+    ) -> bool:
+        """Request user approval for an action."""
+        try:
+            get_current_worker()
+            return await self._request_approval_modal(action, risk_tier, details, cost)
+        except NoActiveWorker:
+            worker = self.run_worker(
+                self._request_approval_modal(action, risk_tier, details, cost),
+                exclusive=True,
+            )
+            return await worker.wait()
 
 
 def run_tui(settings: Optional[Settings] = None) -> None:
