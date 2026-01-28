@@ -203,7 +203,7 @@ class ModeTransition(Base):
 
     # Context
     reason = Column(Text, nullable=True)
-    metadata = Column(JSONB, nullable=True)
+    transition_metadata = Column("metadata", JSONB, nullable=True)
 
     __table_args__ = (
         Index("idx_mode_transition_timestamp", "timestamp"),
@@ -430,7 +430,7 @@ class AuditLogger:
             initiated_by=initiated_by,
             session_id=self._session_id,
             reason=reason,
-            metadata=metadata,
+            transition_metadata=metadata,
         )
 
         self.session.add(transition_entry)
