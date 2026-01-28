@@ -359,9 +359,11 @@ class TinmanApp(App):
         yield Static("Focus Area:", classes="progress-label")
         yield Input(placeholder="e.g., tool_use, long_context, reasoning", id="focus-input")
         yield Static("")
+        yield Static("Run Controls:", classes="progress-label")
         yield Horizontal(
             Button("▶ Start Run", id="start-run", variant="success"),
             Button("Stop", id="stop-run", variant="error"),
+            classes="cta-row",
         )
         yield Static("")
         yield Static("─── Activity Log ───", classes="panel-title")
