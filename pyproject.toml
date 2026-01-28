@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tinman"
-version = "0.1.0"
+version = "0.1.1"
 description = "Forward-Deployed Research Agent for AI system failure discovery"
 readme = "README.md"
 license = "Apache-2.0"
