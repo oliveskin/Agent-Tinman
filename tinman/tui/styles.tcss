@@ -128,17 +128,21 @@ Screen {
     padding: 1;
 }
 
-.tab-scroll {
-    height: 1fr;
-    overflow-y: auto;
-}
-
 TabbedContent {
     height: 1fr;
+    layout: vertical;
 }
 
 TabPane {
     height: 1fr;
+    width: 100%;
+    layout: vertical;
+}
+
+.tab-scroll {
+    height: 1fr;
+    width: 100%;
+    overflow-y: auto;
 }
 
 .panel-title {
