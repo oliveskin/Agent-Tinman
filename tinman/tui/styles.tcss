@@ -248,3 +248,15 @@ ScrollbarSlider:hover {
 LoadingIndicator {
     color: $accent;
 }
+.status-muted {
+    color: $muted;
+}
+
+.status-ok {
+    color: $success;
+    text-style: bold;
+}
+
+.status-warn {
+    color: $warning;
+}

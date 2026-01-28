@@ -170,10 +170,10 @@ class TinmanApp(App):
     CSS_PATH = "styles.tcss"
 
     BINDINGS = [
-        Binding("f1", "switch_tab('research')", "Research", show=True),
-        Binding("f2", "switch_tab('hypotheses')", "Hypotheses", show=True),
-        Binding("f3", "switch_tab('failures')", "Failures", show=True),
-        Binding("f4", "switch_tab('intervene')", "Intervene", show=True),
+        Binding("f1", "switch_tab('setup')", "Setup", show=True),
+        Binding("f2", "switch_tab('run')", "Run", show=True),
+        Binding("f3", "switch_tab('review')", "Review", show=True),
+        Binding("f4", "switch_tab('actions')", "Actions", show=True),
         Binding("f5", "switch_tab('discuss')", "Discuss", show=True),
         Binding("f6", "config_model", "Model", show=True),
         Binding("f10", "quit", "Quit", show=True),
@@ -200,6 +200,10 @@ class TinmanApp(App):
         self._last_results: dict = {}
         self._last_focus: Optional[str] = None
         self._chat_inflight = False
+        self._run_inflight = False
+        self._setup_status: dict[str, str] = {}
+        self._selected_failure_id: Optional[str] = None
+        self._selected_intervention_id: Optional[str] = None
 
     def _resolve_config_path(self) -> Path:
         """Pick the config path Tinman should read/write."""
@@ -298,23 +302,23 @@ class TinmanApp(App):
 
             # Navigation buttons
             with Horizontal(id="nav-bar"):
-                yield Button("[F1] Research", id="nav-research", classes="-active")
-                yield Button("[F2] Hypotheses", id="nav-hypotheses")
-                yield Button("[F3] Failures", id="nav-failures")
-                yield Button("[F4] Intervene", id="nav-intervene")
+                yield Button("[F1] Setup", id="nav-setup", classes="-active")
+                yield Button("[F2] Run", id="nav-run")
+                yield Button("[F3] Review", id="nav-review")
+                yield Button("[F4] Actions", id="nav-actions")
                 yield Button("[F5] Discuss", id="nav-discuss")
                 yield Button("[F6] Model", id="nav-model")
 
             # Main content with tabs
             with TabbedContent(id="content"):
-                with TabPane("Research", id="research"):
-                    yield from self._create_research_panel()
-                with TabPane("Hypotheses", id="hypotheses"):
-                    yield from self._create_hypotheses_panel()
-                with TabPane("Failures", id="failures"):
-                    yield from self._create_failures_panel()
-                with TabPane("Intervene", id="intervene"):
-                    yield from self._create_intervention_panel()
+                with TabPane("Setup", id="setup"):
+                    yield from self._create_setup_panel()
+                with TabPane("Run", id="run"):
+                    yield from self._create_run_panel()
+                with TabPane("Review", id="review"):
+                    yield from self._create_review_panel()
+                with TabPane("Actions", id="actions"):
+                    yield from self._create_actions_panel()
                 with TabPane("Discuss", id="discuss"):
                     yield from self._create_discuss_panel()
 
@@ -329,71 +333,86 @@ class TinmanApp(App):
                 yield Static(" │ ", classes="metric-label")
                 yield Static("", id="clock", classes="metric-value")
 
-    def _create_research_panel(self):
-        """Create the research control panel."""
-        yield Static("═══ RESEARCH CONTROL ═══", classes="panel-title")
+    def _create_setup_panel(self):
+        """Create the setup panel."""
+        yield Static("═══ SETUP CHECKLIST ═══", classes="panel-title")
+        yield Static("")
+        yield Static("Model configured:", classes="progress-label")
+        yield Static("Unknown", id="setup-model-status", classes="status-muted")
+        yield Static("API key detected:", classes="progress-label")
+        yield Static("Unknown", id="setup-key-status", classes="status-muted")
+        yield Static("Database connected:", classes="progress-label")
+        yield Static("Unknown", id="setup-db-status", classes="status-muted")
         yield Static("")
         yield Horizontal(
-            Button("▶ Start Research", id="start-research", variant="success"),
-            Button("⏸ Pause", id="pause-research", variant="warning"),
-            Button("⏹ Stop", id="stop-research", variant="error"),
+            Button("Configure Model", id="setup-configure-model", variant="primary"),
+            Button("Reload Settings", id="setup-reload", variant="default"),
+            Button("Check DB", id="setup-check-db", variant="warning"),
         )
         yield Static("")
+        yield Static("Tip: Use F6 to open the model picker anytime.", classes="empty-state")
+
+    def _create_run_panel(self):
+        """Create the run panel."""
+        yield Static("═══ RUN RESEARCH ═══", classes="panel-title")
+        yield Static("")
         yield Static("Focus Area:", classes="progress-label")
-        yield Input(placeholder="e.g., long_context, tool_use, reasoning", id="focus-input")
+        yield Input(placeholder="e.g., tool_use, long_context, reasoning", id="focus-input")
+        yield Static("")
+        yield Horizontal(
+            Button("▶ Start Run", id="start-run", variant="success"),
+            Button("Stop", id="stop-run", variant="error"),
+        )
         yield Static("")
         yield Static("─── Activity Log ───", classes="panel-title")
         yield ScrollableContainer(
-            Static("Ready. Press [F1] or click 'Start Research' to begin.", id="log-content"),
+            Static("Configure a model, then start a run.", id="log-content"),
             id="activity-log"
         )
 
-    def _create_hypotheses_panel(self):
-        """Create the hypotheses browser panel."""
-        yield Static("═══ HYPOTHESES ═══", classes="panel-title")
-        table = DataTable(id="hypotheses-table")
+    def _create_review_panel(self):
+        """Create the review panel."""
+        yield Static("═══ REVIEW RESULTS ═══", classes="panel-title")
+        yield Static("")
+        yield Static("Summary", classes="progress-label")
+        yield Static("Run not started yet.", id="review-summary", classes="empty-state")
+        yield Static("")
+        yield Static("Hypotheses", classes="panel-title")
+        table = DataTable(id="review-hypotheses-table")
         table.add_columns("ID", "Hypothesis", "Confidence", "Status")
         yield table
-        yield Static("No hypotheses yet. Run a research cycle to generate them.", id="hypotheses-empty",
-                     classes="empty-state")
+        yield Static("No hypotheses yet.", id="review-hypotheses-empty", classes="empty-state")
         yield Static("")
-        yield Horizontal(
-            Button("Generate New", id="gen-hypothesis", variant="primary"),
-            Button("Test Selected", id="test-hypothesis", variant="success"),
-            Button("Archive", id="archive-hypothesis", variant="default"),
-        )
-
-    def _create_failures_panel(self):
-        """Create the failures list panel."""
-        yield Static("═══ DISCOVERED FAILURES ═══", classes="panel-title")
-        table = DataTable(id="failures-table")
+        yield Static("Failures", classes="panel-title")
+        table = DataTable(id="review-failures-table")
         table.add_columns("Sev", "Class", "Description", "Repro%", "Status")
         yield table
-        yield Static("No failures recorded yet. Run research to discover failures.", id="failures-empty",
-                     classes="empty-state")
+        yield Static("No failures yet.", id="review-failures-empty", classes="empty-state")
         yield Static("")
-        yield Horizontal(
-            Button("Refresh", id="refresh-failures", variant="default"),
-            Button("Investigate", id="investigate-failure", variant="primary"),
-            Button("Mark Resolved", id="resolve-failure", variant="success"),
-        )
-
-    def _create_intervention_panel(self):
-        """Create the intervention design panel."""
-        yield Static("═══ INTERVENTIONS ═══", classes="panel-title")
-        yield Static("")
-        yield Static("Select a failure from [F3] Failures to design interventions.", classes="empty-state")
-        yield Static("")
-        table = DataTable(id="interventions-table")
+        yield Static("Interventions", classes="panel-title")
+        table = DataTable(id="review-interventions-table")
         table.add_columns("ID", "Type", "Target Failure", "Est. Effect", "Status")
         yield table
-        yield Static("No interventions yet. Generate after failures are discovered.",
-                     id="interventions-empty", classes="empty-state")
+        yield Static("No interventions yet.", id="review-interventions-empty", classes="empty-state")
+
+    def _create_actions_panel(self):
+        """Create the actions panel."""
+        yield Static("═══ ACTIONS ═══", classes="panel-title")
+        yield Static("")
+        yield Static("Select a failure to design interventions.", classes="empty-state")
+        table = DataTable(id="actions-failures-table")
+        table.add_columns("ID", "Class", "Description")
+        yield table
+        yield Static("")
+        yield Static("Interventions", classes="panel-title")
+        table = DataTable(id="actions-interventions-table")
+        table.add_columns("ID", "Type", "Target", "Status")
+        yield table
         yield Static("")
         yield Horizontal(
-            Button("Design New", id="design-intervention", variant="primary"),
-            Button("Simulate", id="simulate-intervention", variant="warning"),
-            Button("Deploy", id="deploy-intervention", variant="success"),
+            Button("Design Intervention", id="action-design", variant="primary"),
+            Button("Simulate", id="action-simulate", variant="warning"),
+            Button("Deploy", id="action-deploy", variant="success"),
         )
 
     def _create_discuss_panel(self):
@@ -417,6 +436,7 @@ class TinmanApp(App):
 
         # Initialize Tinman in background
         self.run_worker(self._init_tinman())
+        self.run_worker(self._refresh_setup_status())
 
     async def _init_tinman(self) -> None:
         """Initialize Tinman instance."""
@@ -447,6 +467,44 @@ class TinmanApp(App):
             self.log_message("Tinman core initialized with HITL approval", "success")
         except Exception as e:
             self.log_message(f"Tinman init warning: {e}", "warning")
+
+    async def _refresh_setup_status(self) -> None:
+        """Refresh setup checklist status."""
+        model_provider = self.settings.models.default
+        provider_settings = self.settings.models.providers.get(model_provider)
+        model_name = provider_settings.model if provider_settings else ""
+        api_key = provider_settings.api_key if provider_settings else ""
+
+        model_ok = bool(model_provider and model_name)
+        key_ok = bool(api_key)
+
+        db_ok = False
+        try:
+            from sqlalchemy import create_engine
+            engine = create_engine(self.settings.database_url)
+            with engine.connect():
+                db_ok = True
+        except Exception:
+            db_ok = False
+
+        self._setup_status = {
+            "model": ("OK" if model_ok else "Missing"),
+            "key": ("OK" if key_ok else "Missing"),
+            "db": ("OK" if db_ok else "Not connected"),
+        }
+
+        def _apply_status(widget_id: str, ok: bool, text: str) -> None:
+            try:
+                widget = self.query_one(f"#{widget_id}", Static)
+                widget.update(text)
+                widget.remove_class("status-ok", "status-warn", "status-muted")
+                widget.add_class("status-ok" if ok else "status-warn")
+            except Exception:
+                pass
+
+        _apply_status("setup-model-status", model_ok, self._setup_status["model"])
+        _apply_status("setup-key-status", key_ok, self._setup_status["key"])
+        _apply_status("setup-db-status", db_ok, self._setup_status["db"])
 
     async def _tui_approval_callback(self, context: ApprovalContext) -> bool:
         """
@@ -564,35 +622,33 @@ class TinmanApp(App):
             self.action_switch_tab(tab)
             return
 
-        # Research controls
-        if button_id == "start-research":
-            self.run_worker(self._start_research(), exclusive=True)
-        elif button_id == "pause-research":
-            self.status = "PAUSED"
-            self.query_one("#status-display", Static).update(f"Status: {self.status}")
-            self.log_message("Research paused", "warning")
-        elif button_id == "stop-research":
+        # Setup controls
+        if button_id == "setup-configure-model":
+            self.action_config_model()
+        elif button_id == "setup-reload":
+            self.settings = load_settings()
+            self.run_worker(self._refresh_setup_status())
+            self.log_message("Settings reloaded", "success")
+        elif button_id == "setup-check-db":
+            self.run_worker(self._refresh_setup_status())
+            self.log_message("Database check complete", "info")
+
+        # Run controls
+        elif button_id == "start-run":
+            if not self._run_inflight:
+                self.run_worker(self._start_research(), exclusive=True)
+        elif button_id == "stop-run":
             self.status = "IDLE"
             self.query_one("#status-display", Static).update(f"Status: {self.status}")
-            self.log_message("Research stopped", "info")
+            self.log_message("Run stopped", "warning")
 
-        # Hypothesis controls
-        elif button_id == "gen-hypothesis":
-            await self._generate_hypotheses()
-        elif button_id == "test-hypothesis":
-            self.log_message("Testing selected hypothesis...", "info")
-
-        # Failure controls
-        elif button_id == "refresh-failures":
-            await self._refresh_failures()
-        elif button_id == "investigate-failure":
-            self.log_message("Opening failure investigation...", "info")
-
-        # Intervention controls
-        elif button_id == "design-intervention":
-            await self._design_intervention()
-        elif button_id == "simulate-intervention":
-            self.run_worker(self._simulate_intervention(), exclusive=True)
+        # Actions controls
+        elif button_id == "action-design":
+            self.log_message("Design requires a selected failure and LLM support.", "warning")
+        elif button_id == "action-simulate":
+            self.log_message("Simulation requires a selected intervention.", "warning")
+        elif button_id == "action-deploy":
+            self.log_message("Deploy requires production approvals.", "warning")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle input submissions."""
@@ -600,8 +656,20 @@ class TinmanApp(App):
             self.run_worker(self._handle_chat(event.value), exclusive=True)
             event.input.value = ""
 
+    async def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        table_id = event.data_table.id
+        if table_id == "actions-failures-table":
+            row = event.data_table.get_row(event.row_key)
+            self._selected_failure_id = row[0] if row else None
+            self.log_message(f"Selected failure: {self._selected_failure_id}", "info")
+        elif table_id == "actions-interventions-table":
+            row = event.data_table.get_row(event.row_key)
+            self._selected_intervention_id = row[0] if row else None
+            self.log_message(f"Selected intervention: {self._selected_intervention_id}", "info")
+
     async def _start_research(self) -> None:
         """Start a research cycle."""
+        self._run_inflight = True
         self.status = "RUNNING"
         self.query_one("#status-display", Static).update(f"Status: {self.status}")
 
@@ -616,6 +684,7 @@ class TinmanApp(App):
             self.log_message("No LLM configured. Update models in config to run research.", "warning")
             self.status = "IDLE"
             self.query_one("#status-display", Static).update(f"Status: {self.status}")
+            self._run_inflight = False
             return
 
         try:
@@ -625,52 +694,20 @@ class TinmanApp(App):
             self.log_message(f"Research failed: {e}", "error")
             self.status = "IDLE"
             self.query_one("#status-display", Static).update(f"Status: {self.status}")
+            self._run_inflight = False
             return
 
         self._last_results = results
         self._last_focus = focus
-        self._populate_hypotheses(results.get("hypotheses", []))
-        self._populate_failures(results.get("failures", []))
-        self._populate_interventions(results.get("interventions", []))
+        self._populate_review(results)
+        self._populate_actions(results)
         self.experiment_count = len(results.get("experiments", []))
         self._update_metrics()
         self.log_message("Research cycle complete", "success")
 
         self.status = "IDLE"
         self.query_one("#status-display", Static).update(f"Status: {self.status}")
-
-    async def _generate_hypotheses(self) -> None:
-        """Generate new hypotheses."""
-        if not self.tinman or not self.tinman.hypothesis_engine or not self.tinman.llm:
-            self.log_message("No LLM configured. Update models in config to generate hypotheses.", "warning")
-            return
-
-        self.log_message("Generating hypotheses...", "info")
-        try:
-            from ..agents.base import AgentContext
-            context = AgentContext(mode=OperatingMode(self.mode.lower()))
-            result = await self.tinman.hypothesis_engine.run(context)
-            if not result.success:
-                self.log_message(f"Hypothesis generation failed: {result.error}", "error")
-                return
-            self._populate_hypotheses(result.data.get("hypotheses", []))
-            self.log_message("Hypotheses generated", "success")
-        except Exception as e:
-            self.log_message(f"Hypothesis generation failed: {e}", "error")
-
-    async def _refresh_failures(self) -> None:
-        """Refresh the failures list."""
-        self.log_message("Refreshing failures...", "info")
-        self._populate_failures([])
-        self.log_message("No recorded failures to display yet.", "warning")
-
-    async def _design_intervention(self) -> None:
-        """Design an intervention for selected failure."""
-        self.log_message("Intervention design requires discovered failures.", "warning")
-
-    async def _simulate_intervention(self) -> None:
-        """Simulate an intervention."""
-        self.log_message("Simulation requires a selected intervention and backend integration.", "warning")
+        self._run_inflight = False
 
     async def _handle_chat(self, message: str) -> None:
         """Handle chat message."""
@@ -724,49 +761,79 @@ class TinmanApp(App):
         except Exception:
             pass
 
-    def _populate_hypotheses(self, hypotheses: list[dict]) -> None:
-        table = self.query_one("#hypotheses-table", DataTable)
-        table.clear()
+    def _populate_review(self, results: dict) -> None:
+        hypotheses = results.get("hypotheses", [])
+        failures = results.get("failures", [])
+        interventions = results.get("interventions", [])
+
+        summary = (
+            f"Hypotheses: {len(hypotheses)} • "
+            f"Experiments: {len(results.get('experiments', []))} • "
+            f"Failures: {len(failures)} • "
+            f"Interventions: {len(interventions)}"
+        )
+        try:
+            self.query_one("#review-summary", Static).update(summary)
+        except Exception:
+            pass
+
+        h_table = self.query_one("#review-hypotheses-table", DataTable)
+        h_table.clear()
         for h in hypotheses:
-            table.add_row(
+            h_table.add_row(
                 h.get("id", ""),
                 h.get("expected_failure", ""),
                 f"{h.get('confidence', 0):.2f}",
                 h.get("priority", "new"),
             )
-        self.hypothesis_count = len(hypotheses)
-        self._update_metrics()
-        self._toggle_empty("hypotheses-empty", self.hypothesis_count == 0)
+        self._toggle_empty("review-hypotheses-empty", len(hypotheses) == 0)
 
-    def _populate_failures(self, failures: list[dict]) -> None:
-        table = self.query_one("#failures-table", DataTable)
-        table.clear()
+        f_table = self.query_one("#review-failures-table", DataTable)
+        f_table.clear()
         for f in failures:
-            table.add_row(
+            f_table.add_row(
                 f.get("severity", ""),
                 f.get("primary_class", ""),
                 f.get("description", "")[:80],
                 f"{int((f.get('reproducibility', 0) or 0) * 100)}%",
                 "new" if f.get("is_novel") else "active",
             )
-        self.failure_count = len(failures)
-        self._update_metrics()
-        self._toggle_empty("failures-empty", self.failure_count == 0)
+        self._toggle_empty("review-failures-empty", len(failures) == 0)
 
-    def _populate_interventions(self, interventions: list[dict]) -> None:
-        table = self.query_one("#interventions-table", DataTable)
-        table.clear()
+        i_table = self.query_one("#review-interventions-table", DataTable)
+        i_table.clear()
         for i in interventions:
-            table.add_row(
+            i_table.add_row(
                 i.get("id", ""),
                 i.get("intervention_type", ""),
                 i.get("target_failure_id", ""),
                 i.get("expected_improvement", ""),
                 i.get("status", "proposed"),
             )
-        self.intervention_count = len(interventions)
-        self._update_metrics()
-        self._toggle_empty("interventions-empty", self.intervention_count == 0)
+        self._toggle_empty("review-interventions-empty", len(interventions) == 0)
+
+    def _populate_actions(self, results: dict) -> None:
+        failures = results.get("failures", [])
+        interventions = results.get("interventions", [])
+
+        f_table = self.query_one("#actions-failures-table", DataTable)
+        f_table.clear()
+        for f in failures:
+            f_table.add_row(
+                f.get("id", ""),
+                f.get("primary_class", ""),
+                f.get("description", "")[:80],
+            )
+
+        i_table = self.query_one("#actions-interventions-table", DataTable)
+        i_table.clear()
+        for i in interventions:
+            i_table.add_row(
+                i.get("id", ""),
+                i.get("intervention_type", ""),
+                i.get("target_failure_id", ""),
+                i.get("status", "proposed"),
+            )
 
     def _build_chat_context(self) -> str:
         """Build a compact context summary for discuss."""
