@@ -30,16 +30,20 @@ if TYPE_CHECKING:
 
 
 # ASCII Art Header
-TINMAN_ASCII = """
-████████╗██╗███╗   ██╗███╗   ███╗ █████╗ ███╗   ██╗
-╚══██╔══╝██║████╗  ██║████╗ ████║██╔══██╗████╗  ██║
-   ██║   ██║██╔██╗ ██║██╔████╔██║███████║██╔██╗ ██║
-   ██║   ██║██║╚██╗██║██║╚██╔╝██║██╔══██║██║╚██╗██║
-   ██║   ██║██║ ╚████║██║ ╚═╝ ██║██║  ██║██║ ╚████║
-   ╚═╝   ╚═╝╚═╝  ╚═══╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝"""
+TINMAN_ASCII = r"""
+ _____ _ _   _ __  __    _    _   _
+|_   _| | \ | |  \/  |  / \  | \ | |
+  | | | |  \| | |\/| | / _ \ |  \| |
+  | | | | |\  | |  | |/ ___ \| |\  |
+  |_| |_|_| \_|_|  |_/_/   \_\_| \_|
+"""
 
-TINMAN_ASCII_SMALL = """▀█▀ █ █▄ █ █▀▄▀█ ▄▀█ █▄ █
- █  █ █ ▀█ █ ▀ █ █▀█ █ ▀█"""
+TINMAN_ASCII_SMALL = r"""
+ _______ _ _   _ __  __   _   _
+|_   _ _| | \ | |  \/  | | \ | |
+  | | | | |  \| | |\/| | |  \| |
+  |_| |_|_| |\  |_|  |_| |_| \_|
+"""
 
 
 class ApprovalModal(ModalScreen):
@@ -84,14 +88,14 @@ class ApprovalModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Container(id="approval-modal"):
-            yield Static("⚠ APPROVAL REQUIRED ⚠", classes="modal-title")
+            yield Static("!! APPROVAL REQUIRED !!", classes="modal-title")
             yield Static(f"Action: {self.action}", classes="modal-content")
             yield Static(f"Risk: {self.risk_tier}", classes="modal-content")
             if self.cost:
                 yield Static(f"Est. Cost: {self.cost}", classes="modal-content")
             if not self.is_reversible:
-                yield Static("⚠ WARNING: This action is NOT reversible!", classes="modal-content")
-            yield Static("─" * 50, classes="modal-content")
+                yield Static("!! WARNING: This action is NOT reversible!", classes="modal-content")
+            yield Static("-" * 50, classes="modal-content")
             yield Static(self.details[:300] if self.details else "No details provided", classes="modal-content")
             if self.rollback:
                 yield Static(f"Rollback: {self.rollback[:100]}", classes="modal-content")
@@ -291,51 +295,57 @@ class TinmanApp(App):
     def compose(self) -> ComposeResult:
         """Create the UI layout."""
         with Container(id="main-container"):
-            # Header with ASCII art
-            with Container(id="header"):
-                with Horizontal():
-                    yield Static(TINMAN_ASCII_SMALL, id="ascii-logo")
-                    with Vertical(id="status-line"):
-                        yield Static(f"FDRA v{__version__}", id="version")
-                        yield Static(f"Mode: {self.mode}", id="mode-display")
-                        yield Static(f"Status: {self.status}", id="status-display")
+            with Container(id="terminal-frame"):
+                with Horizontal(id="window-bar"):
+                    yield Static("ooo", id="window-controls")
+                    yield Static("tinman@fdra - research console", id="window-title")
+                    yield Static(f"v{__version__}", id="window-version")
 
-            # Navigation buttons
-            with Horizontal(id="nav-bar"):
-                yield Button("[F1] Setup", id="nav-setup", classes="-active")
-                yield Button("[F2] Run", id="nav-run")
-                yield Button("[F3] Review", id="nav-review")
-                yield Button("[F4] Actions", id="nav-actions")
-                yield Button("[F5] Discuss", id="nav-discuss")
-                yield Button("[F6] Model", id="nav-model")
+                # Header with ASCII art
+                with Container(id="header"):
+                    with Horizontal():
+                        yield Static(TINMAN_ASCII_SMALL, id="ascii-logo")
+                        with Vertical(id="status-line"):
+                            yield Static("Forward-Deployed Research Agent", id="tagline")
+                            yield Static(f"Mode: {self.mode}", id="mode-display")
+                            yield Static(f"Status: {self.status}", id="status-display")
 
-            # Main content with tabs
-            with TabbedContent(id="content"):
-                with TabPane("Setup", id="setup"):
-                    yield from self._create_setup_panel()
-                with TabPane("Run", id="run"):
-                    yield from self._create_run_panel()
-                with TabPane("Review", id="review"):
-                    yield from self._create_review_panel()
-                with TabPane("Actions", id="actions"):
-                    yield from self._create_actions_panel()
-                with TabPane("Discuss", id="discuss"):
-                    yield from self._create_discuss_panel()
+                # Navigation buttons
+                with Horizontal(id="nav-bar"):
+                    yield Button("[F1] Setup", id="nav-setup", classes="-active")
+                    yield Button("[F2] Run", id="nav-run")
+                    yield Button("[F3] Review", id="nav-review")
+                    yield Button("[F4] Actions", id="nav-actions")
+                    yield Button("[F5] Discuss", id="nav-discuss")
+                    yield Button("[F6] Model", id="nav-model")
 
-            # Footer with metrics
-            with Horizontal(id="footer"):
-                yield Static("Hypotheses: ", classes="metric-label")
-                yield Static("0", id="hyp-count", classes="metric-value")
-                yield Static(" │ Experiments: ", classes="metric-label")
-                yield Static("0", id="exp-count", classes="metric-value")
-                yield Static(" │ Failures: ", classes="metric-label")
-                yield Static("0", id="fail-count", classes="metric-value")
-                yield Static(" │ ", classes="metric-label")
-                yield Static("", id="clock", classes="metric-value")
+                # Main content with tabs
+                with TabbedContent(id="content"):
+                    with TabPane("Setup", id="setup"):
+                        yield from self._create_setup_panel()
+                    with TabPane("Run", id="run"):
+                        yield from self._create_run_panel()
+                    with TabPane("Review", id="review"):
+                        yield from self._create_review_panel()
+                    with TabPane("Actions", id="actions"):
+                        yield from self._create_actions_panel()
+                    with TabPane("Discuss", id="discuss"):
+                        yield from self._create_discuss_panel()
+
+                # Footer with metrics
+                with Horizontal(id="footer"):
+                    yield Static("Hypotheses: ", classes="metric-label")
+                    yield Static("0", id="hyp-count", classes="metric-value")
+                    yield Static(" | Experiments: ", classes="metric-label")
+                    yield Static("0", id="exp-count", classes="metric-value")
+                    yield Static(" | Failures: ", classes="metric-label")
+                    yield Static("0", id="fail-count", classes="metric-value")
+                    yield Static(" | ", classes="metric-label")
+                    yield Static("", id="clock", classes="metric-value")
 
     def _create_setup_panel(self):
         """Create the setup panel."""
-        yield Static("═══ SETUP CHECKLIST ═══", classes="panel-title")
+        yield Static("=== SETUP CHECKLIST ===", classes="panel-title")
         yield Static("")
         yield Static("Model configured:", classes="progress-label")
         yield Static("Unknown", id="setup-model-status", classes="status-muted")
@@ -354,19 +364,19 @@ class TinmanApp(App):
 
     def _create_run_panel(self):
         """Create the run panel."""
-        yield Static("═══ RUN RESEARCH ═══", classes="panel-title")
+        yield Static("=== RUN RESEARCH ===", classes="panel-title")
         yield Static("")
         yield Static("Focus Area:", classes="progress-label")
         yield Input(placeholder="e.g., tool_use, long_context, reasoning", id="focus-input")
         yield Static("")
         yield Static("Run Controls:", classes="progress-label")
         yield Horizontal(
-            Button("▶ Start Run", id="start-run", variant="success"),
+            Button("Start Run", id="start-run", variant="success"),
             Button("Stop", id="stop-run", variant="error"),
             classes="cta-row",
         )
         yield Static("")
-        yield Static("─── Activity Log ───", classes="panel-title")
+        yield Static("--- Activity Log ---", classes="panel-title")
         yield ScrollableContainer(
             Static("Configure a model, then start a run.", id="log-content"),
             id="activity-log"
@@ -374,7 +384,7 @@ class TinmanApp(App):
 
     def _create_review_panel(self):
         """Create the review panel."""
-        yield Static("═══ REVIEW RESULTS ═══", classes="panel-title")
+        yield Static("=== REVIEW RESULTS ===", classes="panel-title")
         yield Static("")
         yield Static("Summary", classes="progress-label")
         yield Static("Run not started yet.", id="review-summary", classes="empty-state")
@@ -399,7 +409,7 @@ class TinmanApp(App):
 
     def _create_actions_panel(self):
         """Create the actions panel."""
-        yield Static("═══ ACTIONS ═══", classes="panel-title")
+        yield Static("=== ACTIONS ===", classes="panel-title")
         yield Static("")
         yield Static("Select a failure to design interventions.", classes="empty-state")
         table = DataTable(id="actions-failures-table")
@@ -419,7 +429,7 @@ class TinmanApp(App):
 
     def _create_discuss_panel(self):
         """Create the chat/discuss panel."""
-        yield Static("═══ RESEARCH DIALOGUE ═══", classes="panel-title")
+        yield Static("=== DISCUSS ===", classes="panel-title")
         yield ScrollableContainer(
             Static("No messages yet. Ask a question to start a conversation.", id="chat-empty",
                    classes="empty-state"),
@@ -547,11 +557,11 @@ class TinmanApp(App):
             lines = []
             for msg, lvl, ts in recent:
                 prefix = {
-                    "info": "│",
-                    "success": "▶",
-                    "warning": "⚠",
-                    "error": "✖",
-                }.get(lvl, "│")
+                    "info": "|",
+                    "success": ">",
+                    "warning": "!",
+                    "error": "x",
+                }.get(lvl, "|")
                 time_str = ts.strftime("%H:%M:%S")
                 lines.append(f"{prefix} [{time_str}] {msg}")
 
@@ -769,9 +779,9 @@ class TinmanApp(App):
         interventions = results.get("interventions", [])
 
         summary = (
-            f"Hypotheses: {len(hypotheses)} • "
-            f"Experiments: {len(results.get('experiments', []))} • "
-            f"Failures: {len(failures)} • "
+            f"Hypotheses: {len(hypotheses)} | "
+            f"Experiments: {len(results.get('experiments', []))} | "
+            f"Failures: {len(failures)} | "
             f"Interventions: {len(interventions)}"
         )
         try:

@@ -1,21 +1,19 @@
-/* Tinman TUI - Terminal Card Theme */
+/* Tinman TUI - Terminal Card Theme (ASCII-safe) */
 
-$bg: #070a0f;
-$bg-soft: #0a111a;
-$panel: 50%;
-$panel-bg: #0d141e;
-$panel-strong-bg: #0b121b;
-$border: #1f2a3a;
-$border-strong: #2a3a52;
+$bg: #05070b;
+$frame: #0b1119;
+$surface: #0f1722;
+$surface-2: #121b28;
+$border: #1f2a39;
+$border-strong: #2c3a4f;
 $text: #e6edf3;
-$muted: #8a99b2;
-$accent: #38d996;
-$accent-strong: #00c389;
-$accent-cool: #7bdcff;
-$danger: #ff4d4f;
-$warning: #f2b650;
-$success: #22d37f;
-$glow: #00f5b8;
+$muted: #8b9ab2;
+$accent: #31e8a9;
+$accent-strong: #15c990;
+$accent-cool: #6fd6ff;
+$danger: #ff5c5f;
+$warning: #f6c453;
+$success: #2ee59d;
 
 Screen {
     background: $bg;
@@ -26,94 +24,98 @@ Screen {
     width: 100%;
     height: 100%;
     background: $bg;
+    padding: 1 2;
+}
+
+#terminal-frame {
+    width: 100%;
+    height: 100%;
+    background: $frame;
+    border: round $border-strong;
+    padding: 1 1;
+}
+
+#window-bar {
+    height: 3;
+    width: 100%;
+    background: $surface;
+    border: round $border;
+    padding: 0 1;
+}
+
+#window-controls {
+    width: 6;
+    color: $warning;
+    text-style: bold;
+}
+
+#window-title {
+    width: 1fr;
+    content-align: center middle;
+    color: $muted;
+}
+
+#window-version {
+    width: 8;
+    content-align: right middle;
+    color: $accent-cool;
 }
 
 #header {
-    height: 6;
+    height: 7;
     width: 100%;
-    background: $panel-strong-bg;
-    border: tall $border-strong;
-    padding: 0 2;
-}
-
-#header Static {
-    color: $accent;
-    text-style: bold;
+    background: $surface;
+    border: round $border;
+    padding: 0 1;
 }
 
 #ascii-logo {
     color: $accent;
-}
-
-#status-line Static {
-    color: $muted;
+    text-style: bold;
 }
 
 #status-line {
-    dock: right;
-    width: auto;
-    height: 3;
-    padding-right: 2;
+    width: 1fr;
+    height: 5;
+    padding-left: 1;
 }
 
-#version {
-    color: $accent-cool;
+#tagline {
+    color: $muted;
+}
+
+#status-line Static {
+    color: $text;
 }
 
 #nav-bar {
     height: 3;
     width: 100%;
-    background: $panel-bg;
-    border: solid $border;
+    background: $surface;
+    border: round $border;
     padding: 0 1;
 }
 
 #nav-bar Button {
     background: transparent;
-    color: $text;
+    color: $muted;
     border: none;
     min-width: 14;
     margin: 0 1;
 }
 
-Button {
-    color: $text;
-}
-
-.cta-row Button {
-    min-width: 16;
-    height: 3;
-    content-align: center middle;
-    border: round $border-strong;
-    background: $panel-bg;
-    text-style: bold;
-}
-
-#start-run {
-    background: $success;
-    color: $bg;
-    text-style: bold;
-}
-
-#stop-run {
-    background: $danger;
-    color: $bg;
-    text-style: bold;
-}
-
 #nav-bar Button:hover {
-    background: $panel-strong-bg;
     color: $accent;
 }
 
 #nav-bar Button:focus {
-    background: $panel-strong-bg;
+    background: $surface-2;
     color: $accent;
     text-style: bold;
 }
 
 #nav-bar Button.-active {
-    background: $panel-strong-bg;
+    background: $surface-2;
     color: $accent;
     text-style: bold;
     border: round $accent;
@@ -122,36 +124,74 @@ Button {
 #content {
     width: 100%;
     height: 1fr;
-    background: $bg;
+    background: $frame;
+    padding: 1;
 }
 
 .panel-title {
-    color: $text;
+    color: $accent;
     text-style: bold;
-    background: $panel-bg;
+    background: $surface;
     padding: 0 1;
     border: round $border-strong;
-}
-
-#activity-log {
-    height: 100%;
-    border: round $border;
-    background: $panel-strong-bg;
-    padding: 1;
 }
 
 .progress-label {
     color: $muted;
 }
 
+Button {
+    color: $text;
+    border: round $border;
+    background: $surface;
+}
+
+.cta-row Button {
+    min-width: 16;
+    height: 3;
+    content-align: center middle;
+    text-style: bold;
+}
+
+#start-run {
+    background: $success;
+    color: $bg;
+    border: round $success;
+}
+
+#stop-run {
+    background: $danger;
+    color: $bg;
+    border: round $danger;
+}
+
+Input {
+    height: 3;
+    border: round $border;
+    background: $surface;
+    color: $text;
+    padding: 0 1;
+}
+
+Input:focus {
+    border: round $accent-cool;
+}
+
+#activity-log {
+    height: 1fr;
+    border: round $border;
+    background: $surface;
+    padding: 1;
+}
+
 DataTable {
     height: 1fr;
-    background: $panel-bg;
+    background: $surface;
     border: round $border;
 }
 
 DataTable > .datatable--header {
-    background: $panel-strong-bg;
+    background: $surface-2;
     color: $accent;
     text-style: bold;
 }
@@ -164,7 +204,7 @@ DataTable > .datatable--cursor {
 #chat-log {
     height: 1fr;
     border: round $border;
-    background: $panel-strong-bg;
+    background: $surface;
     padding: 1;
     margin-bottom: 1;
 }
@@ -172,7 +212,7 @@ DataTable > .datatable--cursor {
 #chat-input {
     height: 3;
     border: round $border-strong;
-    background: $panel-bg;
+    background: $surface;
     color: $text;
 }
 
@@ -196,17 +236,19 @@ DataTable > .datatable--cursor {
     padding: 1;
 }
 
-#approval-modal {
+#approval-modal,
+#model-config-modal {
     align: center middle;
     width: 74;
     height: auto;
     max-height: 80%;
     border: round $accent;
-    background: $panel-bg;
+    background: $surface;
     padding: 1 2;
 }
 
-#approval-modal .modal-title {
+#approval-modal .modal-title,
+#model-config-modal Label {
     color: $accent;
     text-style: bold;
     text-align: center;
@@ -218,14 +260,16 @@ DataTable > .datatable--cursor {
     padding: 1 0;
 }
 
-#approval-modal .modal-actions {
+#approval-modal .modal-actions,
+#model-config-modal .modal-actions {
     layout: horizontal;
     align: center middle;
     height: auto;
     padding-top: 1;
 }
 
-#approval-modal Button {
+#approval-modal Button,
+#model-config-modal Button {
     margin: 0 2;
     min-width: 12;
 }
@@ -243,7 +287,7 @@ DataTable > .datatable--cursor {
 }
 
 #approval-modal #details-btn {
-    background: $panel-strong-bg;
+    background: $surface-2;
     color: $accent;
     border: round $accent;
 }
@@ -251,8 +295,8 @@ DataTable > .datatable--cursor {
 #footer {
     height: 3;
     width: 100%;
-    background: $panel-bg;
-    border: solid $border;
+    background: $surface;
+    border: round $border;
     padding: 0 1;
 }
 
@@ -270,11 +314,11 @@ DataTable > .datatable--cursor {
 }
 
 Scrollbar {
-    background: $panel-strong-bg;
+    background: $surface-2;
 }
 
 ScrollbarSlider {
-    background: $border;
+    background: $border-strong;
 }
 
 ScrollbarSlider:hover {
@@ -284,6 +328,7 @@ ScrollbarSlider:hover {
 LoadingIndicator {
     color: $accent;
 }
+
 .status-muted {
     color: $muted;
 }
@@ -295,4 +340,12 @@ LoadingIndicator {
 
 .status-warn {
     color: $warning;
+}
+
+Tabs {
+    display: none;
+}
+
+TabPane {
+    padding: 1;
 }
