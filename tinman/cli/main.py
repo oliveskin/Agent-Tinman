@@ -30,13 +30,22 @@ def get_db_session(settings: Settings):
 def get_model_client(settings: Settings):
     """Get model client based on settings."""
     provider = settings.model_provider
+    provider_settings = settings.models.providers.get(provider)
+    api_key = provider_settings.api_key if provider_settings else None
+    base_url = provider_settings.base_url if provider_settings else None
 
     if provider == "openai":
         from ..integrations.openai_client import OpenAIClient
-        return OpenAIClient()
+        return OpenAIClient(api_key=api_key, base_url=base_url)
     elif provider == "anthropic":
         from ..integrations.anthropic_client import AnthropicClient
-        return AnthropicClient()
+        return AnthropicClient(api_key=api_key, base_url=base_url)
+    elif provider == "openrouter":
+        from ..integrations.openrouter_client import OpenRouterClient
+        return OpenRouterClient(api_key=api_key)
+    elif provider == "google":
+        from ..integrations.google_client import GoogleClient
+        return GoogleClient(api_key=api_key)
 
     return None
 
@@ -105,6 +114,12 @@ models:
     anthropic:
       api_key: ${ANTHROPIC_API_KEY}
       model: claude-3-5-sonnet-20241022
+    openrouter:
+      api_key: ${OPENROUTER_API_KEY}
+      model: deepseek/deepseek-chat
+    google:
+      api_key: ${GOOGLE_API_KEY}
+      model: gemini-1.5-pro
 
 experiments:
   max_parallel: 5

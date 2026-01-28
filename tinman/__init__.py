@@ -45,6 +45,7 @@ from .integrations.model_client import ModelClient, ModelResponse
 from .integrations.openai_client import OpenAIClient
 from .integrations.anthropic_client import AnthropicClient
 from .integrations.openrouter_client import OpenRouterClient
+from .integrations.google_client import GoogleClient
 from .integrations.groq_client import GroqClient
 from .integrations.ollama_client import OllamaClient
 from .integrations.together_client import TogetherClient
@@ -100,6 +101,7 @@ __all__ = [
     "AnthropicClient",
     # Integrations - Open Models
     "OpenRouterClient",  # DeepSeek, Qwen, Llama, Mistral
+    "GoogleClient",      # Gemini models
     "GroqClient",        # Fast inference, free tier
     "OllamaClient",      # Local models, free
     "TogetherClient",    # Open models, free credits
