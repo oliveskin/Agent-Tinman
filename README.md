@@ -124,7 +124,7 @@ ruff check tinman
 tinman init
 ```
 
-This creates `.tinman/config.yaml` with sensible defaults.
+This creates `.tinman/config.yaml` with sensible defaults (SQLite by default).
 
 ### 2. Configure Your Model
 
@@ -360,7 +360,7 @@ mode: lab
 
 # Database configuration
 database:
-  url: postgresql://localhost:5432/tinman
+  url: sqlite:///tinman.db  # Default (no setup required)
   pool_size: 10
 
 # Model providers

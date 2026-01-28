@@ -73,7 +73,7 @@ tinman init
 mode: lab
 
 database:
-  url: postgresql://localhost:5432/tinman
+  url: sqlite:///tinman.db  # Default (no setup required)
   pool_size: 10
 
 models:
@@ -152,18 +152,21 @@ Database connection settings for the memory graph.
 
 ```yaml
 database:
-  url: postgresql://localhost:5432/tinman
+  url: sqlite:///tinman.db  # Default (no setup required)
   pool_size: 10
 ```
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `url` | string | `postgresql://localhost:5432/tinman` | Database connection URL |
+| `url` | string | `sqlite:///tinman.db` | Database connection URL |
 | `pool_size` | int | `10` | Connection pool size |
 
 **Supported Databases:**
 - PostgreSQL (recommended for production)
 - SQLite (for quick testing)
+
+**PostgreSQL setup note:** If you use PostgreSQL, set `database.url` to your
+Postgres DSN and ensure the role and database exist before running Tinman.
 
 **SQLite Example:**
 ```yaml

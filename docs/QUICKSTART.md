@@ -7,7 +7,7 @@ Get Tinman running and discover your first failure in under 5 minutes.
 ## Prerequisites
 
 - Python 3.10 or higher
-- PostgreSQL database (or SQLite for quick testing)
+- SQLite (default, no setup) or PostgreSQL for production
 - An LLM API key (see options below)
 
 ### Model Provider Options
@@ -48,10 +48,13 @@ pip install -e ".[dev]"
 
 ### Step 2: Set Up Database
 
+Tinman defaults to SQLite (`sqlite:///tinman.db`) for quick starts.
+If you want PostgreSQL, set `database.url` in `.tinman/config.yaml` and create the role/database first.
+
 **Option A: PostgreSQL (Recommended for production)**
 
 ```bash
-# Create database
+# Create database (PostgreSQL)
 createdb tinman
 
 # Tinman will create tables automatically on first run
@@ -104,8 +107,8 @@ This creates `.tinman/config.yaml`:
 mode: lab
 
 database:
-  url: postgresql://localhost:5432/tinman
-  # Or for SQLite: url: sqlite:///tinman.db
+  url: sqlite:///tinman.db  # Default (no setup required)
+  # For PostgreSQL: url: postgresql://localhost:5432/tinman
 
 models:
   default: openai
@@ -495,7 +498,8 @@ alembic current
 Error: Could not connect to database
 ```
 
-**Fix:** Check your database URL and ensure the database exists:
+**Fix:** Check your database URL and ensure the database exists. If you want to skip
+PostgreSQL for now, set `database.url` to `sqlite:///tinman.db`:
 ```bash
 # PostgreSQL
 createdb tinman
