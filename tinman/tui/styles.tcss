@@ -25,6 +25,7 @@ Screen {
     height: 100%;
     background: $bg;
     padding: 1 2;
+    layout: vertical;
 }
 
 #terminal-frame {
@@ -33,6 +34,7 @@ Screen {
     background: $frame;
     border: round $border-strong;
     padding: 1 1;
+    layout: vertical;
 }
 
 #window-bar {
@@ -126,6 +128,7 @@ Screen {
     height: 1fr;
     background: $frame;
     padding: 1;
+    layout: vertical;
 }
 
 TabbedContent {
@@ -378,7 +381,11 @@ LoadingIndicator {
 }
 
 Tabs {
-    display: none;
+    height: 1;
+    min-height: 1;
+    background: $frame;
+    color: $frame;
+    border: none;
 }
 
 TabPane {
