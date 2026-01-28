@@ -1,37 +1,40 @@
-/* Tinman TUI - Retro Terminal Styles */
+/* Tinman TUI - Bold Branded Theme */
 
-/* Color scheme - amber/green CRT aesthetic */
-$crt-amber: #ffb000;
-$crt-green: #33ff33;
-$crt-dim: #666600;
-$crt-bg: #0a0a0a;
-$crt-border: #444400;
-$danger: #ff3333;
-$warning: #ffaa00;
-$success: #33ff33;
+$bg: #0b0f14;
+$bg-soft: #0f172a;
+$panel: #121826;
+$panel-strong: #0b1220;
+$border: #243047;
+$text: #e5e7eb;
+$muted: #8b98b8;
+$accent: #ffb020;
+$accent-strong: #ff8a00;
+$accent-cool: #7dd3fc;
+$danger: #ff4d4f;
+$warning: #f5a524;
+$success: #22c55e;
 
 Screen {
-    background: $crt-bg;
+    background: $bg;
+    color: $text;
 }
 
-/* Main container */
 #main-container {
     width: 100%;
     height: 100%;
-    background: $crt-bg;
+    background: $bg;
 }
 
-/* Header with ASCII art */
 #header {
-    height: 9;
+    height: 7;
     width: 100%;
-    background: $crt-bg;
-    border: solid $crt-border;
-    padding: 0 1;
+    background: $panel-strong;
+    border: tall $border;
+    padding: 0 2;
 }
 
 #header Static {
-    color: $crt-amber;
+    color: $accent;
     text-style: bold;
 }
 
@@ -42,200 +45,139 @@ Screen {
     padding-right: 2;
 }
 
-/* Navigation bar */
+#version {
+    color: $accent-cool;
+}
+
 #nav-bar {
     height: 3;
     width: 100%;
-    background: #1a1a00;
-    border: solid $crt-border;
+    background: $panel;
+    border: solid $border;
     padding: 0 1;
 }
 
 #nav-bar Button {
     background: transparent;
-    color: $crt-amber;
+    color: $text;
     border: none;
     min-width: 16;
     margin: 0 1;
 }
 
 #nav-bar Button:hover {
-    background: #333300;
-    color: $crt-green;
+    background: $panel-strong;
+    color: $accent;
 }
 
 #nav-bar Button:focus {
-    background: #444400;
-    color: $crt-green;
+    background: $panel-strong;
+    color: $accent;
     text-style: bold;
 }
 
 #nav-bar Button.-active {
-    background: #444400;
-    color: $crt-green;
+    background: $accent-strong;
+    color: $bg;
     text-style: bold;
 }
 
-/* Main content area */
 #content {
     width: 100%;
     height: 1fr;
-    background: $crt-bg;
-}
-
-/* Panel styling */
-.panel {
-    border: solid $crt-border;
-    background: $crt-bg;
-    padding: 1;
+    background: $bg;
 }
 
 .panel-title {
-    color: $crt-amber;
+    color: $text;
     text-style: bold;
-    background: #1a1a00;
+    background: $panel;
     padding: 0 1;
+    border: round $border;
 }
 
-/* Log/Activity panel */
 #activity-log {
     height: 100%;
-    border: solid $crt-border;
-    background: #050505;
+    border: solid $border;
+    background: $panel-strong;
     padding: 1;
-}
-
-#activity-log .log-entry {
-    color: $crt-green;
-}
-
-#activity-log .log-entry-error {
-    color: $danger;
-}
-
-#activity-log .log-entry-warning {
-    color: $warning;
-}
-
-#activity-log .log-entry-success {
-    color: $success;
-}
-
-/* Research panel */
-#research-panel {
-    padding: 1;
-}
-
-.progress-item {
-    margin-bottom: 1;
 }
 
 .progress-label {
-    color: $crt-amber;
+    color: $muted;
 }
 
-/* Hypotheses panel */
-#hypotheses-panel DataTable {
-    height: 100%;
+DataTable {
+    height: 1fr;
+    background: $panel;
+    border: solid $border;
 }
 
-#hypotheses-panel DataTable > .datatable--header {
-    background: #1a1a00;
-    color: $crt-amber;
+DataTable > .datatable--header {
+    background: $panel-strong;
+    color: $accent;
     text-style: bold;
 }
 
-#hypotheses-panel DataTable > .datatable--cursor {
-    background: #333300;
-    color: $crt-green;
-}
-
-/* Failures panel */
-#failures-panel DataTable {
-    height: 100%;
-}
-
-.severity-s4 {
-    color: #ff0000;
-    text-style: bold;
-}
-
-.severity-s3 {
-    color: #ff6600;
-    text-style: bold;
-}
-
-.severity-s2 {
-    color: #ffaa00;
-}
-
-.severity-s1 {
-    color: #ffff00;
-}
-
-.severity-s0 {
-    color: #aaaaaa;
-}
-
-/* Intervention panel */
-#intervention-panel {
-    padding: 1;
-}
-
-/* Discuss/Chat panel */
-#discuss-panel {
-    padding: 1;
+DataTable > .datatable--cursor {
+    background: $accent-strong;
+    color: $bg;
 }
 
 #chat-log {
     height: 1fr;
-    border: solid $crt-border;
-    background: #050505;
+    border: solid $border;
+    background: $panel-strong;
     padding: 1;
     margin-bottom: 1;
 }
 
 #chat-input {
     height: 3;
-    border: solid $crt-amber;
-    background: #0a0a0a;
-    color: $crt-green;
+    border: solid $accent;
+    background: $panel;
+    color: $text;
 }
 
 #chat-input:focus {
-    border: solid $crt-green;
+    border: solid $accent-cool;
 }
 
 .user-message {
-    color: $crt-amber;
+    color: $accent;
     margin-bottom: 1;
 }
 
 .assistant-message {
-    color: $crt-green;
+    color: $text;
     margin-bottom: 1;
 }
 
-/* Approval modal */
+.empty-state {
+    color: $muted;
+    text-align: center;
+    padding: 1;
+}
+
 #approval-modal {
     align: center middle;
-    width: 70;
+    width: 72;
     height: auto;
     max-height: 80%;
-    border: double $warning;
-    background: #1a1a00;
+    border: double $accent-strong;
+    background: $panel;
     padding: 1 2;
 }
 
 #approval-modal .modal-title {
-    color: $warning;
+    color: $accent;
     text-style: bold;
     text-align: center;
     padding-bottom: 1;
 }
 
 #approval-modal .modal-content {
-    color: $crt-amber;
+    color: $text;
     padding: 1 0;
 }
 
@@ -252,70 +194,56 @@ Screen {
 }
 
 #approval-modal #approve-btn {
-    background: #004400;
-    color: $success;
+    background: $success;
+    color: $bg;
     border: solid $success;
 }
 
 #approval-modal #reject-btn {
-    background: #440000;
-    color: $danger;
+    background: $danger;
+    color: $bg;
     border: solid $danger;
 }
 
 #approval-modal #details-btn {
-    background: #444400;
-    color: $crt-amber;
-    border: solid $crt-amber;
+    background: $panel-strong;
+    color: $accent;
+    border: solid $accent;
 }
 
-/* Footer/Status bar */
 #footer {
     height: 3;
     width: 100%;
-    background: #1a1a00;
-    border: solid $crt-border;
+    background: $panel;
+    border: solid $border;
     padding: 0 1;
 }
 
 #footer Static {
-    color: $crt-dim;
-}
-
-.metric {
-    margin-right: 3;
+    color: $muted;
 }
 
 .metric-label {
-    color: $crt-dim;
+    color: $muted;
 }
 
 .metric-value {
-    color: $crt-amber;
+    color: $accent;
     text-style: bold;
 }
 
-/* Scrollbars - minimal retro style */
 Scrollbar {
-    background: #1a1a00;
+    background: $panel-strong;
 }
 
 ScrollbarSlider {
-    background: $crt-border;
+    background: $border;
 }
 
 ScrollbarSlider:hover {
-    background: $crt-amber;
+    background: $accent;
 }
 
-/* Loading indicator */
 LoadingIndicator {
-    color: $crt-amber;
-}
-
-/* Placeholder text */
-.placeholder {
-    color: $crt-dim;
-    text-align: center;
-    padding: 2;
+    color: $accent;
 }

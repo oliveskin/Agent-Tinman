@@ -300,6 +300,7 @@ class TinmanApp(App):
                 yield Button("[F3] Failures", id="nav-failures")
                 yield Button("[F4] Intervene", id="nav-intervene")
                 yield Button("[F5] Discuss", id="nav-discuss")
+                yield Button("[F6] Model", id="nav-model")
 
             # Main content with tabs
             with TabbedContent(id="content"):
@@ -350,6 +351,8 @@ class TinmanApp(App):
         table = DataTable(id="hypotheses-table")
         table.add_columns("ID", "Hypothesis", "Confidence", "Status")
         yield table
+        yield Static("No hypotheses yet. Run a research cycle to generate them.", id="hypotheses-empty",
+                     classes="empty-state")
         yield Static("")
         yield Horizontal(
             Button("Generate New", id="gen-hypothesis", variant="primary"),
@@ -363,6 +366,8 @@ class TinmanApp(App):
         table = DataTable(id="failures-table")
         table.add_columns("Sev", "Class", "Description", "Repro%", "Status")
         yield table
+        yield Static("No failures recorded yet. Run research to discover failures.", id="failures-empty",
+                     classes="empty-state")
         yield Static("")
         yield Horizontal(
             Button("Refresh", id="refresh-failures", variant="default"),
@@ -374,11 +379,13 @@ class TinmanApp(App):
         """Create the intervention design panel."""
         yield Static("═══ INTERVENTIONS ═══", classes="panel-title")
         yield Static("")
-        yield Static("Select a failure from [F3] Failures to design interventions.", classes="placeholder")
+        yield Static("Select a failure from [F3] Failures to design interventions.", classes="empty-state")
         yield Static("")
         table = DataTable(id="interventions-table")
         table.add_columns("ID", "Type", "Target Failure", "Est. Effect", "Status")
         yield table
+        yield Static("No interventions yet. Generate after failures are discovered.",
+                     id="interventions-empty", classes="empty-state")
         yield Static("")
         yield Horizontal(
             Button("Design New", id="design-intervention", variant="primary"),
@@ -390,7 +397,8 @@ class TinmanApp(App):
         """Create the chat/discuss panel."""
         yield Static("═══ RESEARCH DIALOGUE ═══", classes="panel-title")
         yield ScrollableContainer(
-            Static("TINMAN: Hello! I'm your AI research assistant. Ask me about findings, failures, or research directions.", classes="assistant-message"),
+            Static("No messages yet. Ask a question to start a conversation.", id="chat-empty",
+                   classes="empty-state"),
             id="chat-log"
         )
         yield Input(placeholder="Type your message and press Enter...", id="chat-input")
@@ -399,7 +407,7 @@ class TinmanApp(App):
         """Initialize when app mounts."""
         self.log_message("Tinman TUI initialized", "success")
         self.log_message(f"Mode: {self.mode}", "info")
-        self.log_message("Press F1-F5 to navigate, F10 to quit", "info")
+        self.log_message("Press F1-F6 to navigate, F10 to quit", "info")
 
         # Start clock update
         self.set_interval(1, self._update_clock)
@@ -411,10 +419,25 @@ class TinmanApp(App):
         """Initialize Tinman instance."""
         try:
             from ..tinman import create_tinman
-            self.tinman = await create_tinman(
-                mode=OperatingMode(self.mode.lower()),
-                skip_db=True,  # Start without DB for now
-            )
+            from ..cli.main import get_model_client
+
+            model_client = get_model_client(self.settings)
+            db_url = self.settings.database_url
+
+            try:
+                self.tinman = await create_tinman(
+                    model_client=model_client,
+                    db_url=db_url,
+                    mode=OperatingMode(self.mode.lower()),
+                    skip_db=False,
+                )
+            except Exception as e:
+                self.log_message(f"DB init failed, continuing without DB: {e}", "warning")
+                self.tinman = await create_tinman(
+                    model_client=model_client,
+                    mode=OperatingMode(self.mode.lower()),
+                    skip_db=True,
+                )
 
             # Register TUI as the approval UI
             self.tinman.register_approval_ui(self._tui_approval_callback)
@@ -473,6 +496,14 @@ class TinmanApp(App):
         except Exception:
             pass  # UI not ready yet
 
+    def _toggle_empty(self, widget_id: str, show: bool) -> None:
+        """Show/hide empty-state helpers."""
+        try:
+            widget = self.query_one(f"#{widget_id}", Static)
+            widget.display = show
+        except Exception:
+            pass
+
     def action_switch_tab(self, tab_id: str) -> None:
         """Switch to a specific tab."""
         tabs = self.query_one(TabbedContent)
@@ -523,6 +554,9 @@ class TinmanApp(App):
 
         # Navigation
         if button_id and button_id.startswith("nav-"):
+            if button_id == "nav-model":
+                self.action_config_model()
+                return
             tab = button_id.replace("nav-", "")
             self.action_switch_tab(tab)
             return
@@ -575,109 +609,63 @@ class TinmanApp(App):
         if focus:
             self.log_message(f"Focus area: {focus}", "info")
 
-        # Simulate research with approval check
-        await asyncio.sleep(0.5)
-        self.log_message("Generating hypotheses...", "info")
+        if not self.tinman or not self.tinman.llm:
+            self.log_message("No LLM configured. Update models in config to run research.", "warning")
+            self.status = "IDLE"
+            self.query_one("#status-display", Static).update(f"Status: {self.status}")
+            return
 
-        # Demo: trigger approval modal
-        await asyncio.sleep(1)
-        self.log_message("Found potential experiment requiring approval", "warning")
+        try:
+            self.log_message("Running research cycle...", "info")
+            results = await self.tinman.research_cycle(focus=focus)
+        except Exception as e:
+            self.log_message(f"Research failed: {e}", "error")
+            self.status = "IDLE"
+            self.query_one("#status-display", Static).update(f"Status: {self.status}")
+            return
 
-        approved = await self.push_screen_wait(ApprovalModal(
-            action="Run context_overflow experiment",
-            risk_tier="REVIEW (Tier 2)",
-            details="This experiment will send prompts up to 95% of context window to test model behavior under memory pressure.",
-            cost="~$2.40",
-        ))
-
-        if approved:
-            self.log_message("Experiment approved - executing...", "success")
-            await asyncio.sleep(1)
-            self.log_message("Experiment complete: 3/5 runs triggered failure", "success")
-            self.failure_count += 1
-            self._update_metrics()
-        else:
-            self.log_message("Experiment rejected by user", "warning")
+        self._populate_hypotheses(results.get("hypotheses", []))
+        self._populate_failures(results.get("failures", []))
+        self._populate_interventions(results.get("interventions", []))
+        self.experiment_count = len(results.get("experiments", []))
+        self._update_metrics()
+        self.log_message("Research cycle complete", "success")
 
         self.status = "IDLE"
         self.query_one("#status-display", Static).update(f"Status: {self.status}")
 
     async def _generate_hypotheses(self) -> None:
         """Generate new hypotheses."""
-        self.log_message("Generating hypotheses with LLM backbone...", "info")
+        if not self.tinman or not self.tinman.hypothesis_engine or not self.tinman.llm:
+            self.log_message("No LLM configured. Update models in config to generate hypotheses.", "warning")
+            return
 
-        if not self.tinman or not self.tinman.llm:
-            self.log_message("No LLM configured - using simulated hypotheses", "warning")
-            await asyncio.sleep(1)
-
-            # Add demo hypotheses to table
-            table = self.query_one("#hypotheses-table", DataTable)
-            demo_hypotheses = [
-                ("H001", "Long context causes attention dilution", "0.72", "Testing"),
-                ("H002", "Tool calls fail under recursive depth", "0.65", "New"),
-                ("H003", "System prompts leak in multi-turn", "0.58", "New"),
-            ]
-            for h in demo_hypotheses:
-                table.add_row(*h)
-
-            self.hypothesis_count = 3
-            self._update_metrics()
-            self.log_message("Generated 3 hypotheses", "success")
-        else:
-            self.log_message("Calling hypothesis engine...", "info")
-            # Real implementation would call self.tinman.generate_hypotheses()
+        self.log_message("Generating hypotheses...", "info")
+        try:
+            from ..agents.base import AgentContext
+            context = AgentContext(mode=OperatingMode(self.mode.lower()))
+            result = await self.tinman.hypothesis_engine.run(context)
+            if not result.success:
+                self.log_message(f"Hypothesis generation failed: {result.error}", "error")
+                return
+            self._populate_hypotheses(result.data.get("hypotheses", []))
+            self.log_message("Hypotheses generated", "success")
+        except Exception as e:
+            self.log_message(f"Hypothesis generation failed: {e}", "error")
 
     async def _refresh_failures(self) -> None:
         """Refresh the failures list."""
-        self.log_message("Refreshing failures from memory graph...", "info")
-
-        table = self.query_one("#failures-table", DataTable)
-        table.clear()
-
-        # Demo failures
-        demo_failures = [
-            ("S3", "LONG_CONTEXT", "Truncated response at 95% ctx", "60%", "Active"),
-            ("S2", "TOOL_USE", "Recursive tool loop detected", "40%", "Active"),
-            ("S2", "REASONING", "Logic chain break at step 7", "35%", "New"),
-        ]
-        for f in demo_failures:
-            table.add_row(*f)
-
-        self.failure_count = 3
-        self._update_metrics()
-        self.log_message("Loaded 3 failures", "success")
+        self.log_message("Refreshing failures...", "info")
+        self._populate_failures([])
+        self.log_message("No recorded failures to display yet.", "warning")
 
     async def _design_intervention(self) -> None:
         """Design an intervention for selected failure."""
-        self.log_message("Designing intervention with LLM...", "info")
-        await asyncio.sleep(1)
-
-        table = self.query_one("#interventions-table", DataTable)
-        table.add_row("I001", "Prompt Injection", "Long Context", "+25%", "Designed")
-
-        self.intervention_count += 1
-        self._update_metrics()
-        self.log_message("Intervention designed: Context Window Guard", "success")
+        self.log_message("Intervention design requires discovered failures.", "warning")
 
     async def _simulate_intervention(self) -> None:
         """Simulate an intervention."""
-        self.log_message("Running counterfactual simulation...", "info")
-
-        # Show approval for simulation
-        approved = await self.push_screen_wait(ApprovalModal(
-            action="Run intervention simulation",
-            risk_tier="SAFE (Tier 1)",
-            details="Replay 10 historical failure traces with intervention applied. No production impact.",
-            cost="~$0.80",
-        ))
-
-        if approved:
-            self.log_message("Simulating intervention on 10 traces...", "info")
-            await asyncio.sleep(2)
-            self.log_message("Simulation complete: 7/10 failures prevented", "success")
-            self.log_message("Estimated effectiveness: 70%", "success")
-        else:
-            self.log_message("Simulation cancelled", "info")
+        self.log_message("Simulation requires a selected intervention and backend integration.", "warning")
 
     async def _handle_chat(self, message: str) -> None:
         """Handle chat message."""
@@ -697,20 +685,9 @@ class TinmanApp(App):
             except Exception as e:
                 self._chat_history.append(("assistant", f"Error: {e}"))
         else:
-            # Demo response
-            await asyncio.sleep(0.5)
-            demo_responses = {
-                "status": "Currently in LAB mode. I've analyzed 3 potential failure patterns and found 2 confirmed vulnerabilities.",
-                "failures": "The most critical finding is context truncation at 95% window capacity, with 60% reproduction rate.",
-                "help": "I can help you: generate hypotheses, run experiments, analyze failures, or design interventions. What would you like to explore?",
-            }
-            # Simple keyword matching for demo
-            response = demo_responses.get("help")
-            for key, val in demo_responses.items():
-                if key in message.lower():
-                    response = val
-                    break
-            self._chat_history.append(("assistant", response))
+            self._chat_history.append(
+                ("assistant", "No LLM configured. Set models.default and API key in config.")
+            )
 
         self._update_chat_display()
 
@@ -721,15 +698,64 @@ class TinmanApp(App):
             # Clear and rebuild
             for child in list(chat_log.children):
                 child.remove()
-
-            for role, msg in self._chat_history[-20:]:  # Last 20 messages
-                css_class = "user-message" if role == "user" else "assistant-message"
-                prefix = "YOU: " if role == "user" else "TINMAN: "
-                chat_log.mount(Static(f"{prefix}{msg}", classes=css_class))
+            if not self._chat_history:
+                chat_log.mount(
+                    Static("No messages yet. Ask a question to start a conversation.",
+                           id="chat-empty", classes="empty-state")
+                )
+            else:
+                for role, msg in self._chat_history[-20:]:  # Last 20 messages
+                    css_class = "user-message" if role == "user" else "assistant-message"
+                    prefix = "YOU: " if role == "user" else "TINMAN: "
+                    chat_log.mount(Static(f"{prefix}{msg}", classes=css_class))
 
             chat_log.scroll_end()
         except Exception:
             pass
+
+    def _populate_hypotheses(self, hypotheses: list[dict]) -> None:
+        table = self.query_one("#hypotheses-table", DataTable)
+        table.clear()
+        for h in hypotheses:
+            table.add_row(
+                h.get("id", ""),
+                h.get("expected_failure", ""),
+                f"{h.get('confidence', 0):.2f}",
+                h.get("priority", "new"),
+            )
+        self.hypothesis_count = len(hypotheses)
+        self._update_metrics()
+        self._toggle_empty("hypotheses-empty", self.hypothesis_count == 0)
+
+    def _populate_failures(self, failures: list[dict]) -> None:
+        table = self.query_one("#failures-table", DataTable)
+        table.clear()
+        for f in failures:
+            table.add_row(
+                f.get("severity", ""),
+                f.get("primary_class", ""),
+                f.get("description", "")[:80],
+                f"{int((f.get('reproducibility', 0) or 0) * 100)}%",
+                "new" if f.get("is_novel") else "active",
+            )
+        self.failure_count = len(failures)
+        self._update_metrics()
+        self._toggle_empty("failures-empty", self.failure_count == 0)
+
+    def _populate_interventions(self, interventions: list[dict]) -> None:
+        table = self.query_one("#interventions-table", DataTable)
+        table.clear()
+        for i in interventions:
+            table.add_row(
+                i.get("id", ""),
+                i.get("intervention_type", ""),
+                i.get("target_failure_id", ""),
+                i.get("expected_improvement", ""),
+                i.get("status", "proposed"),
+            )
+        self.intervention_count = len(interventions)
+        self._update_metrics()
+        self._toggle_empty("interventions-empty", self.intervention_count == 0)
 
     def _update_metrics(self) -> None:
         """Update footer metrics."""
