@@ -103,7 +103,7 @@ def init(ctx):
 mode: lab
 
 database:
-  url: postgresql://localhost/tinman
+  url: sqlite:///tinman.db
 
 models:
   default: openai
@@ -161,11 +161,13 @@ def research(ctx, focus: Optional[str], max_hypotheses: int, max_experiments: in
 
         db = get_db_session(settings)
         db_url = settings.database_url if db else None
+        skip_db = db is None
 
         tinman = await create_tinman(
             model_client=model_client,
             db_url=db_url,
             mode=settings.mode,
+            skip_db=skip_db,
         )
 
         try:
