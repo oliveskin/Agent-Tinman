@@ -131,18 +131,13 @@ Screen {
     layout: vertical;
 }
 
-TabbedContent {
-    height: 1fr;
-    layout: vertical;
-}
-
-TabPane {
+.tab-scroll {
     height: 1fr;
     width: 100%;
-    layout: vertical;
+    overflow-y: auto;
 }
 
-.tab-scroll {
+.tab-panel {
     height: 1fr;
     width: 100%;
     overflow-y: auto;
@@ -378,16 +373,4 @@ LoadingIndicator {
 
 .status-warn {
     color: $warning;
-}
-
-Tabs {
-    height: 1;
-    min-height: 1;
-    background: $frame;
-    color: $frame;
-    border: none;
-}
-
-TabPane {
-    padding: 1;
 }

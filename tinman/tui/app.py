@@ -13,7 +13,7 @@ from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
 from textual.widgets import (
     Button, DataTable, Footer, Header, Input, Label,
-    LoadingIndicator, ProgressBar, Static, TabbedContent, TabPane
+    LoadingIndicator, ProgressBar, Static
 )
 from textual.screen import ModalScreen
 from textual.reactive import reactive
@@ -315,22 +315,17 @@ class TinmanApp(App):
                     yield Button("[F6] Model", id="nav-model")
 
                 # Main content with tabs
-            with TabbedContent(id="content"):
-                with TabPane("Setup", id="setup"):
-                    with ScrollableContainer(classes="tab-scroll"):
-                        yield from self._create_setup_panel()
-                with TabPane("Run", id="run"):
-                    with ScrollableContainer(classes="tab-scroll"):
-                        yield from self._create_run_panel()
-                with TabPane("Review", id="review"):
-                    with ScrollableContainer(classes="tab-scroll"):
-                        yield from self._create_review_panel()
-                with TabPane("Actions", id="actions"):
-                    with ScrollableContainer(classes="tab-scroll"):
-                        yield from self._create_actions_panel()
-                with TabPane("Discuss", id="discuss"):
-                    with ScrollableContainer(classes="tab-scroll"):
-                        yield from self._create_discuss_panel()
+            with Container(id="content"):
+                with ScrollableContainer(id="tab-setup", classes="tab-panel -active"):
+                    yield from self._create_setup_panel()
+                with ScrollableContainer(id="tab-run", classes="tab-panel"):
+                    yield from self._create_run_panel()
+                with ScrollableContainer(id="tab-review", classes="tab-panel"):
+                    yield from self._create_review_panel()
+                with ScrollableContainer(id="tab-actions", classes="tab-panel"):
+                    yield from self._create_actions_panel()
+                with ScrollableContainer(id="tab-discuss", classes="tab-panel"):
+                    yield from self._create_discuss_panel()
 
                 # Footer with metrics
                 with Horizontal(id="footer"):
@@ -444,6 +439,9 @@ class TinmanApp(App):
         # Initialize Tinman in background
         self.run_worker(self._init_tinman())
         self.run_worker(self._refresh_setup_status())
+
+        # Ensure default tab renders
+        self.action_switch_tab("setup")
 
     async def _init_tinman(self) -> None:
         """Initialize Tinman instance."""
@@ -574,8 +572,16 @@ class TinmanApp(App):
 
     def action_switch_tab(self, tab_id: str) -> None:
         """Switch to a specific tab."""
-        tabs = self.query_one(TabbedContent)
-        tabs.active = tab_id
+        # Update tab panels
+        for panel in self.query(".tab-panel"):
+            panel.display = False
+            panel.remove_class("-active")
+        try:
+            active_panel = self.query_one(f"#tab-{tab_id}")
+            active_panel.display = True
+            active_panel.add_class("-active")
+        except Exception:
+            pass
 
         # Update nav button styles
         for btn in self.query("#nav-bar Button"):
