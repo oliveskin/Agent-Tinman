@@ -38,12 +38,7 @@ TINMAN_ASCII = r"""
   |_| |_|_| \_|_|  |_/_/   \_\_| \_|
 """
 
-TINMAN_ASCII_SMALL = r"""
- _______ _ _   _ __  __   _   _
-|_   _ _| | \ | |  \/  | | \ | |
-  | | | | |  \| | |\/| | |  \| |
-  |_| |_|_| |\  |_|  |_| |_| \_|
-"""
+TINMAN_ASCII_SMALL = "TINMAN FDRA"
 
 
 class ApprovalModal(ModalScreen):
@@ -320,16 +315,21 @@ class TinmanApp(App):
                     yield Button("[F6] Model", id="nav-model")
 
                 # Main content with tabs
-                with TabbedContent(id="content"):
-                    with TabPane("Setup", id="setup"):
+            with TabbedContent(id="content"):
+                with TabPane("Setup", id="setup"):
+                    with ScrollableContainer(classes="tab-scroll"):
                         yield from self._create_setup_panel()
-                    with TabPane("Run", id="run"):
+                with TabPane("Run", id="run"):
+                    with ScrollableContainer(classes="tab-scroll"):
                         yield from self._create_run_panel()
-                    with TabPane("Review", id="review"):
+                with TabPane("Review", id="review"):
+                    with ScrollableContainer(classes="tab-scroll"):
                         yield from self._create_review_panel()
-                    with TabPane("Actions", id="actions"):
+                with TabPane("Actions", id="actions"):
+                    with ScrollableContainer(classes="tab-scroll"):
                         yield from self._create_actions_panel()
-                    with TabPane("Discuss", id="discuss"):
+                with TabPane("Discuss", id="discuss"):
+                    with ScrollableContainer(classes="tab-scroll"):
                         yield from self._create_discuss_panel()
 
                 # Footer with metrics
@@ -346,36 +346,31 @@ class TinmanApp(App):
     def _create_setup_panel(self):
         """Create the setup panel."""
         yield Static("=== SETUP CHECKLIST ===", classes="panel-title")
-        yield Static("")
         yield Static("Model configured:", classes="progress-label")
         yield Static("Unknown", id="setup-model-status", classes="status-muted")
         yield Static("API key detected:", classes="progress-label")
         yield Static("Unknown", id="setup-key-status", classes="status-muted")
         yield Static("Database connected:", classes="progress-label")
         yield Static("Unknown", id="setup-db-status", classes="status-muted")
-        yield Static("")
         yield Horizontal(
             Button("Configure Model", id="setup-configure-model", variant="primary"),
             Button("Reload Settings", id="setup-reload", variant="default"),
             Button("Check DB", id="setup-check-db", variant="warning"),
+            classes="cta-row",
         )
-        yield Static("")
         yield Static("Tip: Use F6 to open the model picker anytime.", classes="empty-state")
 
     def _create_run_panel(self):
         """Create the run panel."""
         yield Static("=== RUN RESEARCH ===", classes="panel-title")
-        yield Static("")
         yield Static("Focus Area:", classes="progress-label")
         yield Input(placeholder="e.g., tool_use, long_context, reasoning", id="focus-input")
-        yield Static("")
         yield Static("Run Controls:", classes="progress-label")
         yield Horizontal(
             Button("Start Run", id="start-run", variant="success"),
             Button("Stop", id="stop-run", variant="error"),
             classes="cta-row",
         )
-        yield Static("")
         yield Static("--- Activity Log ---", classes="panel-title")
         yield ScrollableContainer(
             Static("Configure a model, then start a run.", id="log-content"),

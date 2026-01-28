@@ -62,7 +62,7 @@ Screen {
 }
 
 #header {
-    height: 7;
+    height: 5;
     width: 100%;
     background: $surface;
     border: round $border;
@@ -128,6 +128,19 @@ Screen {
     padding: 1;
 }
 
+.tab-scroll {
+    height: 1fr;
+    overflow-y: auto;
+}
+
+TabbedContent {
+    height: 1fr;
+}
+
+TabPane {
+    height: 1fr;
+}
+
 .panel-title {
     color: $accent;
     text-style: bold;
@@ -157,6 +170,24 @@ Button {
     background: $success;
     color: $bg;
     border: round $success;
+}
+
+#setup-configure-model {
+    background: $accent-strong;
+    color: $bg;
+    border: round $accent-strong;
+}
+
+#setup-reload {
+    background: $surface-2;
+    color: $text;
+    border: round $border;
+}
+
+#setup-check-db {
+    background: $warning;
+    color: $bg;
+    border: round $warning;
 }
 
 #stop-run {
