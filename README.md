@@ -66,15 +66,15 @@ Risk-tiered approval gates ensure humans remain in control of consequential deci
 ## Installation
 
 ```bash
-pip install tinman-fdra
+pip install AgentTinman
 ```
 
 With specific model provider support:
 
 ```bash
-pip install tinman-fdra[openai]     # OpenAI
-pip install tinman-fdra[anthropic]  # Anthropic
-pip install tinman-fdra[all]        # All providers
+pip install AgentTinman[openai]     # OpenAI
+pip install AgentTinman[anthropic]  # Anthropic
+pip install AgentTinman[all]        # All providers
 ```
 
 ### Development Setup
