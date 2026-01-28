@@ -374,6 +374,7 @@ models:
     anthropic:
       api_key: ${ANTHROPIC_API_KEY}
       model: claude-3-opus-20240229
+    # Set your default provider above and choose a model here.
 
 # Research parameters
 research:

@@ -21,12 +21,14 @@ class AnthropicClient(ModelClient):
     def __init__(self,
                  api_key: Optional[str] = None,
                  base_url: Optional[str] = None,
+                 default_model: Optional[str] = None,
                  **kwargs):
         api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
-        super().__init__(api_key=api_key, **kwargs)
+        super().__init__(api_key=api_key, default_model=default_model, **kwargs)
 
         self.base_url = base_url
         self._client = None
+        self.default_model = default_model or self.DEFAULT_MODEL
 
     @property
     def provider(self) -> str:
@@ -60,7 +62,7 @@ class AnthropicClient(ModelClient):
                        **kwargs) -> ModelResponse:
         """Send a completion request to Anthropic."""
         client = self._get_client()
-        model = model or self.DEFAULT_MODEL
+        model = model or self.default_model
 
         start_time = utc_now()
 
@@ -142,7 +144,7 @@ class AnthropicClient(ModelClient):
                      **kwargs):
         """Stream a completion response."""
         client = self._get_client()
-        model = model or self.DEFAULT_MODEL
+        model = model or self.default_model
 
         # Extract system message
         system = None

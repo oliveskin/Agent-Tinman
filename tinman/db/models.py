@@ -17,8 +17,10 @@ from sqlalchemy import (
     CheckConstraint,
     BigInteger,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy import JSON
+
+JSONType = JSON().with_variant(JSONB, "postgresql")
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -37,7 +39,7 @@ class NodeModel(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     valid_from = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     valid_to = Column(DateTime(timezone=True), nullable=True)
-    data = Column(JSON, nullable=False, default=dict)
+    data = Column(JSONType, nullable=False, default=dict)
 
     __table_args__ = (
         CheckConstraint(
@@ -60,7 +62,7 @@ class EdgeModel(Base):
     dst_id = Column(UUID(as_uuid=False), ForeignKey("nodes.id"), nullable=False)
     relation = Column(String(50), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-    edge_metadata = Column(JSON, nullable=True)
+    edge_metadata = Column(JSONType, nullable=True)
 
     src_node = relationship("NodeModel", foreign_keys=[src_id])
     dst_node = relationship("NodeModel", foreign_keys=[dst_id])
@@ -87,8 +89,8 @@ class ExperimentModel(Base):
     hypothesis_id = Column(UUID(as_uuid=False), ForeignKey("nodes.id"), nullable=True)
     mode = Column(String(20), nullable=False)
     stress_type = Column(String(50), nullable=False)
-    config = Column(JSON, nullable=False, default=dict)
-    constraints = Column(JSON, nullable=False, default=dict)
+    config = Column(JSONType, nullable=False, default=dict)
+    constraints = Column(JSONType, nullable=False, default=dict)
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     status = Column(String(20), nullable=False, default="pending")
 
@@ -109,10 +111,10 @@ class ExperimentRunModel(Base):
     started_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     completed_at = Column(DateTime(timezone=True), nullable=True)
     status = Column(String(20), nullable=False, default="running")
-    inputs = Column(JSON, nullable=False, default=list)
-    outputs = Column(JSON, nullable=True)
-    traces = Column(JSON, nullable=True)
-    metrics = Column(JSON, nullable=True)
+    inputs = Column(JSONType, nullable=False, default=list)
+    outputs = Column(JSONType, nullable=True)
+    traces = Column(JSONType, nullable=True)
+    metrics = Column(JSONType, nullable=True)
     determinism_seed = Column(BigInteger, nullable=True)
 
     experiment = relationship("ExperimentModel", back_populates="runs")
@@ -133,8 +135,8 @@ class FailureModel(Base):
     primary_class = Column(String(50), nullable=False)
     secondary_class = Column(String(50), nullable=True)
     severity = Column(String(5), nullable=False)
-    trigger_signature = Column(JSON, nullable=False, default=list)
-    impact_surface = Column(JSON, nullable=True)
+    trigger_signature = Column(JSONType, nullable=False, default=list)
+    impact_surface = Column(JSONType, nullable=True)
     reproducibility_score = Column(Float, nullable=True)
     confidence = Column(Float, nullable=True)
     first_seen_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
@@ -186,9 +188,9 @@ class InterventionModel(Base):
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
     failure_id = Column(UUID(as_uuid=False), ForeignKey("failures.id"), nullable=True)
     intervention_type = Column(String(50), nullable=False)
-    payload = Column(JSON, nullable=False, default=dict)
-    expected_gains = Column(JSON, nullable=True)
-    expected_regressions = Column(JSON, nullable=True)
+    payload = Column(JSONType, nullable=False, default=dict)
+    expected_gains = Column(JSONType, nullable=True)
+    expected_regressions = Column(JSONType, nullable=True)
     cost_impact_estimate = Column(Float, nullable=True)
     latency_impact_ms = Column(Integer, nullable=True)
     risk_tier = Column(String(10), nullable=False)
@@ -214,8 +216,8 @@ class SimulationModel(Base):
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
     intervention_id = Column(UUID(as_uuid=False), ForeignKey("interventions.id"), nullable=False)
     replay_dataset_id = Column(String(100), nullable=True)
-    baseline_metrics = Column(JSON, nullable=False, default=dict)
-    modified_metrics = Column(JSON, nullable=False, default=dict)
+    baseline_metrics = Column(JSONType, nullable=False, default=dict)
+    modified_metrics = Column(JSONType, nullable=False, default=dict)
     pass_rate = Column(Float, nullable=True)
     new_failures_count = Column(Integer, nullable=True)
     risk_shift = Column(Float, nullable=True)
@@ -261,7 +263,7 @@ class DeploymentModel(Base):
     approval_id = Column(UUID(as_uuid=False), ForeignKey("approvals.id"), nullable=True)
     deployed_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     mode = Column(String(20), nullable=False)
-    rollback_state = Column(JSON, nullable=True)
+    rollback_state = Column(JSONType, nullable=True)
     status = Column(String(20), nullable=False, default="active")
     rolled_back_at = Column(DateTime(timezone=True), nullable=True)
     rollback_reason = Column(Text, nullable=True)
@@ -282,7 +284,7 @@ class ModelVersionModel(Base):
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
     version = Column(String(100), nullable=False, unique=True)
     provider = Column(String(50), nullable=False)
-    model_metadata = Column(JSON, nullable=True)
+    model_metadata = Column(JSONType, nullable=True)
     registered_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
     __table_args__ = (

@@ -73,6 +73,7 @@ class GroqClient(ModelClient):
 
     def __init__(self,
                  api_key: Optional[str] = None,
+                 default_model: Optional[str] = None,
                  **kwargs):
         """
         Initialize Groq client.
@@ -81,8 +82,9 @@ class GroqClient(ModelClient):
             api_key: Groq API key (or set GROQ_API_KEY env var)
         """
         api_key = api_key or os.environ.get("GROQ_API_KEY")
-        super().__init__(api_key=api_key, **kwargs)
+        super().__init__(api_key=api_key, default_model=default_model, **kwargs)
         self._client = None
+        self.default_model = default_model or self.DEFAULT_MODEL
 
     @property
     def provider(self) -> str:
@@ -109,7 +111,7 @@ class GroqClient(ModelClient):
     def _resolve_model(self, model: Optional[str]) -> str:
         """Resolve model shorthand to full Groq model ID."""
         if model is None:
-            return self.DEFAULT_MODEL
+            return self.default_model
 
         # Check if it's a shorthand
         if model in self.MODELS:

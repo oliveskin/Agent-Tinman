@@ -89,6 +89,7 @@ class OllamaClient(ModelClient):
 
     def __init__(self,
                  base_url: Optional[str] = None,
+                 default_model: Optional[str] = None,
                  **kwargs):
         """
         Initialize Ollama client.
@@ -97,9 +98,10 @@ class OllamaClient(ModelClient):
             base_url: Ollama server URL (default: http://localhost:11434/v1)
         """
         # Ollama doesn't need an API key
-        super().__init__(api_key="ollama", **kwargs)
+        super().__init__(api_key="ollama", default_model=default_model, **kwargs)
         self.base_url = base_url or os.environ.get("OLLAMA_BASE_URL", self.DEFAULT_BASE_URL)
         self._client = None
+        self.default_model = default_model or self.DEFAULT_MODEL
 
     @property
     def provider(self) -> str:
@@ -126,7 +128,7 @@ class OllamaClient(ModelClient):
     def _resolve_model(self, model: Optional[str]) -> str:
         """Resolve model shorthand to Ollama model name."""
         if model is None:
-            return self.DEFAULT_MODEL
+            return self.default_model
 
         # Check if it's a shorthand
         if model in self.MODELS:

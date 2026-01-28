@@ -187,7 +187,11 @@ class Settings:
 def load_config(path: Optional[Path] = None) -> Settings:
     """Load configuration from YAML file or defaults."""
     if path is None:
-        path = Path("tinman.yaml")
+        default_path = Path(".tinman") / "config.yaml"
+        if default_path.exists():
+            path = default_path
+        else:
+            path = Path("tinman.yaml")
 
     if path.exists():
         with open(path) as f:

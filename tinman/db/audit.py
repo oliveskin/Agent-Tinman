@@ -28,8 +28,10 @@ from sqlalchemy import (
     Index,
     event,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy import JSON
+
+JSONType = JSON().with_variant(JSONB, "postgresql")
 from sqlalchemy.orm import Session
 
 from .models import Base
@@ -112,7 +114,7 @@ class AuditLog(Base):
     action_type = Column(String(50), nullable=True)
 
     # Full event data (JSON)
-    event_data = Column(JSON, nullable=False, default=dict)
+    event_data = Column(JSONType, nullable=False, default=dict)
 
     # Result information
     success = Column(Boolean, nullable=True)
@@ -170,7 +172,7 @@ class ApprovalDecision(Base):
 
     # Cost/impact
     estimated_cost_usd = Column(Float, nullable=True)
-    affected_systems = Column(JSON, nullable=True)
+    affected_systems = Column(JSONType, nullable=True)
     rollback_plan = Column(Text, nullable=True)
 
     __table_args__ = (
@@ -204,7 +206,7 @@ class ModeTransition(Base):
 
     # Context
     reason = Column(Text, nullable=True)
-    transition_metadata = Column("metadata", JSON, nullable=True)
+    transition_metadata = Column("metadata", JSONType, nullable=True)
 
     __table_args__ = (
         Index("idx_mode_transition_timestamp", "timestamp"),
@@ -235,7 +237,7 @@ class ToolExecution(Base):
     requester_agent = Column(String(100), nullable=True)
 
     # Input/output (sanitized - no secrets)
-    input_params = Column(JSON, nullable=True)
+    input_params = Column(JSONType, nullable=True)
     output_summary = Column(Text, nullable=True)
 
     # Risk assessment

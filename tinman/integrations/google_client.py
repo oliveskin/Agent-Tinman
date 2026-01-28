@@ -21,10 +21,12 @@ class GoogleClient(ModelClient):
 
     def __init__(self,
                  api_key: Optional[str] = None,
+                 default_model: Optional[str] = None,
                  **kwargs):
         api_key = api_key or os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-        super().__init__(api_key=api_key, **kwargs)
+        super().__init__(api_key=api_key, default_model=default_model, **kwargs)
         self._client = None
+        self.default_model = default_model or self.DEFAULT_MODEL
 
     @property
     def provider(self) -> str:
@@ -71,7 +73,7 @@ class GoogleClient(ModelClient):
                        **kwargs) -> ModelResponse:
         """Send a completion request to Gemini."""
         client = self._get_client()
-        model_name = model or self.DEFAULT_MODEL
+        model_name = model or self.default_model
 
         if tools:
             logger.warning("Gemini client does not support tool calls yet; ignoring tools.")
@@ -115,7 +117,7 @@ class GoogleClient(ModelClient):
                      **kwargs):
         """Stream a completion response (best-effort, non-streaming fallback)."""
         client = self._get_client()
-        model_name = model or self.DEFAULT_MODEL
+        model_name = model or self.default_model
         prompt = self._build_prompt(messages)
 
         def _call_stream():

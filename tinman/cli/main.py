@@ -33,19 +33,29 @@ def get_model_client(settings: Settings):
     provider_settings = settings.models.providers.get(provider)
     api_key = provider_settings.api_key if provider_settings else None
     base_url = provider_settings.base_url if provider_settings else None
+    default_model = provider_settings.model if provider_settings else None
 
     if provider == "openai":
         from ..integrations.openai_client import OpenAIClient
-        return OpenAIClient(api_key=api_key, base_url=base_url)
+        return OpenAIClient(api_key=api_key, base_url=base_url, default_model=default_model)
     elif provider == "anthropic":
         from ..integrations.anthropic_client import AnthropicClient
-        return AnthropicClient(api_key=api_key, base_url=base_url)
+        return AnthropicClient(api_key=api_key, base_url=base_url, default_model=default_model)
     elif provider == "openrouter":
         from ..integrations.openrouter_client import OpenRouterClient
-        return OpenRouterClient(api_key=api_key)
+        return OpenRouterClient(api_key=api_key, default_model=default_model)
     elif provider == "google":
         from ..integrations.google_client import GoogleClient
-        return GoogleClient(api_key=api_key)
+        return GoogleClient(api_key=api_key, default_model=default_model)
+    elif provider == "groq":
+        from ..integrations.groq_client import GroqClient
+        return GroqClient(api_key=api_key, default_model=default_model)
+    elif provider == "together":
+        from ..integrations.together_client import TogetherClient
+        return TogetherClient(api_key=api_key, default_model=default_model)
+    elif provider == "ollama":
+        from ..integrations.ollama_client import OllamaClient
+        return OllamaClient(base_url=base_url, default_model=default_model)
 
     return None
 
@@ -72,7 +82,7 @@ def cli(ctx, config: Optional[str], mode: str, verbose: bool):
     if config:
         settings = load_settings(Path(config))
     else:
-        settings = Settings()
+        settings = load_settings()
 
     # Override mode from CLI
     settings.mode = OperatingMode(mode)

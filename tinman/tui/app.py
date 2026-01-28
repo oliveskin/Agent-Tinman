@@ -5,6 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
+import yaml
+
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
@@ -126,6 +128,37 @@ class ApprovalModal(ModalScreen):
             self.action_details()
 
 
+class ModelConfigModal(ModalScreen):
+    """Modal for configuring the default model provider/model."""
+
+    def __init__(self, provider: str, model: str, **kwargs):
+        super().__init__(**kwargs)
+        self._provider = provider
+        self._model = model
+
+    def compose(self) -> ComposeResult:
+        with Container(id="model-config-modal"):
+            yield Label("Default Provider", id="model-provider-label")
+            yield Input(value=self._provider, id="model-provider-input")
+            yield Label("Default Model", id="model-name-label")
+            yield Input(value=self._model, id="model-name-input")
+            with Horizontal(classes="modal-actions"):
+                yield Button("Save", id="model-config-save", variant="success")
+                yield Button("Cancel", id="model-config-cancel", variant="error")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "model-config-save":
+            provider = self.query_one("#model-provider-input", Input).value.strip()
+            model = self.query_one("#model-name-input", Input).value.strip()
+            if not provider:
+                provider = self._provider
+            if not model:
+                model = self._model
+            self.dismiss({"provider": provider, "model": model})
+        else:
+            self.dismiss(None)
+
+
 class TinmanApp(App):
     """Tinman Terminal User Interface."""
 
@@ -140,6 +173,7 @@ class TinmanApp(App):
         Binding("f3", "switch_tab('failures')", "Failures", show=True),
         Binding("f4", "switch_tab('intervene')", "Intervene", show=True),
         Binding("f5", "switch_tab('discuss')", "Discuss", show=True),
+        Binding("f6", "config_model", "Model", show=True),
         Binding("f10", "quit", "Quit", show=True),
         Binding("ctrl+l", "clear_log", "Clear Log"),
     ]
@@ -155,11 +189,44 @@ class TinmanApp(App):
     def __init__(self, settings: Optional[Settings] = None, **kwargs):
         super().__init__(**kwargs)
         self.settings = settings or load_settings()
+        self.config_path = self._resolve_config_path()
         self.mode = self.settings.mode.value.upper()
         self.tinman = None  # Lazy load
         self._log_messages: list[tuple[str, str, datetime]] = []
         self._chat_history: list[tuple[str, str]] = []  # (role, message)
         self._pending_approvals: list[dict] = []
+
+    def _resolve_config_path(self) -> Path:
+        """Pick the config path Tinman should read/write."""
+        preferred = Path(".tinman") / "config.yaml"
+        if preferred.exists():
+            return preferred
+        fallback = Path("tinman.yaml")
+        return fallback if fallback.exists() else preferred
+
+    def _update_config_model(self, provider: str, model: str) -> None:
+        """Persist model provider/model to config without overwriting secrets."""
+        data = {}
+        if self.config_path.exists():
+            with self.config_path.open("r", encoding="utf-8") as f:
+                data = yaml.safe_load(f) or {}
+
+        models = data.setdefault("models", {})
+        models["default"] = provider
+        providers = models.setdefault("providers", {})
+        provider_block = providers.setdefault(provider, {})
+        provider_block["model"] = model
+
+        self.config_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.config_path.open("w", encoding="utf-8") as f:
+            yaml.safe_dump(data, f, sort_keys=False)
+
+        # Update in-memory settings too.
+        self.settings.models.default = provider
+        if provider not in self.settings.models.providers:
+            from ..config.settings import ModelProviderSettings
+            self.settings.models.providers[provider] = ModelProviderSettings()
+        self.settings.models.providers[provider].model = model
 
     def compose(self) -> ComposeResult:
         """Create the UI layout."""
@@ -375,6 +442,24 @@ class TinmanApp(App):
             log_content.update("Log cleared.")
         except Exception:
             pass
+
+    async def action_config_model(self) -> None:
+        """Open the model configuration modal."""
+        provider = self.settings.models.default
+        provider_settings = self.settings.models.providers.get(provider)
+        model = provider_settings.model if provider_settings else ""
+
+        result = await self.push_screen_wait(ModelConfigModal(provider, model))
+        if not result:
+            return
+
+        self._update_config_model(result["provider"], result["model"])
+        self.log_message(
+            f"Model config updated: {result['provider']} / {result['model']}.",
+            "success",
+        )
+        if self.tinman:
+            self.log_message("Restart TUI to apply changes to a running session.", "warning")
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""

@@ -37,8 +37,12 @@ class ModelClient(ABC):
     Provides a unified interface for calling different LLM providers.
     """
 
-    def __init__(self, api_key: Optional[str] = None, **kwargs):
+    def __init__(self,
+                 api_key: Optional[str] = None,
+                 default_model: Optional[str] = None,
+                 **kwargs):
         self.api_key = api_key
+        self.default_model = default_model
         self.config = kwargs
 
     @property

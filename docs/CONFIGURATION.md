@@ -216,6 +216,10 @@ models:
 | `temperature` | float | No | Sampling temperature (0-1) |
 | `base_url` | string | No | Custom API endpoint |
 
+**Note:** The `model` value is used as the default for that provider unless a
+specific model is passed at runtime. You can update the default provider/model
+in `.tinman/config.yaml` (or via the TUI model picker if enabled).
+
 **Environment Variable Syntax:**
 ```yaml
 api_key: ${OPENAI_API_KEY}  # Reads from environment

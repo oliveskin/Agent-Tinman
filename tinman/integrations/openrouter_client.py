@@ -86,6 +86,7 @@ class OpenRouterClient(ModelClient):
                  api_key: Optional[str] = None,
                  site_url: Optional[str] = None,
                  site_name: Optional[str] = None,
+                 default_model: Optional[str] = None,
                  **kwargs):
         """
         Initialize OpenRouter client.
@@ -96,11 +97,12 @@ class OpenRouterClient(ModelClient):
             site_name: Your site name (for rankings, optional)
         """
         api_key = api_key or os.environ.get("OPENROUTER_API_KEY")
-        super().__init__(api_key=api_key, **kwargs)
+        super().__init__(api_key=api_key, default_model=default_model, **kwargs)
 
         self.site_url = site_url or os.environ.get("OPENROUTER_SITE_URL", "")
         self.site_name = site_name or os.environ.get("OPENROUTER_SITE_NAME", "Tinman")
         self._client = None
+        self.default_model = default_model or self.DEFAULT_MODEL
 
     @property
     def provider(self) -> str:
@@ -131,7 +133,7 @@ class OpenRouterClient(ModelClient):
     def _resolve_model(self, model: Optional[str]) -> str:
         """Resolve model shorthand to full OpenRouter model ID."""
         if model is None:
-            return self.DEFAULT_MODEL
+            return self.default_model
 
         # Check if it's a shorthand
         if model in self.MODELS:

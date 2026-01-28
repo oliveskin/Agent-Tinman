@@ -78,6 +78,7 @@ class TogetherClient(ModelClient):
 
     def __init__(self,
                  api_key: Optional[str] = None,
+                 default_model: Optional[str] = None,
                  **kwargs):
         """
         Initialize Together client.
@@ -86,8 +87,9 @@ class TogetherClient(ModelClient):
             api_key: Together API key (or set TOGETHER_API_KEY env var)
         """
         api_key = api_key or os.environ.get("TOGETHER_API_KEY")
-        super().__init__(api_key=api_key, **kwargs)
+        super().__init__(api_key=api_key, default_model=default_model, **kwargs)
         self._client = None
+        self.default_model = default_model or self.DEFAULT_MODEL
 
     @property
     def provider(self) -> str:
@@ -114,7 +116,7 @@ class TogetherClient(ModelClient):
     def _resolve_model(self, model: Optional[str]) -> str:
         """Resolve model shorthand to full Together model ID."""
         if model is None:
-            return self.DEFAULT_MODEL
+            return self.default_model
 
         # Check if it's a shorthand
         if model in self.MODELS:

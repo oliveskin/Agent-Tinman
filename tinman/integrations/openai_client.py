@@ -22,13 +22,15 @@ class OpenAIClient(ModelClient):
                  api_key: Optional[str] = None,
                  base_url: Optional[str] = None,
                  organization: Optional[str] = None,
+                 default_model: Optional[str] = None,
                  **kwargs):
         api_key = api_key or os.environ.get("OPENAI_API_KEY")
-        super().__init__(api_key=api_key, **kwargs)
+        super().__init__(api_key=api_key, default_model=default_model, **kwargs)
 
         self.base_url = base_url
         self.organization = organization
         self._client = None
+        self.default_model = default_model or self.DEFAULT_MODEL
 
     @property
     def provider(self) -> str:
@@ -64,7 +66,7 @@ class OpenAIClient(ModelClient):
                        **kwargs) -> ModelResponse:
         """Send a completion request to OpenAI."""
         client = self._get_client()
-        model = model or self.DEFAULT_MODEL
+        model = model or self.default_model
 
         start_time = utc_now()
 
@@ -129,7 +131,7 @@ class OpenAIClient(ModelClient):
                      **kwargs):
         """Stream a completion response."""
         client = self._get_client()
-        model = model or self.DEFAULT_MODEL
+        model = model or self.default_model
 
         try:
             stream = await client.chat.completions.create(
