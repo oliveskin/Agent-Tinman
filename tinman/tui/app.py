@@ -197,6 +197,9 @@ class TinmanApp(App):
         self._log_messages: list[tuple[str, str, datetime]] = []
         self._chat_history: list[tuple[str, str]] = []  # (role, message)
         self._pending_approvals: list[dict] = []
+        self._last_results: dict = {}
+        self._last_focus: Optional[str] = None
+        self._chat_inflight = False
 
     def _resolve_config_path(self) -> Path:
         """Pick the config path Tinman should read/write."""
@@ -594,7 +597,7 @@ class TinmanApp(App):
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle input submissions."""
         if event.input.id == "chat-input":
-            await self._handle_chat(event.value)
+            self.run_worker(self._handle_chat(event.value), exclusive=True)
             event.input.value = ""
 
     async def _start_research(self) -> None:
@@ -624,6 +627,8 @@ class TinmanApp(App):
             self.query_one("#status-display", Static).update(f"Status: {self.status}")
             return
 
+        self._last_results = results
+        self._last_focus = focus
         self._populate_hypotheses(results.get("hypotheses", []))
         self._populate_failures(results.get("failures", []))
         self._populate_interventions(results.get("interventions", []))
@@ -669,8 +674,9 @@ class TinmanApp(App):
 
     async def _handle_chat(self, message: str) -> None:
         """Handle chat message."""
-        if not message.strip():
+        if not message.strip() or self._chat_inflight:
             return
+        self._chat_inflight = True
 
         # Add user message
         self._chat_history.append(("user", message))
@@ -680,7 +686,11 @@ class TinmanApp(App):
         if self.tinman and self.tinman.llm:
             self.log_message("Processing with LLM...", "info")
             try:
-                response = await self.tinman.discuss(message)
+                prompt = message
+                context = self._build_chat_context()
+                if context:
+                    prompt = f"{message}\n\nContext:\n{context}"
+                response = await self.tinman.discuss(prompt)
                 self._chat_history.append(("assistant", response))
             except Exception as e:
                 self._chat_history.append(("assistant", f"Error: {e}"))
@@ -690,6 +700,7 @@ class TinmanApp(App):
             )
 
         self._update_chat_display()
+        self._chat_inflight = False
 
     def _update_chat_display(self) -> None:
         """Update the chat log display."""
@@ -756,6 +767,37 @@ class TinmanApp(App):
         self.intervention_count = len(interventions)
         self._update_metrics()
         self._toggle_empty("interventions-empty", self.intervention_count == 0)
+
+    def _build_chat_context(self) -> str:
+        """Build a compact context summary for discuss."""
+        if not self._last_results:
+            return ""
+
+        hypotheses = self._last_results.get("hypotheses", [])
+        failures = self._last_results.get("failures", [])
+        interventions = self._last_results.get("interventions", [])
+        experiments = self._last_results.get("experiments", [])
+
+        lines = []
+        if self._last_focus:
+            lines.append(f"Focus: {self._last_focus}")
+        lines.append(f"Hypotheses: {len(hypotheses)}")
+        lines.append(f"Experiments: {len(experiments)}")
+        lines.append(f"Failures: {len(failures)}")
+        lines.append(f"Interventions: {len(interventions)}")
+
+        if failures:
+            top_fail = failures[0]
+            lines.append(
+                f"Top failure: {top_fail.get('primary_class', '')} - "
+                f"{top_fail.get('description', '')[:80]}"
+            )
+        if hypotheses:
+            top_h = hypotheses[0]
+            lines.append(
+                f"Top hypothesis: {top_h.get('expected_failure', '')[:80]}"
+            )
+        return "\n".join(lines)
 
     def _update_metrics(self) -> None:
         """Update footer metrics."""
