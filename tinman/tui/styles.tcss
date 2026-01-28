@@ -2,8 +2,9 @@
 
 $bg: #0b0f14;
 $bg-soft: #0f172a;
-$panel: #121826;
-$panel-strong: #0b1220;
+$panel: 50%;
+$panel-bg: #121826;
+$panel-strong-bg: #0b1220;
 $border: #243047;
 $text: #e5e7eb;
 $muted: #8b98b8;
@@ -28,7 +29,7 @@ Screen {
 #header {
     height: 7;
     width: 100%;
-    background: $panel-strong;
+    background: $panel-strong-bg;
     border: tall $border;
     padding: 0 2;
 }
@@ -52,7 +53,7 @@ Screen {
 #nav-bar {
     height: 3;
     width: 100%;
-    background: $panel;
+    background: $panel-bg;
     border: solid $border;
     padding: 0 1;
 }
@@ -66,12 +67,12 @@ Screen {
 }
 
 #nav-bar Button:hover {
-    background: $panel-strong;
+    background: $panel-strong-bg;
     color: $accent;
 }
 
 #nav-bar Button:focus {
-    background: $panel-strong;
+    background: $panel-strong-bg;
     color: $accent;
     text-style: bold;
 }
@@ -91,7 +92,7 @@ Screen {
 .panel-title {
     color: $text;
     text-style: bold;
-    background: $panel;
+    background: $panel-bg;
     padding: 0 1;
     border: round $border;
 }
@@ -99,7 +100,7 @@ Screen {
 #activity-log {
     height: 100%;
     border: solid $border;
-    background: $panel-strong;
+    background: $panel-strong-bg;
     padding: 1;
 }
 
@@ -109,12 +110,12 @@ Screen {
 
 DataTable {
     height: 1fr;
-    background: $panel;
+    background: $panel-bg;
     border: solid $border;
 }
 
 DataTable > .datatable--header {
-    background: $panel-strong;
+    background: $panel-strong-bg;
     color: $accent;
     text-style: bold;
 }
@@ -127,7 +128,7 @@ DataTable > .datatable--cursor {
 #chat-log {
     height: 1fr;
     border: solid $border;
-    background: $panel-strong;
+    background: $panel-strong-bg;
     padding: 1;
     margin-bottom: 1;
 }
@@ -135,7 +136,7 @@ DataTable > .datatable--cursor {
 #chat-input {
     height: 3;
     border: solid $accent;
-    background: $panel;
+    background: $panel-bg;
     color: $text;
 }
 
@@ -165,7 +166,7 @@ DataTable > .datatable--cursor {
     height: auto;
     max-height: 80%;
     border: double $accent-strong;
-    background: $panel;
+    background: $panel-bg;
     padding: 1 2;
 }
 
@@ -206,7 +207,7 @@ DataTable > .datatable--cursor {
 }
 
 #approval-modal #details-btn {
-    background: $panel-strong;
+    background: $panel-strong-bg;
     color: $accent;
     border: solid $accent;
 }
@@ -214,7 +215,7 @@ DataTable > .datatable--cursor {
 #footer {
     height: 3;
     width: 100%;
-    background: $panel;
+    background: $panel-bg;
     border: solid $border;
     padding: 0 1;
 }
@@ -233,7 +234,7 @@ DataTable > .datatable--cursor {
 }
 
 Scrollbar {
-    background: $panel-strong;
+    background: $panel-strong-bg;
 }
 
 ScrollbarSlider {
