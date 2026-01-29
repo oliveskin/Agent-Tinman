@@ -219,6 +219,12 @@ and run the demo directly.
 tinman report --format markdown
 ```
 
+For a concise demo report:
+
+```bash
+tinman report --format demo
+```
+
 ---
 
 ## Operating Modes

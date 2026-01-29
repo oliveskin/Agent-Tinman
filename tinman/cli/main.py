@@ -592,7 +592,7 @@ def discuss(ctx, message: str):
 
 @cli.command()
 @click.option("--format", "-f",
-              type=click.Choice(["text", "markdown", "json"]),
+              type=click.Choice(["text", "markdown", "json", "demo"]),
               default="text",
               help="Output format")
 @click.option("--output", "-o", type=click.Path(), help="Output file")
@@ -613,6 +613,9 @@ def report(ctx, format: str, output: Optional[str], days: int):
                 graph = MemoryGraph(session)
 
         model_client = get_model_client(settings)
+
+        if format == "demo":
+            model_client = None
 
         # Use InsightSynthesizer for rich reports if LLM available
         if model_client:
@@ -702,7 +705,9 @@ Key Insights:
             reporter = LabReporter(graph=graph)
             lab_report = reporter.generate()
 
-            if format == "markdown":
+            if format == "demo":
+                content = reporter.to_demo_markdown(lab_report)
+            elif format == "markdown":
                 content = reporter.to_markdown(lab_report)
             elif format == "json":
                 import json

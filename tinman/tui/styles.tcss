@@ -156,6 +156,14 @@ TabPane {
     border: round $border-strong;
 }
 
+#review-demo-report {
+    min-width: 20;
+}
+
+#review-open-report {
+    min-width: 20;
+}
+
 #activity-log {
     height: 100%;
     border: round $border-strong;

@@ -397,6 +397,10 @@ class TinmanApp(App):
         yield Static("")
         yield Static("Summary", classes="progress-label")
         yield Static("Run not started yet.", id="review-summary", classes="empty-state")
+        yield Horizontal(
+            Button("Generate Demo Report", id="review-demo-report", variant="primary"),
+            Button("Open Latest Report", id="review-open-report", variant="default"),
+        )
         yield Static("")
         yield Static("Hypotheses", classes="panel-title")
         table = DataTable(id="review-hypotheses-table")
@@ -707,6 +711,10 @@ class TinmanApp(App):
             self.log_message("Simulation requires a selected intervention.", "warning")
         elif button_id == "action-deploy":
             self.log_message("Deploy requires production approvals.", "warning")
+        elif button_id == "review-demo-report":
+            self.run_worker(self._generate_demo_report(), exclusive=True)
+        elif button_id == "review-open-report":
+            self.run_worker(self._open_latest_report(), exclusive=True)
         # Demo controls
         elif button_id == "demo-select-github":
             self._set_demo_defaults("github")
@@ -879,6 +887,49 @@ class TinmanApp(App):
         self.status = "IDLE"
         self.query_one("#status-display", Static).update(f"Status: {self.status}")
         self._run_inflight = False
+
+    async def _generate_demo_report(self) -> None:
+        """Generate a demo report to the lab output directory."""
+        if not self.tinman or not self.tinman.graph:
+            self.log_message("No database configured. Demo report requires a DB.", "warning")
+            return
+
+        try:
+            from ..reporting.lab_reporter import LabReporter
+            output_dir = Path(self.settings.reporting.lab_output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            output_path = output_dir / "demo-report.md"
+
+            reporter = LabReporter(graph=self.tinman.graph)
+            report = reporter.generate()
+            output_path.write_text(reporter.to_demo_markdown(report), encoding="utf-8")
+            self.log_message(f"Demo report written to {output_path}", "success")
+        except Exception as e:
+            self.log_message(f"Demo report failed: {e}", "error")
+
+    async def _open_latest_report(self) -> None:
+        """Open the latest report file if present."""
+        output_dir = Path(self.settings.reporting.lab_output_dir)
+        if not output_dir.exists():
+            self.log_message("Report folder not found.", "warning")
+            return
+
+        candidates = sorted(output_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if not candidates:
+            self.log_message("No reports found.", "warning")
+            return
+
+        report_path = candidates[0]
+        try:
+            if os.name == "nt":
+                os.startfile(report_path)  # type: ignore[attr-defined]
+            elif sys.platform == "darwin":
+                await asyncio.create_subprocess_exec("open", str(report_path))
+            else:
+                await asyncio.create_subprocess_exec("xdg-open", str(report_path))
+            self.log_message(f"Opened {report_path}", "success")
+        except Exception as e:
+            self.log_message(f"Could not open report: {e}", "warning")
 
     async def _handle_chat(self, message: str) -> None:
         """Handle chat message."""
