@@ -367,6 +367,10 @@ class TinmanApp(App):
         yield Horizontal(
             Button("Configure Model", id="setup-configure-model", variant="primary"),
             Button("Reload Settings", id="setup-reload", variant="default"),
+        )
+        yield Static("")
+        yield Horizontal(
+            Button("Init DB", id="setup-init-db", variant="success"),
             Button("Check DB", id="setup-check-db", variant="warning"),
         )
         yield Static("")
@@ -568,6 +572,17 @@ class TinmanApp(App):
         _apply_status("setup-key-status", key_ok, self._setup_status["key"])
         _apply_status("setup-db-status", db_ok, self._setup_status["db"])
 
+    async def _init_db(self) -> None:
+        """Initialize database and create tables."""
+        try:
+            from ..db.connection import ensure_database
+            info = await asyncio.to_thread(ensure_database, self.settings.database_url)
+            created = "created" if info.get("created") else "already exists"
+            self.log_message(f"{info['backend']} database {created}: {info['database']}", "success")
+        except Exception as e:
+            self.log_message(f"Database init failed: {e}", "error")
+        await self._refresh_setup_status()
+
     async def _tui_approval_callback(self, context: ApprovalContext) -> bool:
         """
         TUI approval callback - shows modal and waits for user decision.
@@ -694,6 +709,9 @@ class TinmanApp(App):
         elif button_id == "setup-check-db":
             self.run_worker(self._refresh_setup_status())
             self.log_message("Database check complete", "info")
+        elif button_id == "setup-init-db":
+            self.run_worker(self._init_db())
+            self.log_message("Database init requested", "info")
 
         # Run controls
         elif button_id == "start-run":

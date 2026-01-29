@@ -9,7 +9,7 @@ import click
 
 from ..config.settings import Settings, load_settings
 from ..config.modes import OperatingMode
-from ..db.connection import Database
+from ..db.connection import Database, ensure_database, check_database
 from ..utils import get_logger
 
 logger = get_logger("cli")
@@ -171,6 +171,48 @@ risk:
         click.echo("Created .env template (fill in your keys before running).")
 
     click.echo("Initialization complete.")
+
+
+@cli.group()
+def db():
+    """Database utilities."""
+    pass
+
+
+@db.command("init")
+@click.pass_context
+def db_init(ctx):
+    """Create the database and tables if missing."""
+    settings = ctx.obj["settings"]
+    if not settings.database_url:
+        click.echo("No database URL configured.", err=True)
+        raise SystemExit(1)
+
+    try:
+        info = ensure_database(settings.database_url)
+        created = "created" if info.get("created") else "already exists"
+        click.echo(f"{info['backend']} database {created}: {info['database']}")
+    except Exception as e:
+        click.echo(f"Database init failed: {e}", err=True)
+        raise SystemExit(1)
+
+
+@db.command("check")
+@click.pass_context
+def db_check(ctx):
+    """Check database connectivity and tables."""
+    settings = ctx.obj["settings"]
+    if not settings.database_url:
+        click.echo("No database URL configured.", err=True)
+        raise SystemExit(1)
+
+    try:
+        info = check_database(settings.database_url)
+        click.echo(f"Connected: {info['connected']}")
+        click.echo(f"Tables: {', '.join(info['tables']) if info['tables'] else '(none)'}")
+    except Exception as e:
+        click.echo(f"Database check failed: {e}", err=True)
+        raise SystemExit(1)
 
 
 @cli.command()

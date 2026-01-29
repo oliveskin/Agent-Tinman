@@ -3,9 +3,11 @@
 from contextlib import contextmanager
 from typing import Generator, Optional
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.pool import QueuePool
+from sqlalchemy.engine.url import make_url
+import os
 
 from .models import Base
 
@@ -57,6 +59,57 @@ class Database:
         """Dispose the engine and close all pooled connections."""
         if self.engine:
             self.engine.dispose()
+
+
+def ensure_database(url: str) -> dict:
+    """Ensure the target database exists and tables are created."""
+    parsed = make_url(url)
+    backend = parsed.get_backend_name()
+
+    if backend.startswith("sqlite"):
+        db = Database(url)
+        db.create_tables()
+        return {"backend": "sqlite", "database": parsed.database or url, "created": True}
+
+    if backend.startswith("postgres"):
+        db_name = parsed.database
+        if not db_name:
+            raise RuntimeError("Postgres URL must include a database name.")
+        admin_db = os.environ.get("TINMAN_PG_ADMIN_DB", "postgres")
+        admin_url = parsed.set(database=admin_db)
+
+        engine = create_engine(admin_url)
+        created = False
+        with engine.connect() as conn:
+            exists = conn.execute(
+                text("SELECT 1 FROM pg_database WHERE datname = :name"),
+                {"name": db_name},
+            ).scalar()
+            if not exists:
+                conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+                conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+                created = True
+        engine.dispose()
+
+        db = Database(url)
+        db.create_tables()
+        return {"backend": "postgresql", "database": db_name, "created": created}
+
+    raise RuntimeError(f"Unsupported database backend: {backend}")
+
+
+def check_database(url: str) -> dict:
+    """Check database connectivity and list tables."""
+    engine = create_engine(url)
+    try:
+        with engine.connect():
+            pass
+        from sqlalchemy import inspect
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        return {"connected": True, "tables": tables}
+    finally:
+        engine.dispose()
 
 
 _db_instance: Optional[Database] = None

@@ -126,6 +126,12 @@ tinman init
 
 This creates `.tinman/config.yaml` with sensible defaults (SQLite by default).
 
+If you are using PostgreSQL, initialize the database:
+
+```bash
+tinman db init
+```
+
 ### 2. Configure Your Model
 
 Edit `.tinman/config.yaml`:

@@ -16,6 +16,12 @@ This creates:
 - `.tinman/config.yaml`
 - `.env` (template for provider keys)
 
+If you are using PostgreSQL, initialize the database:
+
+```bash
+tinman db init
+```
+
 ## Configure Providers
 
 Edit `.env` and add your keys. Example:
