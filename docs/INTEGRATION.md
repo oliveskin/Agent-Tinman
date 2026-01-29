@@ -1069,13 +1069,13 @@ async def complete(request: CompletionRequest, background_tasks: BackgroundTasks
 
 async def analyze_with_tinman(request, response):
     """Run Tinman analysis in background."""
-    # Record for analysis
-    ctx = tinman.pipeline_adapter.create_context(
+    from tinman.integrations import record_llm_interaction
+    record_llm_interaction(
+        adapter=tinman.pipeline_adapter,
         messages=request.messages,
         model=request.model,
+        response_text=response.content,
     )
-    ctx.response = {"content": response.content}
-    await tinman.pipeline_adapter.post_request(ctx)
 
 @app.get("/api/tinman/status")
 async def tinman_status():
@@ -1094,39 +1094,26 @@ async def start_research(focus: str = None):
 ### LangChain Integration
 
 ```python
-from langchain.callbacks.base import BaseCallbackHandler
-from tinman.integrations import PipelineAdapter, FailureDetectionHook
-from tinman.config.modes import OperatingMode
-
-class TinmanCallbackHandler(BaseCallbackHandler):
-    """LangChain callback handler for Tinman integration."""
-
-    def __init__(self, mode: OperatingMode = OperatingMode.SHADOW):
-        self.adapter = PipelineAdapter(mode=mode)
-        self.adapter.register_hook(FailureDetectionHook())
-        self._context = None
-
-    def on_llm_start(self, serialized, prompts, **kwargs):
-        self._context = self.adapter.create_context(
-            messages=[{"role": "user", "content": p} for p in prompts],
-            model=serialized.get("name", "unknown"),
-        )
-        # Note: This is sync, so we'd need to handle async differently
-
-    def on_llm_end(self, response, **kwargs):
-        if self._context:
-            self._context.response = {
-                "content": response.generations[0][0].text if response.generations else ""
-            }
-            # Log detected issues
-            if "detected_failures" in self._context.metadata:
-                print(f"Potential issues: {self._context.metadata['detected_failures']}")
+from tinman.integrations import TinmanLangChainCallbackHandler
 
 # Usage
 from langchain.llms import OpenAI
 
-llm = OpenAI(callbacks=[TinmanCallbackHandler()])
+llm = OpenAI(callbacks=[TinmanLangChainCallbackHandler()])
 response = llm.invoke("Your prompt here")
+```
+
+### CrewAI Integration
+
+```python
+from tinman.integrations import TinmanCrewHook
+
+crew_hook = TinmanCrewHook()
+
+# Wire into CrewAI task callbacks / events:
+# crew_hook.on_task_start(task)
+# crew_hook.on_task_end(task, output)
+# crew_hook.on_task_error(task, error)
 ```
 
 ### Django Integration

@@ -10,6 +10,18 @@ from .ollama_client import OllamaClient
 from .together_client import TogetherClient
 from .pipeline_adapter import PipelineAdapter, PipelineHook
 
+try:  # optional dependencies
+    from .langchain import TinmanLangChainCallbackHandler
+except Exception:  # pragma: no cover - optional
+    TinmanLangChainCallbackHandler = None
+
+try:  # optional dependencies
+    from .crewai import TinmanCrewHook
+except Exception:  # pragma: no cover - optional
+    TinmanCrewHook = None
+
+from .fastapi import create_fastapi_adapter, record_llm_interaction
+
 __all__ = [
     # Base
     "ModelClient",
@@ -26,4 +38,9 @@ __all__ = [
     # Pipeline
     "PipelineAdapter",
     "PipelineHook",
+    # Optional integrations
+    "TinmanLangChainCallbackHandler",
+    "TinmanCrewHook",
+    "create_fastapi_adapter",
+    "record_llm_interaction",
 ]
