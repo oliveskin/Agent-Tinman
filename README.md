@@ -192,7 +192,14 @@ tinman research --focus "tool use failures"
 Or use the interactive TUI:
 
 ```bash
-tinman tui
+python -m tinman.cli.main tui
+```
+
+Windows convenience launchers (optional):
+
+```powershell
+.\tinman.bat tui
+.\tinman.ps1 tui
 ```
 
 ### 3a. Run Demos (optional)
