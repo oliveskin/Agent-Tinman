@@ -157,12 +157,22 @@ class ExperimentArchitect(BaseAgent):
 
         # Record to memory graph
         if self.graph:
+            model_meta = self._model_metadata()
             for design in designs:
                 self.graph.record_experiment(
                     hypothesis_id=design.hypothesis_id,
                     stress_type=design.stress_type,
                     mode=design.mode,
                     constraints=design.constraints,
+                    name=design.name,
+                    description=design.description,
+                    parameters=design.parameters,
+                    success_criteria=design.success_criteria,
+                    failure_indicators=design.failure_indicators,
+                    test_cases=design.test_cases,
+                    estimated_runs=design.estimated_runs,
+                    estimated_tokens=design.estimated_tokens,
+                    **model_meta,
                 )
 
         return AgentResult(
@@ -175,6 +185,16 @@ class ExperimentArchitect(BaseAgent):
                 "used_llm_design": self.llm is not None,
             },
         )
+
+    def _model_metadata(self) -> dict[str, Any]:
+        """Return model metadata if available."""
+        if not self.llm or not getattr(self.llm, "client", None):
+            return {}
+        client = self.llm.client
+        return {
+            "model_provider": client.provider,
+            "model_name": client.default_model,
+        }
 
     async def _design_with_llm(self, hypothesis: Hypothesis) -> list[ExperimentDesign]:
         """Use LLM to design experiments for a hypothesis."""

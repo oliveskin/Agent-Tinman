@@ -492,6 +492,7 @@ If a failure occurred, describe it briefly. If no failure, respond with {"failur
         if not self.graph:
             return
 
+        model_meta = self._model_metadata()
         # Create run node
         run_node = Node(
             node_type=NodeType.RUN,
@@ -501,6 +502,11 @@ If a failure occurred, describe it briefly. If no failure, respond with {"failur
                 "failures_triggered": result.failures_triggered,
                 "reproduction_rate": result.reproduction_rate,
                 "hypothesis_validated": result.hypothesis_validated,
+                "successful_runs": result.successful_runs,
+                "total_tokens": result.total_tokens,
+                "total_duration_ms": result.total_duration_ms,
+                "notes": result.notes,
+                **model_meta,
             },
         )
         self.graph.add_node(run_node)
@@ -511,10 +517,22 @@ If a failure occurred, describe it briefly. If no failure, respond with {"failur
             "failures_triggered": result.failures_triggered,
             "reproduction_rate": result.reproduction_rate,
             "hypothesis_validated": result.hypothesis_validated,
+            "successful_runs": result.successful_runs,
+            "total_tokens": result.total_tokens,
+            "total_duration_ms": result.total_duration_ms,
         })
 
         # Link experiment to run for lineage queries
         self.graph.link(result.experiment_id, run_node.id, EdgeRelation.EXECUTED_AS)
+
+    def _model_metadata(self) -> dict[str, Any]:
+        """Return model metadata if available."""
+        if not self.model_client:
+            return {}
+        return {
+            "model_provider": self.model_client.provider,
+            "model_name": self.model_client.default_model,
+        }
 
     def _result_to_dict(self, result: ExperimentResult) -> dict:
         """Convert result to dictionary."""

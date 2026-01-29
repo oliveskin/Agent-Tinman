@@ -89,6 +89,7 @@ class HypothesisEngine(BaseAgent):
 
         # Record to memory graph if available
         if self.graph:
+            model_meta = self._model_metadata()
             for h in hypotheses:
                 self.graph.record_hypothesis(
                     target_surface=h.target_surface,
@@ -96,6 +97,11 @@ class HypothesisEngine(BaseAgent):
                     confidence=h.confidence,
                     priority=h.priority,
                     hypothesis_id=h.id,
+                    failure_class=h.failure_class.value,
+                    rationale=h.rationale,
+                    suggested_experiment=h.suggested_experiment,
+                    evidence=h.evidence,
+                    **model_meta,
                 )
 
         return AgentResult(
@@ -108,6 +114,16 @@ class HypothesisEngine(BaseAgent):
                 "used_llm_reasoning": self.llm is not None,
             },
         )
+
+    def _model_metadata(self) -> dict[str, Any]:
+        """Return model metadata if available."""
+        if not self.llm or not getattr(self.llm, "client", None):
+            return {}
+        client = self.llm.client
+        return {
+            "model_provider": client.provider,
+            "model_name": client.default_model,
+        }
 
     def _gather_observations(self) -> list[dict[str, Any]]:
         """Gather observations for LLM reasoning."""

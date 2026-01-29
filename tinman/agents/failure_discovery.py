@@ -454,14 +454,21 @@ class FailureDiscoveryAgent(BaseAgent):
         if not self.graph:
             return
 
+        run_id = failure.run_ids[0] if failure.run_ids else failure.experiment_id
         self.graph.record_failure(
-            run_id=failure.experiment_id,
+            run_id=run_id,
             primary_class=failure.primary_class.value,
             secondary_class=failure.secondary_class or "",
             severity=failure.severity.name,
             trigger_signature=failure.trigger_signature,
             reproducibility=failure.reproducibility,
             parent_failure_id=failure.parent_failure_id,
+            description=failure.description,
+            is_novel=failure.is_novel,
+            key_insight=failure.key_insight,
+            contributing_factors=failure.contributing_factors,
+            llm_analysis=failure.llm_analysis,
+            causal_analysis=failure.causal_analysis,
         )
 
     def _failure_to_dict(self, failure: DiscoveredFailure) -> dict:

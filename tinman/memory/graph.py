@@ -188,7 +188,8 @@ class MemoryGraph:
                           hypothesis_id: str,
                           stress_type: str,
                           mode: str,
-                          constraints: dict[str, Any]) -> Node:
+                          constraints: dict[str, Any],
+                          **extra_data: Any) -> Node:
         """Record a new experiment, linked to its hypothesis."""
         from .models import create_experiment_node
         node = create_experiment_node(
@@ -196,6 +197,7 @@ class MemoryGraph:
             stress_type=stress_type,
             mode=mode,
             constraints=constraints,
+            **extra_data,
         )
         self.add_node(node)
 
@@ -212,7 +214,8 @@ class MemoryGraph:
                        severity: str,
                        trigger_signature: list[str],
                        reproducibility: float = 0.0,
-                       parent_failure_id: Optional[str] = None) -> Node:
+                       parent_failure_id: Optional[str] = None,
+                       **extra_data: Any) -> Node:
         """Record a discovered failure, linked to its experiment run."""
         from .models import create_failure_node
         node = create_failure_node(
@@ -222,6 +225,7 @@ class MemoryGraph:
             trigger_signature=trigger_signature,
             reproducibility=reproducibility,
             is_resolved=False,
+            **extra_data,
         )
         self.add_node(node)
 

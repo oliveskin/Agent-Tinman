@@ -288,6 +288,20 @@ class InsightSynthesizer:
                                    findings: list[dict],
                                    insights: list[Insight]) -> str:
         """Generate a full narrative report using LLM."""
+        if not findings:
+            return "No findings were recorded in this period. Run experiments to generate findings."
+
+        failure_count = sum(1 for f in findings if f["type"] == "failure")
+        experiment_count = sum(1 for f in findings if f["type"] == "experiment")
+
+        if failure_count == 0 and experiment_count > 0:
+            return (
+                "We executed experiments during this period, but no failures were "
+                "recorded. The results suggest the current test cases did not trigger "
+                "observable failure modes. Next steps: expand adversarial techniques, "
+                "increase run counts, and add targeted probes to surface edge cases."
+            )
+
         context = ReasoningContext(
             mode=ReasoningMode.INSIGHT_SYNTHESIS,
             observations=[
