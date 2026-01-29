@@ -141,6 +141,48 @@ models:
       model: gpt-4-turbo-preview
 ```
 
+### Environment Variables (where to put keys)
+
+Tinman expects provider keys as **environment variables**. The config stores **references** to those variables:
+
+```yaml
+api_key: ${OPENAI_API_KEY}
+```
+
+Set them in your shell (examples):
+
+```bash
+export OPENAI_API_KEY="..."
+export ANTHROPIC_API_KEY="..."
+export GEMINI_API_KEY="..."
+```
+
+**Recommended:** copy the template `.env.example` to `.env` in your project root and fill in the keys:
+
+```bash
+cp .env.example .env
+```
+
+For demo scripts (GitHub / Hugging Face / Replicate / fal), set:
+
+```bash
+export GITHUB_TOKEN="..."
+export HUGGINGFACE_API_KEY="..."
+export REPLICATE_API_TOKEN="..."
+export FAL_API_KEY="..."
+```
+
+You can add more providers to `.tinman/config.yaml` by adding a new entry under `models.providers`
+and pointing it to an env var. Example for Groq:
+
+```yaml
+models:
+  providers:
+    groq:
+      api_key: ${GROQ_API_KEY}
+      model: llama3-70b-8192
+```
+
 ### 3. Run a Research Cycle
 
 ```bash

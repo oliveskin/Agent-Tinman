@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "AgentTinman"
-version = "0.1.32"
+version = "0.1.33"
 description = "Forward-Deployed Research Agent for AI system failure discovery"
 readme = "README.md"
 license = "Apache-2.0"
@@ -41,6 +41,7 @@ dependencies = [
     "structlog>=24.0.0",
     "pydantic>=2.0.0",
     "alembic>=1.13.0",
+    "python-dotenv>=1.0.0",
 ]
 
 [project.optional-dependencies]

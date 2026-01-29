@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Optional
 import os
 import yaml
+from dotenv import load_dotenv
 
 from .modes import Mode
 
@@ -192,6 +193,15 @@ def load_config(path: Optional[Path] = None) -> Settings:
             path = default_path
         else:
             path = Path("tinman.yaml")
+
+    # Load environment variables from .env if present
+    candidates = [Path(".env"), Path(".env.local")]
+    if path is not None:
+        candidates.append(path.parent / ".env")
+        candidates.append(path.parent / ".env.local")
+    for candidate in candidates:
+        if candidate.exists():
+            load_dotenv(candidate, override=False)
 
     if path.exists():
         with open(path) as f:
