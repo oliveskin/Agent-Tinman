@@ -169,6 +169,7 @@ class EventBus:
 # Event topics used by the system
 class Topics:
     """Standard event topics."""
+    APPROVAL_REQUESTED = "approval.requested"
     HYPOTHESIS_CREATED = "hypothesis.created"
     EXPERIMENT_CREATED = "experiment.created"
     EXPERIMENT_RUN_COMPLETED = "experiment.run.completed"

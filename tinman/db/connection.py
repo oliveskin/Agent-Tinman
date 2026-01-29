@@ -53,6 +53,11 @@ class Database:
         """Get a new session (caller must manage lifecycle)."""
         return self.SessionLocal()
 
+    def disconnect(self) -> None:
+        """Dispose the engine and close all pooled connections."""
+        if self.engine:
+            self.engine.dispose()
+
 
 _db_instance: Optional[Database] = None
 

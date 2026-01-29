@@ -528,7 +528,7 @@ class Tinman:
 
     async def close(self) -> None:
         """Clean up resources."""
-        if self.db:
+        if self.db and hasattr(self.db, "disconnect"):
             self.db.disconnect()
 
         # Save adaptive memory state
