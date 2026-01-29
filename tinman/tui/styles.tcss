@@ -231,6 +231,26 @@ DataTable > .datatable--cursor {
     padding: 1;
 }
 
+.demo-warning {
+    color: $warning;
+    text-style: bold;
+    padding: 0 1;
+}
+
+.demo-status {
+    color: $muted;
+    padding: 0 1;
+}
+
+.demo-status-ok {
+    color: $success;
+    text-style: bold;
+}
+
+.demo-status-missing {
+    color: $warning;
+    text-style: bold;
+}
 .detail-panel {
     min-height: 3;
     height: auto;

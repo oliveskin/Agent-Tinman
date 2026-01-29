@@ -1,6 +1,7 @@
 ﻿"""Tinman TUI - Main Application."""
 
 import asyncio
+import os
 import shlex
 import sys
 from datetime import datetime
@@ -185,6 +186,24 @@ class TinmanApp(App):
     experiment_count: reactive[int] = reactive(0)
     failure_count: reactive[int] = reactive(0)
     intervention_count: reactive[int] = reactive(0)
+    DEMO_TEMPLATES = {
+        "github": {
+            "args": "--repo moltbot/moltbot",
+            "env": ["GITHUB_TOKEN"],
+        },
+        "huggingface": {
+            "args": "--model gpt2",
+            "env": ["HUGGINGFACE_API_KEY"],
+        },
+        "replicate": {
+            "args": "--version <MODEL_VERSION_ID>",
+            "env": ["REPLICATE_API_TOKEN"],
+        },
+        "fal": {
+            "args": "--endpoint https://fal.run/fal-ai/fast-sdxl",
+            "env": ["FAL_API_KEY"],
+        },
+    }
 
     def __init__(self, settings: Optional[Settings] = None, **kwargs):
         super().__init__(**kwargs)
@@ -424,6 +443,7 @@ class TinmanApp(App):
         yield Static("═══ DEMO RUNNER ═══", classes="panel-title")
         yield Static("Run built-in provider demos with editable arguments.", classes="empty-state")
         yield Static("")
+        yield Static("Required keys: GITHUB_TOKEN, HUGGINGFACE_API_KEY, REPLICATE_API_TOKEN, FAL_API_KEY", classes="demo-warning")
         yield Static("Select Demo", classes="progress-label")
         with Horizontal(classes="cta-row"):
             yield Button("GitHub", id="demo-select-github", variant="primary")
@@ -442,7 +462,10 @@ class TinmanApp(App):
                 id="demo-args-input",
             )
         yield Static("")
+        yield Static("Env Status: unknown", id="demo-env-status", classes="demo-status")
+        yield Static("")
         with Horizontal(classes="cta-row"):
+            yield Button("Use Defaults", id="demo-defaults", variant="default")
             yield Button("Check Env", id="demo-check-env", variant="default")
             yield Button("Run Demo", id="demo-run", variant="success")
         yield Static("")
@@ -462,7 +485,7 @@ class TinmanApp(App):
         """Initialize when app mounts."""
         self.log_message("Tinman TUI initialized", "success")
         self.log_message(f"Mode: {self.mode}", "info")
-        self.log_message("Press F1-F6 to navigate, F10 to quit", "info")
+        self.log_message("Press F1-F7 to navigate, F10 to quit", "info")
 
         # Start clock update
         self.set_interval(1, self._update_clock)
@@ -470,6 +493,7 @@ class TinmanApp(App):
         # Initialize Tinman in background
         self.run_worker(self._init_tinman())
         self.run_worker(self._refresh_setup_status())
+        self._set_demo_defaults("github")
 
     async def _init_tinman(self) -> None:
         """Initialize Tinman instance."""
@@ -684,22 +708,46 @@ class TinmanApp(App):
             self.log_message("Deploy requires production approvals.", "warning")
         # Demo controls
         elif button_id == "demo-select-github":
-            self._set_demo_defaults("github", "--repo moltbot/moltbot")
+            self._set_demo_defaults("github")
         elif button_id == "demo-select-huggingface":
-            self._set_demo_defaults("huggingface", "--model gpt2")
+            self._set_demo_defaults("huggingface")
         elif button_id == "demo-select-replicate":
-            self._set_demo_defaults("replicate", "--version <MODEL_VERSION_ID>")
+            self._set_demo_defaults("replicate")
         elif button_id == "demo-select-fal":
-            self._set_demo_defaults("fal", "--endpoint https://fal.run/fal-ai/fast-sdxl")
+            self._set_demo_defaults("fal")
+        elif button_id == "demo-defaults":
+            self._set_demo_defaults(self._current_demo_name())
         elif button_id == "demo-check-env":
             self.run_worker(self._run_demo(check_only=True), exclusive=True)
         elif button_id == "demo-run":
             self.run_worker(self._run_demo(check_only=False), exclusive=True)
 
-    def _set_demo_defaults(self, demo: str, args: str) -> None:
+    def _current_demo_name(self) -> str:
+        try:
+            return self.query_one("#demo-name-input", Input).value.strip()
+        except Exception:
+            return ""
+
+    def _set_demo_defaults(self, demo: str, args: Optional[str] = None) -> None:
+        template = self.DEMO_TEMPLATES.get(demo, {})
+        default_args = args if args is not None else template.get("args", "")
         try:
             self.query_one("#demo-name-input", Input).value = demo
-            self.query_one("#demo-args-input", Input).value = args
+            self.query_one("#demo-args-input", Input).value = default_args
+        except Exception:
+            pass
+        self._update_demo_env_status(demo)
+
+    def _update_demo_env_status(self, demo: str) -> None:
+        template = self.DEMO_TEMPLATES.get(demo, {})
+        required = template.get("env", [])
+        missing = [name for name in required if not os.environ.get(name)]
+        status = "OK" if not missing else f"Missing: {', '.join(missing)}"
+        try:
+            widget = self.query_one("#demo-env-status", Static)
+            widget.update(f"Env Status: {status}")
+            widget.remove_class("demo-status-ok", "demo-status-missing")
+            widget.add_class("demo-status-ok" if not missing else "demo-status-missing")
         except Exception:
             pass
 
@@ -728,6 +776,7 @@ class TinmanApp(App):
             cmd = [sys.executable, "examples/demo_env_check.py", demo]
         else:
             cmd = [sys.executable, "examples/demo_runner.py", demo] + extra_args
+        self._update_demo_env_status(demo)
 
         self.log_message(f"Running: {' '.join(cmd)}", "info")
 
@@ -741,6 +790,7 @@ class TinmanApp(App):
             self.log_message(f"Failed to start demo: {e}", "error")
             return
 
+        # Show missing env warnings based on exit code
         if proc.stdout:
             async for line in proc.stdout:
                 try:
@@ -752,6 +802,8 @@ class TinmanApp(App):
         if exit_code == 0:
             self.log_message("Demo completed.", "success")
         else:
+            if check_only:
+                self.log_message("Missing required keys. See log for details.", "warning")
             self.log_message(f"Demo exited with code {exit_code}.", "warning")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
