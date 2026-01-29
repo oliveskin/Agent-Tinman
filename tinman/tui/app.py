@@ -25,6 +25,7 @@ from ..config.modes import OperatingMode
 from ..config.settings import Settings, load_settings
 from ..core.risk_evaluator import RiskTier
 from ..core.approval_handler import ApprovalContext
+from ..agents.base import AgentContext
 from ..utils import generate_id
 from .. import __version__
 
@@ -218,6 +219,7 @@ class TinmanApp(App):
         self._last_focus: Optional[str] = None
         self._chat_inflight = False
         self._run_inflight = False
+        self._run_worker = None
         self._setup_status: dict[str, str] = {}
         self._selected_failure_id: Optional[str] = None
         self._selected_intervention_id: Optional[str] = None
@@ -716,19 +718,23 @@ class TinmanApp(App):
         # Run controls
         elif button_id == "start-run":
             if not self._run_inflight:
-                self.run_worker(self._start_research(), exclusive=True)
+                self._run_worker = self.run_worker(self._start_research(), exclusive=True)
         elif button_id == "stop-run":
+            if self._run_worker:
+                self._run_worker.cancel()
+                self._run_worker = None
             self.status = "IDLE"
             self.query_one("#status-display", Static).update(f"Status: {self.status}")
-            self.log_message("Run stopped", "warning")
+            self._run_inflight = False
+            self.log_message("Run cancelled", "warning")
 
         # Actions controls
         elif button_id == "action-design":
-            self.log_message("Design requires a selected failure and LLM support.", "warning")
+            self.run_worker(self._design_intervention(), exclusive=True)
         elif button_id == "action-simulate":
-            self.log_message("Simulation requires a selected intervention.", "warning")
+            self.run_worker(self._simulate_intervention(), exclusive=True)
         elif button_id == "action-deploy":
-            self.log_message("Deploy requires production approvals.", "warning")
+            self.run_worker(self._deploy_intervention(), exclusive=True)
         elif button_id == "review-demo-report":
             self.run_worker(self._generate_demo_report(), exclusive=True)
         elif button_id == "review-open-report":
@@ -905,6 +911,155 @@ class TinmanApp(App):
         self.status = "IDLE"
         self.query_one("#status-display", Static).update(f"Status: {self.status}")
         self._run_inflight = False
+        self._run_worker = None
+
+    async def _design_intervention(self) -> None:
+        """Design interventions for the selected failure."""
+        if not self.tinman or not self.tinman.intervention_engine:
+            self.log_message("Intervention engine not initialized.", "warning")
+            return
+        if not self._selected_failure_id:
+            self.log_message("Select a failure in Actions to design interventions.", "warning")
+            return
+        if not self.tinman.graph:
+            self.log_message("No graph available for failure details.", "warning")
+            return
+
+        from ..agents.failure_discovery import DiscoveredFailure
+        from ..taxonomy.failure_types import FailureClass, Severity
+        node = self.tinman.graph.get_node(self._selected_failure_id)
+        if not node:
+            self.log_message("Selected failure not found in graph.", "warning")
+            return
+
+        data = {"id": node.id, **(node.data or {})}
+        try:
+            primary = FailureClass(data.get("primary_class", "reasoning"))
+        except Exception:
+            primary = FailureClass.REASONING
+        severity = data.get("severity", "S2")
+        try:
+            sev_enum = Severity[severity]
+        except Exception:
+            sev_enum = Severity.S2
+
+        failure = DiscoveredFailure(
+            id=node.id,
+            primary_class=primary,
+            secondary_class=data.get("secondary_class"),
+            severity=sev_enum,
+            description=data.get("description", ""),
+            trigger_signature=data.get("trigger_signature", []),
+            reproducibility=data.get("reproducibility", 0.0),
+            experiment_id=data.get("experiment_id", ""),
+            run_ids=data.get("run_ids", []),
+            llm_analysis=data.get("llm_analysis", ""),
+            contributing_factors=data.get("contributing_factors", []),
+            key_insight=data.get("key_insight", ""),
+            causal_analysis=data.get("causal_analysis"),
+            is_novel=data.get("is_novel", False),
+            parent_failure_id=data.get("parent_failure_id"),
+        )
+
+        context = AgentContext(mode=OperatingMode(self.mode.lower()))
+        try:
+            result = await self.tinman.intervention_engine.run(
+                context, failures=[failure]
+            )
+        except Exception as e:
+            self.log_message(f"Intervention design failed: {e}", "error")
+            return
+
+        if result.success:
+            self._populate_actions({
+                "failures": [data],
+                "interventions": result.data.get("interventions", []),
+            })
+            self.log_message("Intervention design complete.", "success")
+        else:
+            self.log_message(f"Intervention design failed: {result.error}", "error")
+
+    async def _simulate_intervention(self) -> None:
+        """Simulate the selected intervention."""
+        if not self.tinman or not self.tinman.simulation_engine:
+            self.log_message("Simulation engine not initialized.", "warning")
+            return
+        if not self._selected_intervention_id:
+            self.log_message("Select an intervention in Actions to simulate.", "warning")
+            return
+        if not self.tinman.graph:
+            self.log_message("No graph available for intervention details.", "warning")
+            return
+
+        from ..agents.intervention_engine import Intervention, InterventionType
+        from ..core.risk_evaluator import RiskTier
+
+        node = self.tinman.graph.get_node(self._selected_intervention_id)
+        if not node:
+            self.log_message("Selected intervention not found in graph.", "warning")
+            return
+
+        data = node.data or {}
+        type_raw = data.get("intervention_type", "prompt_patch")
+        try:
+            itype = InterventionType(type_raw)
+        except Exception:
+            itype = InterventionType.PROMPT_PATCH
+        risk_raw = data.get("risk_tier", "review")
+        try:
+            risk = RiskTier(risk_raw)
+        except Exception:
+            risk = RiskTier.REVIEW
+
+        intervention = Intervention(
+            id=node.id,
+            failure_id=data.get("failure_id", ""),
+            intervention_type=itype,
+            name=data.get("name", "intervention"),
+            description=data.get("description", ""),
+            payload=data.get("payload", {}),
+            expected_gains=data.get("expected_gains", {}),
+            expected_regressions=data.get("expected_regressions", {}),
+            risk_tier=risk,
+            rationale=data.get("rationale", ""),
+            requires_approval=data.get("requires_approval", True),
+            reversible=data.get("reversible", True),
+        )
+        if not intervention.failure_id:
+            self.log_message("Selected intervention is missing a failure_id.", "warning")
+            return
+
+        context = AgentContext(mode=OperatingMode(self.mode.lower()))
+        try:
+            result = await self.tinman.simulation_engine.run(
+                context, interventions=[intervention]
+            )
+        except Exception as e:
+            self.log_message(f"Simulation failed: {e}", "error")
+            return
+
+        if result.success:
+            self.log_message("Simulation complete.", "success")
+        else:
+            self.log_message(f"Simulation failed: {result.error}", "error")
+
+    async def _deploy_intervention(self) -> None:
+        """Record a deployment for the selected intervention."""
+        if not self.tinman or not self.tinman.graph:
+            self.log_message("No graph available for deployment.", "warning")
+            return
+        if not self._selected_intervention_id:
+            self.log_message("Select an intervention in Actions to deploy.", "warning")
+            return
+
+        try:
+            self.tinman.graph.record_deployment(
+                intervention_id=self._selected_intervention_id,
+                mode=self.mode.lower(),
+            )
+            self.log_message("Deployment recorded.", "success")
+        except Exception as e:
+            self.log_message(f"Deployment failed: {e}", "error")
 
     async def _generate_demo_report(self) -> None:
         """Generate a demo report to the lab output directory."""
