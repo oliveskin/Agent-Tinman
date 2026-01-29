@@ -145,6 +145,13 @@ risk:
     else:
         click.echo(f"Config already exists at {config_file}")
 
+    # Create .env from template if available
+    env_file = Path(".env")
+    env_template = Path(".env.example")
+    if not env_file.exists() and env_template.exists():
+        env_file.write_text(env_template.read_text())
+        click.echo("Created .env from .env.example")
+
     click.echo("Initialization complete.")
 
 
