@@ -21,6 +21,7 @@ class FailureSummary:
     description: str
     reproducibility: float
     is_novel: bool
+    is_synthetic: bool
     trigger_signature: list[str]
     discovered_at: datetime
 
@@ -93,7 +94,8 @@ class LabReporter:
 
     def generate(self,
                  period_start: Optional[datetime] = None,
-                 period_end: Optional[datetime] = None) -> LabReport:
+                 period_end: Optional[datetime] = None,
+                 exclude_demo_failures: bool = False) -> LabReport:
         """Generate a lab report for the given period."""
         report = LabReport(
             period_start=period_start,
@@ -106,7 +108,7 @@ class LabReporter:
         # Gather data from memory graph
         self._gather_hypotheses(report)
         self._gather_experiments(report)
-        self._gather_failures(report)
+        self._gather_failures(report, exclude_demo_failures=exclude_demo_failures)
         self._gather_interventions(report)
         self._gather_simulations(report)
 
@@ -140,12 +142,14 @@ class LabReporter:
 
         report.experiments_run = len(experiments)
 
-    def _gather_failures(self, report: LabReport) -> None:
+    def _gather_failures(self, report: LabReport, exclude_demo_failures: bool = False) -> None:
         """Gather failure data."""
         failures = self.graph.get_failures(valid_only=False)
 
         for failure in failures:
             data = failure.data
+            if exclude_demo_failures and data.get("is_synthetic"):
+                continue
             summary = FailureSummary(
                 id=failure.id,
                 primary_class=data.get("primary_class", "unknown"),
@@ -154,6 +158,7 @@ class LabReporter:
                 description=data.get("description", "")[:200],
                 reproducibility=data.get("reproducibility", 0.0),
                 is_novel=data.get("is_novel", False),
+                is_synthetic=data.get("is_synthetic", False),
                 trigger_signature=data.get("trigger_signature", []),
                 discovered_at=failure.created_at,
             )
@@ -328,13 +333,14 @@ class LabReporter:
             lines.extend([
                 f"## Discovered Failures",
                 f"",
-                f"| Severity | Class | Reproducibility | Novel |",
-                f"|----------|-------|-----------------|-------|",
+                f"| Severity | Class | Reproducibility | Novel | Synthetic |",
+                f"|----------|-------|-----------------|-------|-----------|",
             ])
             for f in sorted(report.failures, key=lambda x: x.severity, reverse=True):
                 novel = "Yes" if f.is_novel else "No"
+                synthetic = "Yes" if f.is_synthetic else "No"
                 lines.append(
-                    f"| {f.severity} | {f.primary_class} | {f.reproducibility:.0%} | {novel} |"
+                    f"| {f.severity} | {f.primary_class} | {f.reproducibility:.0%} | {novel} | {synthetic} |"
                 )
             lines.append("")
 
@@ -374,7 +380,8 @@ class LabReporter:
         if report.failures:
             lines.append("## Top Failures")
             for failure in sorted(report.failures, key=lambda x: x.severity, reverse=True)[:5]:
-                lines.append(f"- [{failure.severity}] {failure.primary_class}: {failure.description}")
+                tag = " (synthetic)" if failure.is_synthetic else ""
+                lines.append(f"- [{failure.severity}] {failure.primary_class}: {failure.description}{tag}")
             lines.append("")
 
         if report.interventions:

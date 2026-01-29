@@ -216,6 +216,12 @@ python -m tinman.demo.env_check all
 python -m tinman.demo.runner github -- --repo moltbot/moltbot
 ```
 
+Force a demo failure (useful for reports in sparse repos):
+
+```bash
+python -m tinman.demo.github_demo --repo moltbot/moltbot --inject-failure
+```
+
 The TUI also includes a **Demos** tab where you can select a provider, edit args,
 and run the demo directly.
 
@@ -229,6 +235,18 @@ For a concise demo report:
 
 ```bash
 tinman report --format demo
+```
+
+Exclude synthetic demo failures from reports:
+
+```bash
+tinman report --format markdown --exclude-demo-failures
+```
+
+Reset the local SQLite demo database:
+
+```bash
+tinman demo-reset-db
 ```
 
 ---

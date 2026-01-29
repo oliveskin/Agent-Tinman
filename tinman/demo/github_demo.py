@@ -132,6 +132,7 @@ async def run(repo: str, config_path: str | None, issues: int, prs: int, inject_
                 reproducibility=1.0,
                 description="Synthetic demo failure to populate reports.",
                 is_novel=True,
+                is_synthetic=True,
             )
 
     print("\n=== Demo Results ===")

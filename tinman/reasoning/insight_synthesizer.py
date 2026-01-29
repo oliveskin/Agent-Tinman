@@ -149,7 +149,8 @@ class InsightSynthesizer:
 
     async def generate_brief(self,
                               period_days: int = 7,
-                              title: Optional[str] = None) -> ResearchBrief:
+                              title: Optional[str] = None,
+                              exclude_demo_failures: bool = False) -> ResearchBrief:
         """Generate a research brief for a time period."""
         brief = ResearchBrief(
             title=title or f"Research Brief - Last {period_days} Days",
@@ -158,7 +159,11 @@ class InsightSynthesizer:
         )
 
         # Gather findings from graph
-        findings = await self._gather_findings(brief.period_start, brief.period_end)
+        findings = await self._gather_findings(
+            brief.period_start,
+            brief.period_end,
+            exclude_demo_failures=exclude_demo_failures,
+        )
 
         # Synthesize insights
         insights = await self.synthesize_findings(findings)
@@ -180,7 +185,8 @@ class InsightSynthesizer:
 
     async def _gather_findings(self,
                                 start: Optional[datetime],
-                                end: Optional[datetime]) -> list[dict[str, Any]]:
+                                end: Optional[datetime],
+                                exclude_demo_failures: bool = False) -> list[dict[str, Any]]:
         """Gather findings from the memory graph."""
         findings = []
 
@@ -193,6 +199,8 @@ class InsightSynthesizer:
             if start and f.created_at < start:
                 continue
             if end and f.created_at > end:
+                continue
+            if exclude_demo_failures and f.data.get("is_synthetic"):
                 continue
             findings.append({
                 "type": "failure",

@@ -54,6 +54,18 @@ tinman research --focus "tool use failures"
 tinman report --format demo
 ```
 
+Exclude synthetic demo failures:
+
+```bash
+tinman report --format markdown --exclude-demo-failures
+```
+
+Reset the local SQLite demo database:
+
+```bash
+tinman demo-reset-db
+```
+
 ## Launch the TUI
 
 ```bash

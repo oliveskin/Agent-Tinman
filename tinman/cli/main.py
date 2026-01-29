@@ -10,6 +10,7 @@ import click
 from ..config.settings import Settings, load_settings
 from ..config.modes import OperatingMode
 from ..db.connection import Database, ensure_database, check_database
+from sqlalchemy.engine.url import make_url
 from ..utils import get_logger
 
 logger = get_logger("cli")
@@ -657,8 +658,10 @@ def discuss(ctx, message: str):
               help="Output format")
 @click.option("--output", "-o", type=click.Path(), help="Output file")
 @click.option("--days", "-d", default=7, help="Report period in days")
+@click.option("--exclude-demo-failures", is_flag=True,
+              help="Exclude synthetic demo failures from reports")
 @click.pass_context
-def report(ctx, format: str, output: Optional[str], days: int):
+def report(ctx, format: str, output: Optional[str], days: int, exclude_demo_failures: bool):
     """Generate a research report."""
     settings = ctx.obj["settings"]
 
@@ -690,7 +693,10 @@ def report(ctx, format: str, output: Optional[str], days: int):
                 adaptive_memory=AdaptiveMemory(),
             )
 
-            brief = await synthesizer.generate_brief(period_days=days)
+            brief = await synthesizer.generate_brief(
+                period_days=days,
+                exclude_demo_failures=exclude_demo_failures,
+            )
 
             if format == "markdown":
                 content = f"""# {brief.title}
@@ -763,7 +769,7 @@ Key Insights:
             from ..reporting.lab_reporter import LabReporter
 
             reporter = LabReporter(graph=graph)
-            lab_report = reporter.generate()
+            lab_report = reporter.generate(exclude_demo_failures=exclude_demo_failures)
 
             if format == "demo":
                 content = reporter.to_demo_markdown(lab_report)
@@ -871,6 +877,35 @@ Configuration:
             for node_type, count in stats.items():
                 if count > 0:
                     click.echo(f"  {node_type}: {count}")
+
+
+@cli.command("demo-reset-db")
+@click.pass_context
+def demo_reset_db(ctx):
+    """Delete the local SQLite demo database (if configured)."""
+    settings = ctx.obj["settings"]
+    db_url = settings.database_url
+    if not db_url or not db_url.startswith("sqlite"):
+        click.echo("Demo reset only supports SQLite database URLs.")
+        return
+
+    from sqlalchemy.engine.url import make_url
+    parsed = make_url(db_url)
+    db_path = parsed.database
+    if not db_path:
+        click.echo("SQLite database path is empty.")
+        return
+
+    path = Path(db_path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+
+    if not path.exists():
+        click.echo(f"No demo database found at {path}")
+        return
+
+    path.unlink()
+    click.echo(f"Deleted demo database: {path}")
 
 
 @cli.command()

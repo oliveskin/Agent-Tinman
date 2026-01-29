@@ -321,8 +321,14 @@ tinman report --format markdown
 # Generate JSON report
 tinman report --format json
 
+# Exclude synthetic demo failures
+tinman report --format markdown --exclude-demo-failures
+
 # Save to file
 tinman report --format markdown > report.md
+
+# Reset the local SQLite demo database
+tinman demo-reset-db
 ```
 
 ### Status
