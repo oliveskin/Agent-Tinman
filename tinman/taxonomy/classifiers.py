@@ -101,9 +101,10 @@ class FailureClassifier:
         self.allowed_tools = allowed_tools or []
 
     def classify(self,
-                 output: str,
+                 output: Optional[str] = None,
                  trace: Optional[dict[str, Any]] = None,
-                 context: Optional[str] = None) -> ClassificationResult:
+                 context: Optional[str] = None,
+                 description: Optional[str] = None) -> ClassificationResult:
         """
         Classify a potential failure based on output and traces.
 
@@ -121,12 +122,13 @@ class FailureClassifier:
         # Check patterns
         for failure_type, patterns in self.PATTERNS.items():
             for pattern in patterns:
-                if re.search(pattern, output):
+                if re.search(pattern, text):
                     indicators.append(f"pattern:{failure_type}")
                     scores[failure_type] = scores.get(failure_type, 0) + 0.3
 
         # Check keywords by class
-        output_lower = output.lower()
+        text = output or description or ""
+        output_lower = text.lower()
         class_scores: dict[FailureClass, float] = {}
 
         for failure_class, keywords in self.KEYWORDS.items():
@@ -144,7 +146,7 @@ class FailureClassifier:
                 indicators.extend(tool_failures)
 
         # Check for context issues
-        if context and self._check_context_issues(output, context):
+        if context and self._check_context_issues(text, context):
             class_scores[FailureClass.LONG_CONTEXT] = class_scores.get(
                 FailureClass.LONG_CONTEXT, 0) + 0.4
             indicators.append("context_mismatch")

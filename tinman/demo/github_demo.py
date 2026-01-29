@@ -73,13 +73,21 @@ def build_focus(repo: str, issues: list[dict[str, Any]], prs: list[dict[str, Any
     return "\n".join(lines)
 
 
-async def run(repo: str, config_path: str | None, issues: int, prs: int, inject_failure: bool) -> None:
+async def run(repo: str,
+              config_path: str | None,
+              issues: int,
+              prs: int,
+              inject_failure: bool,
+              mode: str) -> None:
     settings = load_config(Path(config_path)) if config_path else load_config()
-    settings.mode = OperatingMode.LAB
+    settings.mode = OperatingMode(mode)
 
     model_client = get_model_client(settings)
+    provider_settings = settings.models.providers.get(settings.models.default)
+    if provider_settings and not provider_settings.api_key:
+        model_client = None
     if not model_client:
-        raise RuntimeError("No model client configured. Check models.default and API keys.")
+        print("Warning: No model client configured. Falling back to template-based hypotheses.")
 
     db = get_db_session(settings)
     db_url = settings.database_url if db else None
@@ -150,8 +158,18 @@ def main() -> None:
     parser.add_argument("--prs", type=int, default=3)
     parser.add_argument("--inject-failure", action="store_true",
                         help="Inject a synthetic failure if none are found")
+    parser.add_argument("--mode", default="lab",
+                        choices=["lab", "shadow", "production"],
+                        help="Operating mode for the demo run")
     args = parser.parse_args()
-    asyncio.run(run(args.repo, args.config, args.issues, args.prs, args.inject_failure))
+    asyncio.run(run(
+        args.repo,
+        args.config,
+        args.issues,
+        args.prs,
+        args.inject_failure,
+        args.mode,
+    ))
 
 
 if __name__ == "__main__":

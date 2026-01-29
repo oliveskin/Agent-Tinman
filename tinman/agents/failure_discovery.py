@@ -235,7 +235,7 @@ class FailureDiscoveryAgent(BaseAgent):
         """Fallback heuristic analysis without LLM."""
         # Classify using heuristic classifier
         classification = self.classifier.classify(
-            description=description,
+            output=description,
             context=self._build_classification_context(runs),
         )
 
