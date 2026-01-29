@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "AgentTinman"
-version = "0.1.38"
+version = "0.1.39"
 description = "Forward-Deployed Research Agent for AI system failure discovery"
 readme = "README.md"
 license = "Apache-2.0"
@@ -70,6 +70,9 @@ dev = [
     "pytest-cov>=4.1.0",
     "mypy>=1.8.0",
     "ruff>=0.3.0",
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
+    "pymdown-extensions>=10.0",
 ]
 
 [project.scripts]

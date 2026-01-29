@@ -1,0 +1,54 @@
+﻿site_name: Tinman FDRA
+site_description: Forward-Deployed Research Agent for Continuous AI Reliability Discovery
+site_url: https://oliveskin.github.io/Agent-Tinman/
+repo_url: https://github.com/oliveskin/Agent-Tinman
+repo_name: oliveskin/Agent-Tinman
+edit_uri: edit/main/docs/
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Demos: demos.md
+  - TUI: tui.md
+  - Docs:
+      - Quickstart: QUICKSTART.md
+      - Concepts: CONCEPTS.md
+      - Configuration: CONFIGURATION.md
+      - Integration: INTEGRATION.md
+      - Modes: MODES.md
+      - HITL: HITL.md
+      - Architecture: ARCHITECTURE.md
+      - Memory: MEMORY.md
+      - Taxonomy: TAXONOMY.md
+      - Production: PRODUCTION.md
+
+theme:
+  name: material
+  logo: assets/tinman.png
+  favicon: assets/tinman.png
+  palette:
+    - scheme: slate
+      primary: teal
+      accent: cyan
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - content.tabs.link
+    - toc.follow
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.details

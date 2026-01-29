@@ -11,7 +11,7 @@
 <p align="center">
   <a href="#installation">Installation</a> •
   <a href="#quick-start">Quick Start</a> •
-  <a href="#documentation">Documentation</a> •
+  <a href="https://oliveskin.github.io/Agent-Tinman/">Documentation</a> •
   <a href="#contributing">Contributing</a>
 </p>
 
