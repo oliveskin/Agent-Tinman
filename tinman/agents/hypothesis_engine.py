@@ -68,7 +68,12 @@ class HypothesisEngine(BaseAgent):
         # If we have an LLM backbone, use it for intelligent hypothesis generation
         if self.llm:
             llm_hypotheses = await self._generate_with_llm(observations)
-            hypotheses.extend(llm_hypotheses)
+            if llm_hypotheses:
+                hypotheses.extend(llm_hypotheses)
+            else:
+                # Fallback to template-based generation if LLM output is empty/unparseable
+                hypotheses.extend(self._hypotheses_from_attack_surface())
+                hypotheses.extend(self._hypotheses_from_taxonomy())
         else:
             # Fallback to template-based generation
             hypotheses.extend(self._hypotheses_from_attack_surface())

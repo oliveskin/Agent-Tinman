@@ -9,7 +9,7 @@ from .base import BaseAgent, AgentContext, AgentResult
 from .experiment_architect import ExperimentDesign
 from ..config.modes import OperatingMode
 from ..memory.graph import MemoryGraph
-from ..memory.models import Node, NodeType
+from ..memory.models import Node, NodeType, EdgeRelation
 from ..integrations.model_client import ModelClient, ModelResponse
 from ..reasoning.llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
 from ..utils import generate_id, utc_now, get_logger
