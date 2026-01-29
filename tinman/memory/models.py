@@ -124,19 +124,23 @@ def create_hypothesis_node(
     expected_failure: str,
     confidence: float,
     priority: str = "medium",
+    hypothesis_id: Optional[str] = None,
     **extra_data
 ) -> Node:
     """Create a hypothesis node."""
-    return Node(
-        node_type=NodeType.HYPOTHESIS,
-        data={
+    node_kwargs: dict[str, Any] = {
+        "node_type": NodeType.HYPOTHESIS,
+        "data": {
             "target_surface": target_surface,
             "expected_failure": expected_failure,
             "confidence": confidence,
             "priority": priority,
             **extra_data,
         },
-    )
+    }
+    if hypothesis_id:
+        node_kwargs["id"] = hypothesis_id
+    return Node(**node_kwargs)
 
 
 def create_experiment_node(

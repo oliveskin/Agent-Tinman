@@ -165,7 +165,8 @@ class MemoryGraph:
                           target_surface: str,
                           expected_failure: str,
                           confidence: float,
-                          priority: str = "medium") -> Node:
+                          priority: str = "medium",
+                          hypothesis_id: Optional[str] = None) -> Node:
         """Record a new hypothesis."""
         from .models import create_hypothesis_node
         node = create_hypothesis_node(
@@ -173,6 +174,7 @@ class MemoryGraph:
             expected_failure=expected_failure,
             confidence=confidence,
             priority=priority,
+            hypothesis_id=hypothesis_id,
         )
         self.add_node(node)
         logger.info(f"Recorded hypothesis: {node.id}")

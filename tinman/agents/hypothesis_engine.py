@@ -95,6 +95,7 @@ class HypothesisEngine(BaseAgent):
                     expected_failure=h.expected_failure,
                     confidence=h.confidence,
                     priority=h.priority,
+                    hypothesis_id=h.id,
                 )
 
         return AgentResult(
