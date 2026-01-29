@@ -164,6 +164,7 @@ class ExperimentArchitect(BaseAgent):
                     stress_type=design.stress_type,
                     mode=design.mode,
                     constraints=design.constraints,
+                    experiment_id=design.id,
                     name=design.name,
                     description=design.description,
                     parameters=design.parameters,

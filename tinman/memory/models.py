@@ -148,19 +148,23 @@ def create_experiment_node(
     stress_type: str,
     mode: str,
     constraints: dict[str, Any],
+    experiment_id: Optional[str] = None,
     **extra_data
 ) -> Node:
     """Create an experiment node."""
-    return Node(
-        node_type=NodeType.EXPERIMENT,
-        data={
+    node_kwargs: dict[str, Any] = {
+        "node_type": NodeType.EXPERIMENT,
+        "data": {
             "hypothesis_id": hypothesis_id,
             "stress_type": stress_type,
             "mode": mode,
             "constraints": constraints,
             **extra_data,
         },
-    )
+    }
+    if experiment_id:
+        node_kwargs["id"] = experiment_id
+    return Node(**node_kwargs)
 
 
 def create_failure_node(

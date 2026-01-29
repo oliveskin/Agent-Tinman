@@ -191,6 +191,7 @@ class MemoryGraph:
                           stress_type: str,
                           mode: str,
                           constraints: dict[str, Any],
+                          experiment_id: Optional[str] = None,
                           **extra_data: Any) -> Node:
         """Record a new experiment, linked to its hypothesis."""
         from .models import create_experiment_node
@@ -199,6 +200,7 @@ class MemoryGraph:
             stress_type=stress_type,
             mode=mode,
             constraints=constraints,
+            experiment_id=experiment_id,
             **extra_data,
         )
         self.add_node(node)
