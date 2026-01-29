@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "AgentTinman"
-version = "0.1.40"
+version = "0.1.41"
 description = "Forward-Deployed Research Agent for AI system failure discovery"
 readme = "README.md"
 license = "Apache-2.0"
@@ -86,6 +86,11 @@ Issues = "https://github.com/oliveskin/agent_tinman/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["tinman"]
+
+[tool.hatch.build.targets.wheel.include]
+paths = [
+    "tinman/demo/**/*.py",
+]
 
 [tool.ruff]
 target-version = "py311"

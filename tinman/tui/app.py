@@ -782,9 +782,9 @@ class TinmanApp(App):
                 return
 
         if check_only:
-            cmd = [sys.executable, "examples/demo_env_check.py", demo]
+            cmd = [sys.executable, "-m", "tinman.demo.env_check", demo]
         else:
-            cmd = [sys.executable, "examples/demo_runner.py", demo] + extra_args
+            cmd = [sys.executable, "-m", "tinman.demo.runner", demo] + extra_args
         self._update_demo_env_status(demo)
 
         self.log_message(f"Running: {' '.join(cmd)}", "info")

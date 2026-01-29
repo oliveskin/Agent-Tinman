@@ -24,7 +24,7 @@ Working code examples demonstrating Tinman capabilities.
 
 ```bash
 # Install Tinman
-pip install tinman[all]
+pip install AgentTinman[all]
 
 # Set API key
 export OPENAI_API_KEY="sk-..."
@@ -59,13 +59,13 @@ export GITHUB_TOKEN="ghp_..."  # recommended to avoid rate limits
 
 ```bash
 # Validate keys first
-python examples/demo_env_check.py all
+python -m tinman.demo.env_check all
 
 # Run a demo
-python examples/demo_runner.py github -- --repo moltbot/moltbot
-python examples/demo_runner.py huggingface -- --model gpt2
-python examples/demo_runner.py replicate -- --version <MODEL_VERSION_ID>
-python examples/demo_runner.py fal -- --endpoint https://fal.run/fal-ai/fast-sdxl
+python -m tinman.demo.runner github -- --repo moltbot/moltbot
+python -m tinman.demo.runner huggingface -- --model gpt2
+python -m tinman.demo.runner replicate -- --version <MODEL_VERSION_ID>
+python -m tinman.demo.runner fal -- --endpoint https://fal.run/fal-ai/fast-sdxl
 ```
 
 ## Prerequisites

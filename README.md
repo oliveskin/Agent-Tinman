@@ -206,8 +206,8 @@ Windows convenience launchers (optional):
 
 ```bash
 # Validate env vars, then run a demo
-python examples/demo_env_check.py all
-python examples/demo_runner.py github -- --repo moltbot/moltbot
+python -m tinman.demo.env_check all
+python -m tinman.demo.runner github -- --repo moltbot/moltbot
 ```
 
 The TUI also includes a **Demos** tab where you can select a provider, edit args,

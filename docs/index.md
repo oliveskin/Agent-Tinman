@@ -33,7 +33,7 @@ python -m tinman.cli.main tui
 3. Generate a demo report
 
 ```bash
-python examples/github_demo.py --repo moltbot/moltbot
+python -m tinman.demo.github_demo --repo moltbot/moltbot
 python -m tinman.cli.main report --format demo
 ```
 

@@ -8,10 +8,10 @@ import sys
 
 
 DEMO_COMMANDS = {
-    "github": [sys.executable, "examples/github_demo.py"],
-    "huggingface": [sys.executable, "examples/huggingface_demo.py"],
-    "replicate": [sys.executable, "examples/replicate_demo.py"],
-    "fal": [sys.executable, "examples/fal_demo.py"],
+    "github": [sys.executable, "-m", "tinman.demo.github_demo"],
+    "huggingface": [sys.executable, "-m", "tinman.demo.huggingface_demo"],
+    "replicate": [sys.executable, "-m", "tinman.demo.replicate_demo"],
+    "fal": [sys.executable, "-m", "tinman.demo.fal_demo"],
 }
 
 REQUIRED_ENV = {
@@ -37,8 +37,8 @@ def main() -> None:
 
     _check_env(args.demo)
 
-    cmd = list(DEMO_COMMANDS[args.demo]) + extra
-    raise SystemExit(subprocess.call(cmd))
+            cmd = list(DEMO_COMMANDS[args.demo]) + extra
+            raise SystemExit(subprocess.call(cmd))
 
 
 if __name__ == "__main__":
