@@ -339,7 +339,8 @@ class TinmanApp(App):
                 with TabPane("Discuss", id="discuss"):
                     yield from self._create_discuss_panel()
                 with TabPane("Demos", id="demos"):
-                    yield from self._create_demos_panel()
+                    with ScrollableContainer(id="demos-scroll"):
+                        yield from self._create_demos_panel()
 
             # Footer with metrics
             with Horizontal(id="footer"):
