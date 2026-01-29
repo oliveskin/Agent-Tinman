@@ -78,7 +78,7 @@ def ensure_database(url: str) -> dict:
         admin_db = os.environ.get("TINMAN_PG_ADMIN_DB", "postgres")
         admin_url = parsed.set(database=admin_db)
 
-        engine = create_engine(admin_url)
+        engine = create_engine(admin_url, isolation_level="AUTOCOMMIT")
         created = False
         with engine.connect() as conn:
             exists = conn.execute(
@@ -86,8 +86,7 @@ def ensure_database(url: str) -> dict:
                 {"name": db_name},
             ).scalar()
             if not exists:
-                conn = conn.execution_options(isolation_level="AUTOCOMMIT")
-                conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+                conn.exec_driver_sql(f'CREATE DATABASE "{db_name}"')
                 created = True
         engine.dispose()
 
