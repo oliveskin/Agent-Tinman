@@ -77,7 +77,6 @@ def build_focus(repo: str, issues: list[dict[str, Any]], prs: list[dict[str, Any
 async def run(repo: str, config_path: str | None, issues: int, prs: int) -> None:
     settings = load_config(Path(config_path)) if config_path else load_config()
     settings.mode = OperatingMode.LAB
-    settings.database.url = "sqlite:///tinman_demo.db"
 
     model_client = get_model_client(settings)
     if not model_client:
