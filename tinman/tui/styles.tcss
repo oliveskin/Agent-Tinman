@@ -173,6 +173,16 @@ TabPane {
     padding: 0 1;
 }
 
+.demo-row {
+    height: 3;
+    margin-bottom: 1;
+}
+
+.demo-field-row {
+    height: 3;
+    margin-bottom: 1;
+}
+
 #focus-label,
 #run-controls-label,
 #demo-name-label,

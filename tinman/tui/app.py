@@ -446,17 +446,17 @@ class TinmanApp(App):
         yield Static("")
         yield Static("Required keys: GITHUB_TOKEN, HUGGINGFACE_API_KEY, REPLICATE_API_TOKEN, FAL_API_KEY", classes="demo-warning")
         yield Static("Select Demo", classes="progress-label")
-        with Horizontal(classes="cta-row"):
+        with Horizontal(classes="cta-row demo-row"):
             yield Button("GitHub", id="demo-select-github", variant="primary")
             yield Button("HuggingFace", id="demo-select-huggingface", variant="default")
             yield Button("Replicate", id="demo-select-replicate", variant="default")
             yield Button("fal.ai", id="demo-select-fal", variant="default")
         yield Static("")
-        with Horizontal(classes="inline-row"):
+        with Horizontal(classes="inline-row demo-field-row"):
             yield Static("Demo:", id="demo-name-label", classes="progress-label")
             yield Input(value="github", id="demo-name-input")
         yield Static("")
-        with Horizontal(classes="inline-row"):
+        with Horizontal(classes="inline-row demo-field-row"):
             yield Static("Args:", id="demo-args-label", classes="progress-label")
             yield Input(
                 placeholder="e.g., --repo moltbot/moltbot",
@@ -465,7 +465,7 @@ class TinmanApp(App):
         yield Static("")
         yield Static("Env Status: unknown", id="demo-env-status", classes="demo-status")
         yield Static("")
-        with Horizontal(classes="cta-row"):
+        with Horizontal(classes="cta-row demo-row"):
             yield Button("Use Defaults", id="demo-defaults", variant="default")
             yield Button("Check Env", id="demo-check-env", variant="default")
             yield Button("Run Demo", id="demo-run", variant="success")
