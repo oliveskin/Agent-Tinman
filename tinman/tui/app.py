@@ -1,6 +1,8 @@
 ﻿"""Tinman TUI - Main Application."""
 
 import asyncio
+import shlex
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
@@ -171,6 +173,7 @@ class TinmanApp(App):
         Binding("f4", "switch_tab('actions')", "Actions", show=True),
         Binding("f5", "switch_tab('discuss')", "Discuss", show=True),
         Binding("f6", "config_model", "Model", show=True),
+        Binding("f7", "switch_tab('demos')", "Demos", show=True),
         Binding("f10", "quit", "Quit", show=True),
         Binding("ctrl+l", "clear_log", "Clear Log"),
     ]
@@ -303,6 +306,7 @@ class TinmanApp(App):
                 yield Button("[F4] Actions", id="nav-actions")
                 yield Button("[F5] Discuss", id="nav-discuss")
                 yield Button("[F6] Model", id="nav-model")
+                yield Button("[F7] Demos", id="nav-demos")
             # Main content with tabs
             with TabbedContent(id="content"):
                 with TabPane("Setup", id="setup"):
@@ -315,6 +319,8 @@ class TinmanApp(App):
                     yield from self._create_actions_panel()
                 with TabPane("Discuss", id="discuss"):
                     yield from self._create_discuss_panel()
+                with TabPane("Demos", id="demos"):
+                    yield from self._create_demos_panel()
 
             # Footer with metrics
             with Horizontal(id="footer"):
@@ -412,6 +418,35 @@ class TinmanApp(App):
             Button("Simulate", id="action-simulate", variant="warning"),
             Button("Deploy", id="action-deploy", variant="success"),
         )
+
+    def _create_demos_panel(self):
+        """Create the demos panel."""
+        yield Static("═══ DEMO RUNNER ═══", classes="panel-title")
+        yield Static("Run built-in provider demos with editable arguments.", classes="empty-state")
+        yield Static("")
+        yield Static("Select Demo", classes="progress-label")
+        with Horizontal(classes="cta-row"):
+            yield Button("GitHub", id="demo-select-github", variant="primary")
+            yield Button("HuggingFace", id="demo-select-huggingface", variant="default")
+            yield Button("Replicate", id="demo-select-replicate", variant="default")
+            yield Button("fal.ai", id="demo-select-fal", variant="default")
+        yield Static("")
+        with Horizontal(classes="inline-row"):
+            yield Static("Demo:", id="demo-name-label", classes="progress-label")
+            yield Input(value="github", id="demo-name-input")
+        yield Static("")
+        with Horizontal(classes="inline-row"):
+            yield Static("Args:", id="demo-args-label", classes="progress-label")
+            yield Input(
+                placeholder="e.g., --repo moltbot/moltbot",
+                id="demo-args-input",
+            )
+        yield Static("")
+        with Horizontal(classes="cta-row"):
+            yield Button("Check Env", id="demo-check-env", variant="default")
+            yield Button("Run Demo", id="demo-run", variant="success")
+        yield Static("")
+        yield Static("Tip: Set provider keys in your shell before running demos.", classes="empty-state")
 
     def _create_discuss_panel(self):
         """Create the chat/discuss panel."""
@@ -647,6 +682,77 @@ class TinmanApp(App):
             self.log_message("Simulation requires a selected intervention.", "warning")
         elif button_id == "action-deploy":
             self.log_message("Deploy requires production approvals.", "warning")
+        # Demo controls
+        elif button_id == "demo-select-github":
+            self._set_demo_defaults("github", "--repo moltbot/moltbot")
+        elif button_id == "demo-select-huggingface":
+            self._set_demo_defaults("huggingface", "--model gpt2")
+        elif button_id == "demo-select-replicate":
+            self._set_demo_defaults("replicate", "--version <MODEL_VERSION_ID>")
+        elif button_id == "demo-select-fal":
+            self._set_demo_defaults("fal", "--endpoint https://fal.run/fal-ai/fast-sdxl")
+        elif button_id == "demo-check-env":
+            self.run_worker(self._run_demo(check_only=True), exclusive=True)
+        elif button_id == "demo-run":
+            self.run_worker(self._run_demo(check_only=False), exclusive=True)
+
+    def _set_demo_defaults(self, demo: str, args: str) -> None:
+        try:
+            self.query_one("#demo-name-input", Input).value = demo
+            self.query_one("#demo-args-input", Input).value = args
+        except Exception:
+            pass
+
+    async def _run_demo(self, check_only: bool) -> None:
+        """Run demo scripts via subprocess and stream output to log."""
+        try:
+            demo = self.query_one("#demo-name-input", Input).value.strip()
+            args = self.query_one("#demo-args-input", Input).value.strip()
+        except Exception:
+            self.log_message("Demo inputs not available.", "error")
+            return
+
+        if not demo:
+            self.log_message("Select a demo first.", "warning")
+            return
+
+        extra_args = []
+        if args:
+            try:
+                extra_args = shlex.split(args, posix=False)
+            except Exception:
+                self.log_message("Unable to parse args. Check quoting.", "error")
+                return
+
+        if check_only:
+            cmd = [sys.executable, "examples/demo_env_check.py", demo]
+        else:
+            cmd = [sys.executable, "examples/demo_runner.py", demo] + extra_args
+
+        self.log_message(f"Running: {' '.join(cmd)}", "info")
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+            )
+        except Exception as e:
+            self.log_message(f"Failed to start demo: {e}", "error")
+            return
+
+        if proc.stdout:
+            async for line in proc.stdout:
+                try:
+                    self.log_message(line.decode(errors="ignore").rstrip(), "info")
+                except Exception:
+                    pass
+
+        exit_code = await proc.wait()
+        if exit_code == 0:
+            self.log_message("Demo completed.", "success")
+        else:
+            self.log_message(f"Demo exited with code {exit_code}.", "warning")
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle input submissions."""

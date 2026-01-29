@@ -169,7 +169,9 @@ TabPane {
 }
 
 #focus-label,
-#run-controls-label {
+#run-controls-label,
+#demo-name-label,
+#demo-args-label {
     width: 14;
 }
 

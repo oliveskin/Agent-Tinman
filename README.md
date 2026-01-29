@@ -153,6 +153,17 @@ Or use the interactive TUI:
 tinman tui
 ```
 
+### 3a. Run Demos (optional)
+
+```bash
+# Validate env vars, then run a demo
+python examples/demo_env_check.py all
+python examples/demo_runner.py github -- --repo moltbot/moltbot
+```
+
+The TUI also includes a **Demos** tab where you can select a provider, edit args,
+and run the demo directly.
+
 ### 4. Review Findings
 
 ```bash
