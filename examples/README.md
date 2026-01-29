@@ -15,6 +15,8 @@ Working code examples demonstrating Tinman capabilities.
 | `huggingface_demo.py` | Hugging Face Inference API demo |
 | `replicate_demo.py` | Replicate API demo |
 | `fal_demo.py` | fal.ai REST demo |
+| `demo_runner.py` | One-command runner for provider demos |
+| `demo_env_check.py` | Validate required env vars without running demos |
 
 ## Running Examples
 
@@ -51,6 +53,19 @@ export HUGGINGFACE_API_KEY="hf_..."
 export REPLICATE_API_TOKEN="..."
 export FAL_API_KEY="..."
 export GITHUB_TOKEN="ghp_..."  # recommended to avoid rate limits
+```
+
+## Demo Runner
+
+```bash
+# Validate keys first
+python examples/demo_env_check.py all
+
+# Run a demo
+python examples/demo_runner.py github -- --repo moltbot/moltbot
+python examples/demo_runner.py huggingface -- --model gpt2
+python examples/demo_runner.py replicate -- --version <MODEL_VERSION_ID>
+python examples/demo_runner.py fal -- --endpoint https://fal.run/fal-ai/fast-sdxl
 ```
 
 ## Prerequisites
