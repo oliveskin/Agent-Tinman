@@ -34,6 +34,7 @@ class GraphRepository:
         )
         self.session.add(db_node)
         self.session.flush()
+        self.session.commit()
         logger.debug(f"Added node: {node.id} ({node.node_type.value})")
         return node.id
 
@@ -60,6 +61,7 @@ class GraphRepository:
         )
         self.session.add(db_edge)
         self.session.flush()
+        self.session.commit()
         logger.debug(f"Added edge: {edge.src_id} -[{edge.relation.value}]-> {edge.dst_id}")
         return edge.id
 
@@ -152,6 +154,7 @@ class GraphRepository:
 
         db_node.valid_to = at or utc_now()
         self.session.flush()
+        self.session.commit()
         return True
 
     def query_at_time(self,
