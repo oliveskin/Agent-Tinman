@@ -150,7 +150,7 @@ risk:
     env_template = Path(".env.example")
     if not env_file.exists() and env_template.exists():
         env_file.write_text(env_template.read_text())
-        click.echo("Created .env from .env.example")
+        click.echo("Created .env from .env.example (fill in your keys before running).")
 
     click.echo("Initialization complete.")
 
