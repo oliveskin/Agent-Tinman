@@ -1,19 +1,19 @@
-/* Tinman TUI - Terminal Card Theme (ASCII-safe) */
+/* Tinman TUI - Superfile-inspired theme (layout-safe) */
 
-$bg: #05070b;
-$frame: #0b1119;
-$surface: #0f1722;
-$surface-2: #121b28;
-$border: #1f2a39;
-$border-strong: #2c3a4f;
-$text: #e6edf3;
-$muted: #8b9ab2;
-$accent: #31e8a9;
-$accent-strong: #15c990;
-$accent-cool: #6fd6ff;
-$danger: #ff5c5f;
-$warning: #f6c453;
-$success: #2ee59d;
+$bg: #0a0d12;
+$panel-bg: #0f141c;
+$panel-strong-bg: #131b26;
+$border: #243042;
+$border-strong: #2f3e54;
+$text: #e7edf5;
+$muted: #93a3bd;
+$accent: #46f2b3;
+$accent-strong: #19d392;
+$accent-cool: #8ad7ff;
+$danger: #ff6363;
+$warning: #f6c36b;
+$success: #37e59b;
+$glow: #7af2c4;
 
 Screen {
     background: $bg;
@@ -28,47 +28,17 @@ Screen {
     layout: vertical;
 }
 
-#terminal-frame {
-    width: 100%;
-    height: 100%;
-    background: $frame;
-    border: round $border-strong;
-    padding: 1 1;
-    layout: vertical;
-}
-
-#window-bar {
-    height: 3;
-    width: 100%;
-    background: $surface;
-    border: round $border;
-    padding: 0 1;
-}
-
-#window-controls {
-    width: 6;
-    color: $warning;
-    text-style: bold;
-}
-
-#window-title {
-    width: 1fr;
-    content-align: center middle;
-    color: $muted;
-}
-
-#window-version {
-    width: 8;
-    content-align: right middle;
-    color: $accent-cool;
-}
-
 #header {
-    height: 5;
+    height: 6;
     width: 100%;
-    background: $surface;
-    border: round $border;
+    background: $panel-strong-bg;
+    border: round $border-strong;
     padding: 0 1;
+}
+
+#header Static {
+    color: $accent;
+    text-style: bold;
 }
 
 #ascii-logo {
@@ -76,155 +46,145 @@ Screen {
     text-style: bold;
 }
 
-#status-line {
-    width: 1fr;
-    height: 5;
-    padding-left: 1;
-}
-
-#tagline {
+#status-line Static {
     color: $muted;
 }
 
-#status-line Static {
-    color: $text;
+#status-line {
+    dock: right;
+    width: auto;
+    height: 3;
+    padding-right: 2;
+}
+
+#version {
+    color: $accent-cool;
 }
 
 #nav-bar {
     height: 3;
     width: 100%;
-    background: $surface;
-    border: round $border;
+    background: $panel-bg;
+    border: round $border-strong;
     padding: 0 1;
 }
 
 #nav-bar Button {
     background: transparent;
-    color: $muted;
+    color: $text;
     border: none;
-    min-width: 14;
-    margin: 0 1;
+    min-width: 10;
+    margin: 0 0;
+    padding: 0 1;
+    text-style: bold;
+}
+
+Button {
+    color: $text;
+}
+
+.cta-row Button {
+    min-width: 12;
+    height: 3;
+    content-align: center middle;
+    border: round $border-strong;
+    background: $panel-bg;
+    text-style: bold;
+}
+
+#start-run {
+    background: $panel-strong-bg;
+    color: $text;
+    text-style: bold;
+    border: round $success;
+}
+
+#stop-run {
+    background: $panel-strong-bg;
+    color: $text;
+    text-style: bold;
+    border: round $danger;
 }
 
 #nav-bar Button:hover {
+    background: $panel-strong-bg;
     color: $accent;
 }
 
 #nav-bar Button:focus {
-    background: $surface-2;
+    background: $panel-strong-bg;
     color: $accent;
     text-style: bold;
 }
 
 #nav-bar Button.-active {
-    background: $surface-2;
+    background: $panel-strong-bg;
     color: $accent;
     text-style: bold;
-    border: round $accent;
+    border: none;
 }
 
 #content {
     width: 100%;
     height: 1fr;
-    background: $frame;
-    padding: 1;
+    background: $bg;
+    padding: 1 0;
     layout: vertical;
 }
 
-.tab-scroll {
+TabbedContent {
     height: 1fr;
-    width: 100%;
-    overflow-y: auto;
+    layout: vertical;
 }
 
-.tab-panel {
+TabPane {
     height: 1fr;
-    width: 100%;
-    overflow-y: auto;
+    padding: 1;
 }
+
 
 .panel-title {
-    color: $accent;
+    color: $text;
     text-style: bold;
-    background: $surface;
+    background: $panel-bg;
     padding: 0 1;
     border: round $border-strong;
+}
+
+#activity-log {
+    height: 100%;
+    border: round $border-strong;
+    background: $panel-strong-bg;
+    padding: 1;
 }
 
 .progress-label {
     color: $muted;
 }
 
-Button {
-    color: $text;
-    border: round $border;
-    background: $surface;
-}
-
-.cta-row Button {
-    min-width: 16;
+.inline-row {
     height: 3;
-    content-align: center middle;
-    text-style: bold;
-}
-
-#start-run {
-    background: $success;
-    color: $bg;
-    border: round $success;
-}
-
-#setup-configure-model {
-    background: $accent-strong;
-    color: $bg;
-    border: round $accent-strong;
-}
-
-#setup-reload {
-    background: $surface-2;
-    color: $text;
-    border: round $border;
-}
-
-#setup-check-db {
-    background: $warning;
-    color: $bg;
-    border: round $warning;
-}
-
-#stop-run {
-    background: $danger;
-    color: $bg;
-    border: round $danger;
-}
-
-Input {
-    height: 3;
-    border: round $border;
-    background: $surface;
-    color: $text;
+    align: left middle;
     padding: 0 1;
 }
 
-Input:focus {
-    border: round $accent-cool;
+#focus-label,
+#run-controls-label {
+    width: 14;
 }
 
-#activity-log {
-    height: 1fr;
-    border: round $border;
-    background: $surface;
-    padding: 1;
+Input {
+    width: 1fr;
 }
 
 DataTable {
     height: 1fr;
-    background: $surface;
-    border: round $border;
+    background: $panel-bg;
+    border: round $border-strong;
 }
 
 DataTable > .datatable--header {
-    background: $surface-2;
+    background: $panel-strong-bg;
     color: $accent;
     text-style: bold;
 }
@@ -236,8 +196,8 @@ DataTable > .datatable--cursor {
 
 #chat-log {
     height: 1fr;
-    border: round $border;
-    background: $surface;
+    border: round $border-strong;
+    background: $panel-strong-bg;
     padding: 1;
     margin-bottom: 1;
 }
@@ -245,7 +205,7 @@ DataTable > .datatable--cursor {
 #chat-input {
     height: 3;
     border: round $border-strong;
-    background: $surface;
+    background: $panel-bg;
     color: $text;
 }
 
@@ -269,19 +229,26 @@ DataTable > .datatable--cursor {
     padding: 1;
 }
 
-#approval-modal,
-#model-config-modal {
+.detail-panel {
+    min-height: 3;
+    height: auto;
+    border: round $border-strong;
+    background: $panel-bg;
+    color: $text;
+    padding: 0 1;
+}
+
+#approval-modal {
     align: center middle;
     width: 74;
     height: auto;
     max-height: 80%;
     border: round $accent;
-    background: $surface;
+    background: $panel-bg;
     padding: 1 2;
 }
 
-#approval-modal .modal-title,
-#model-config-modal Label {
+#approval-modal .modal-title {
     color: $accent;
     text-style: bold;
     text-align: center;
@@ -293,16 +260,14 @@ DataTable > .datatable--cursor {
     padding: 1 0;
 }
 
-#approval-modal .modal-actions,
-#model-config-modal .modal-actions {
+#approval-modal .modal-actions {
     layout: horizontal;
     align: center middle;
     height: auto;
     padding-top: 1;
 }
 
-#approval-modal Button,
-#model-config-modal Button {
+#approval-modal Button {
     margin: 0 2;
     min-width: 12;
 }
@@ -320,16 +285,16 @@ DataTable > .datatable--cursor {
 }
 
 #approval-modal #details-btn {
-    background: $surface-2;
+    background: $panel-strong-bg;
     color: $accent;
     border: round $accent;
 }
 
 #footer {
-    height: 3;
+    height: 2;
     width: 100%;
-    background: $surface;
-    border: round $border;
+    background: $panel-strong-bg;
+    border: none;
     padding: 0 1;
 }
 
@@ -347,7 +312,7 @@ DataTable > .datatable--cursor {
 }
 
 Scrollbar {
-    background: $surface-2;
+    background: $panel-strong-bg;
 }
 
 ScrollbarSlider {
@@ -361,7 +326,6 @@ ScrollbarSlider:hover {
 LoadingIndicator {
     color: $accent;
 }
-
 .status-muted {
     color: $muted;
 }
@@ -373,4 +337,8 @@ LoadingIndicator {
 
 .status-warn {
     color: $warning;
+}
+
+Tabs {
+    display: none;
 }

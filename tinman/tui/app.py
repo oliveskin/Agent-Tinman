@@ -1,4 +1,4 @@
-"""Tinman TUI - Main Application."""
+﻿"""Tinman TUI - Main Application."""
 
 import asyncio
 from datetime import datetime
@@ -13,7 +13,7 @@ from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
 from textual.widgets import (
     Button, DataTable, Footer, Header, Input, Label,
-    LoadingIndicator, ProgressBar, Static
+    LoadingIndicator, ProgressBar, Static, TabbedContent, TabPane
 )
 from textual.screen import ModalScreen
 from textual.reactive import reactive
@@ -30,15 +30,11 @@ if TYPE_CHECKING:
 
 
 # ASCII Art Header
-TINMAN_ASCII = r"""
- _____ _ _   _ __  __    _    _   _
-|_   _| | \ | |  \/  |  / \  | \ | |
-  | | | |  \| | |\/| | / _ \ |  \| |
-  | | | | |\  | |  | |/ ___ \| |\  |
-  |_| |_|_| \_|_|  |_/_/   \_\_| \_|
+TINMAN_ASCII = """
+TINMAN
 """
 
-TINMAN_ASCII_SMALL = "TINMAN FDRA"
+TINMAN_ASCII_SMALL = "TINMAN"
 
 
 class ApprovalModal(ModalScreen):
@@ -83,14 +79,14 @@ class ApprovalModal(ModalScreen):
 
     def compose(self) -> ComposeResult:
         with Container(id="approval-modal"):
-            yield Static("!! APPROVAL REQUIRED !!", classes="modal-title")
+            yield Static("⚠ APPROVAL REQUIRED ⚠", classes="modal-title")
             yield Static(f"Action: {self.action}", classes="modal-content")
             yield Static(f"Risk: {self.risk_tier}", classes="modal-content")
             if self.cost:
                 yield Static(f"Est. Cost: {self.cost}", classes="modal-content")
             if not self.is_reversible:
-                yield Static("!! WARNING: This action is NOT reversible!", classes="modal-content")
-            yield Static("-" * 50, classes="modal-content")
+                yield Static("⚠ WARNING: This action is NOT reversible!", classes="modal-content")
+            yield Static("─" * 50, classes="modal-content")
             yield Static(self.details[:300] if self.details else "No details provided", classes="modal-content")
             if self.rollback:
                 yield Static(f"Rollback: {self.rollback[:100]}", classes="modal-content")
@@ -290,83 +286,80 @@ class TinmanApp(App):
     def compose(self) -> ComposeResult:
         """Create the UI layout."""
         with Container(id="main-container"):
-            with Container(id="terminal-frame"):
-                with Horizontal(id="window-bar"):
-                    yield Static("ooo", id="window-controls")
-                    yield Static("tinman@fdra - research console", id="window-title")
-                    yield Static(f"v{__version__}", id="window-version")
+            # Header with ASCII art
+            with Container(id="header"):
+                with Horizontal():
+                    yield Static(TINMAN_ASCII_SMALL, id="ascii-logo")
+                    with Vertical(id="status-line"):
+                        yield Static(f"FDRA v{__version__}", id="version")
+                        yield Static(f"Mode: {self.mode}", id="mode-display")
+                        yield Static(f"Status: {self.status}", id="status-display")
 
-                # Header with ASCII art
-                with Container(id="header"):
-                    with Horizontal():
-                        yield Static(TINMAN_ASCII_SMALL, id="ascii-logo")
-                        with Vertical(id="status-line"):
-                            yield Static("Forward-Deployed Research Agent", id="tagline")
-                            yield Static(f"Mode: {self.mode}", id="mode-display")
-                            yield Static(f"Status: {self.status}", id="status-display")
-
-                # Navigation buttons
-                with Horizontal(id="nav-bar"):
-                    yield Button("[F1] Setup", id="nav-setup", classes="-active")
-                    yield Button("[F2] Run", id="nav-run")
-                    yield Button("[F3] Review", id="nav-review")
-                    yield Button("[F4] Actions", id="nav-actions")
-                    yield Button("[F5] Discuss", id="nav-discuss")
-                    yield Button("[F6] Model", id="nav-model")
-
-                # Main content with tabs
-            with Container(id="content"):
-                with ScrollableContainer(id="tab-setup", classes="tab-panel -active"):
+            # Navigation buttons
+            with Horizontal(id="nav-bar"):
+                yield Button("[F1] Setup", id="nav-setup", classes="-active")
+                yield Button("[F2] Run", id="nav-run")
+                yield Button("[F3] Review", id="nav-review")
+                yield Button("[F4] Actions", id="nav-actions")
+                yield Button("[F5] Discuss", id="nav-discuss")
+                yield Button("[F6] Model", id="nav-model")
+            # Main content with tabs
+            with TabbedContent(id="content"):
+                with TabPane("Setup", id="setup"):
                     yield from self._create_setup_panel()
-                with ScrollableContainer(id="tab-run", classes="tab-panel"):
+                with TabPane("Run", id="run"):
                     yield from self._create_run_panel()
-                with ScrollableContainer(id="tab-review", classes="tab-panel"):
+                with TabPane("Review", id="review"):
                     yield from self._create_review_panel()
-                with ScrollableContainer(id="tab-actions", classes="tab-panel"):
+                with TabPane("Actions", id="actions"):
                     yield from self._create_actions_panel()
-                with ScrollableContainer(id="tab-discuss", classes="tab-panel"):
+                with TabPane("Discuss", id="discuss"):
                     yield from self._create_discuss_panel()
 
-                # Footer with metrics
-                with Horizontal(id="footer"):
-                    yield Static("Hypotheses: ", classes="metric-label")
-                    yield Static("0", id="hyp-count", classes="metric-value")
-                    yield Static(" | Experiments: ", classes="metric-label")
-                    yield Static("0", id="exp-count", classes="metric-value")
-                    yield Static(" | Failures: ", classes="metric-label")
-                    yield Static("0", id="fail-count", classes="metric-value")
-                    yield Static(" | ", classes="metric-label")
-                    yield Static("", id="clock", classes="metric-value")
+            # Footer with metrics
+            with Horizontal(id="footer"):
+                yield Static("Hypotheses: ", classes="metric-label")
+                yield Static("0", id="hyp-count", classes="metric-value")
+                yield Static(" | Experiments: ", classes="metric-label")
+                yield Static("0", id="exp-count", classes="metric-value")
+                yield Static(" | Failures: ", classes="metric-label")
+                yield Static("0", id="fail-count", classes="metric-value")
+                yield Static(" | ", classes="metric-label")
+                yield Static("", id="clock", classes="metric-value")
 
     def _create_setup_panel(self):
         """Create the setup panel."""
-        yield Static("=== SETUP CHECKLIST ===", classes="panel-title")
+        yield Static("═══ SETUP CHECKLIST ═══", classes="panel-title")
+        yield Static("")
         yield Static("Model configured:", classes="progress-label")
         yield Static("Unknown", id="setup-model-status", classes="status-muted")
         yield Static("API key detected:", classes="progress-label")
         yield Static("Unknown", id="setup-key-status", classes="status-muted")
         yield Static("Database connected:", classes="progress-label")
         yield Static("Unknown", id="setup-db-status", classes="status-muted")
+        yield Static("")
         yield Horizontal(
             Button("Configure Model", id="setup-configure-model", variant="primary"),
             Button("Reload Settings", id="setup-reload", variant="default"),
             Button("Check DB", id="setup-check-db", variant="warning"),
-            classes="cta-row",
         )
+        yield Static("")
         yield Static("Tip: Use F6 to open the model picker anytime.", classes="empty-state")
 
     def _create_run_panel(self):
         """Create the run panel."""
-        yield Static("=== RUN RESEARCH ===", classes="panel-title")
-        yield Static("Focus Area:", classes="progress-label")
-        yield Input(placeholder="e.g., tool_use, long_context, reasoning", id="focus-input")
-        yield Static("Run Controls:", classes="progress-label")
-        yield Horizontal(
-            Button("Start Run", id="start-run", variant="success"),
-            Button("Stop", id="stop-run", variant="error"),
-            classes="cta-row",
-        )
-        yield Static("--- Activity Log ---", classes="panel-title")
+        yield Static("═══ RUN RESEARCH ═══", classes="panel-title")
+        yield Static("")
+        with Horizontal(classes="inline-row"):
+            yield Static("Focus Area:", id="focus-label", classes="progress-label")
+            yield Input(placeholder="e.g., tool_use, long_context, reasoning", id="focus-input")
+        yield Static("")
+        with Horizontal(classes="inline-row cta-row"):
+            yield Static("Run Controls:", id="run-controls-label", classes="progress-label")
+            yield Button("Start Run", id="start-run", variant="success")
+            yield Button("Stop", id="stop-run", variant="error")
+        yield Static("")
+        yield Static("─── Activity Log ───", classes="panel-title")
         yield ScrollableContainer(
             Static("Configure a model, then start a run.", id="log-content"),
             id="activity-log"
@@ -374,7 +367,7 @@ class TinmanApp(App):
 
     def _create_review_panel(self):
         """Create the review panel."""
-        yield Static("=== REVIEW RESULTS ===", classes="panel-title")
+        yield Static("═══ REVIEW RESULTS ═══", classes="panel-title")
         yield Static("")
         yield Static("Summary", classes="progress-label")
         yield Static("Run not started yet.", id="review-summary", classes="empty-state")
@@ -383,6 +376,9 @@ class TinmanApp(App):
         table = DataTable(id="review-hypotheses-table")
         table.add_columns("ID", "Hypothesis", "Confidence", "Status")
         yield table
+        yield Static("Selected Hypothesis", classes="panel-title")
+        yield Static("Select a hypothesis to view details.", id="review-hypothesis-detail",
+                     classes="detail-panel")
         yield Static("No hypotheses yet.", id="review-hypotheses-empty", classes="empty-state")
         yield Static("")
         yield Static("Failures", classes="panel-title")
@@ -399,7 +395,7 @@ class TinmanApp(App):
 
     def _create_actions_panel(self):
         """Create the actions panel."""
-        yield Static("=== ACTIONS ===", classes="panel-title")
+        yield Static("═══ ACTIONS ═══", classes="panel-title")
         yield Static("")
         yield Static("Select a failure to design interventions.", classes="empty-state")
         table = DataTable(id="actions-failures-table")
@@ -419,7 +415,7 @@ class TinmanApp(App):
 
     def _create_discuss_panel(self):
         """Create the chat/discuss panel."""
-        yield Static("=== DISCUSS ===", classes="panel-title")
+        yield Static("═══ RESEARCH DIALOGUE ═══", classes="panel-title")
         yield ScrollableContainer(
             Static("No messages yet. Ask a question to start a conversation.", id="chat-empty",
                    classes="empty-state"),
@@ -439,9 +435,6 @@ class TinmanApp(App):
         # Initialize Tinman in background
         self.run_worker(self._init_tinman())
         self.run_worker(self._refresh_setup_status())
-
-        # Ensure default tab renders
-        self.action_switch_tab("setup")
 
     async def _init_tinman(self) -> None:
         """Initialize Tinman instance."""
@@ -550,11 +543,11 @@ class TinmanApp(App):
             lines = []
             for msg, lvl, ts in recent:
                 prefix = {
-                    "info": "|",
-                    "success": ">",
-                    "warning": "!",
-                    "error": "x",
-                }.get(lvl, "|")
+                    "info": "│",
+                    "success": "▶",
+                    "warning": "⚠",
+                    "error": "✖",
+                }.get(lvl, "│")
                 time_str = ts.strftime("%H:%M:%S")
                 lines.append(f"{prefix} [{time_str}] {msg}")
 
@@ -572,16 +565,8 @@ class TinmanApp(App):
 
     def action_switch_tab(self, tab_id: str) -> None:
         """Switch to a specific tab."""
-        # Update tab panels
-        for panel in self.query(".tab-panel"):
-            panel.display = False
-            panel.remove_class("-active")
-        try:
-            active_panel = self.query_one(f"#tab-{tab_id}")
-            active_panel.display = True
-            active_panel.add_class("-active")
-        except Exception:
-            pass
+        tabs = self.query_one(TabbedContent)
+        tabs.active = tab_id
 
         # Update nav button styles
         for btn in self.query("#nav-bar Button"):
@@ -671,7 +656,21 @@ class TinmanApp(App):
 
     async def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
         table_id = event.data_table.id
-        if table_id == "actions-failures-table":
+        if table_id == "review-hypotheses-table":
+            row = event.data_table.get_row(event.row_key)
+            if row:
+                detail = (
+                    f"ID: {row[0]} | Confidence: {row[2]} | Status: {row[3]}\n"
+                    f"{row[1]}"
+                )
+                self._toggle_empty("review-hypotheses-empty", False)
+            else:
+                detail = "Select a hypothesis to view details."
+            try:
+                self.query_one("#review-hypothesis-detail", Static).update(detail)
+            except Exception:
+                pass
+        elif table_id == "actions-failures-table":
             row = event.data_table.get_row(event.row_key)
             self._selected_failure_id = row[0] if row else None
             self.log_message(f"Selected failure: {self._selected_failure_id}", "info")
@@ -780,9 +779,9 @@ class TinmanApp(App):
         interventions = results.get("interventions", [])
 
         summary = (
-            f"Hypotheses: {len(hypotheses)} | "
-            f"Experiments: {len(results.get('experiments', []))} | "
-            f"Failures: {len(failures)} | "
+            f"Hypotheses: {len(hypotheses)} • "
+            f"Experiments: {len(results.get('experiments', []))} • "
+            f"Failures: {len(failures)} • "
             f"Interventions: {len(interventions)}"
         )
         try:
@@ -800,6 +799,20 @@ class TinmanApp(App):
                 h.get("priority", "new"),
             )
         self._toggle_empty("review-hypotheses-empty", len(hypotheses) == 0)
+        if len(hypotheses) == 0:
+            try:
+                self.query_one("#review-hypothesis-detail", Static).update(
+                    "Select a hypothesis to view details."
+                )
+            except Exception:
+                pass
+        if len(hypotheses) == 0:
+            try:
+                self.query_one("#review-hypothesis-detail", Static).update(
+                    "Select a hypothesis to view details."
+                )
+            except Exception:
+                pass
 
         f_table = self.query_one("#review-failures-table", DataTable)
         f_table.clear()
