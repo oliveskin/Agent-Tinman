@@ -38,6 +38,10 @@ class MemoryGraph:
         """Get a node by ID."""
         return self.repo.get_node(node_id)
 
+    def update_node_data(self, node_id: str, updates: dict[str, Any]) -> bool:
+        """Update a node's data payload."""
+        return self.repo.update_node_data(node_id, updates)
+
     def invalidate_node(self, node_id: str) -> bool:
         """Mark a node as no longer valid (soft delete with temporal semantics)."""
         return self.repo.invalidate_node(node_id)

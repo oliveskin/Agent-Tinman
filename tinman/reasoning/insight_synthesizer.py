@@ -208,9 +208,23 @@ class InsightSynthesizer:
                 continue
             if end and e.created_at > end:
                 continue
+            total_runs = e.data.get("total_runs")
+            failures_triggered = e.data.get("failures_triggered")
+            reproduction_rate = e.data.get("reproduction_rate")
+            hypothesis_validated = e.data.get("hypothesis_validated")
+            details = []
+            if total_runs is not None:
+                details.append(f"runs={total_runs}")
+            if failures_triggered is not None:
+                details.append(f"failures={failures_triggered}")
+            if reproduction_rate is not None:
+                details.append(f"repro={reproduction_rate:.0%}")
+            if hypothesis_validated is not None:
+                details.append(f"validated={'yes' if hypothesis_validated else 'no'}")
+            detail_text = f" ({', '.join(details)})" if details else ""
             findings.append({
                 "type": "experiment",
-                "description": f"Ran {e.data.get('stress_type', 'unknown')} experiment",
+                "description": f"Ran {e.data.get('stress_type', 'unknown')} experiment{detail_text}",
                 "data": e.data,
             })
 

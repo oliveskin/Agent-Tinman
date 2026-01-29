@@ -521,7 +521,7 @@ If asked to explain your reasoning, walk through your logic step by step."""
             try:
                 result.structured_output = json.loads(json_match.group(1))
             except json.JSONDecodeError:
-                logger.warning("Failed to parse JSON from response")
+                logger.debug("Failed to parse JSON from response")
                 result.structured_output = {"raw": content}
         else:
             # Try parsing entire content as JSON

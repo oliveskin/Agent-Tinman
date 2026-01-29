@@ -49,6 +49,22 @@ class GraphRepository:
 
         return self._db_to_node(db_node)
 
+    def update_node_data(self, node_id: str, updates: dict[str, Any]) -> bool:
+        """Update a node's data payload."""
+        db_node = self.session.query(NodeModel).filter(
+            NodeModel.id == node_id
+        ).first()
+
+        if not db_node:
+            return False
+
+        existing = db_node.data or {}
+        existing.update(updates)
+        db_node.data = existing
+        self.session.flush()
+        self.session.commit()
+        return True
+
     def add_edge(self, edge: Edge) -> str:
         """Persist an edge and return its ID."""
         db_edge = EdgeModel(

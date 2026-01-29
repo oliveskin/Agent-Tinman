@@ -505,6 +505,17 @@ If a failure occurred, describe it briefly. If no failure, respond with {"failur
         )
         self.graph.add_node(run_node)
 
+        # Update experiment node with outcome metrics
+        self.graph.update_node_data(result.experiment_id, {
+            "total_runs": result.total_runs,
+            "failures_triggered": result.failures_triggered,
+            "reproduction_rate": result.reproduction_rate,
+            "hypothesis_validated": result.hypothesis_validated,
+        })
+
+        # Link experiment to run for lineage queries
+        self.graph.link(result.experiment_id, run_node.id, EdgeRelation.EXECUTED_AS)
+
     def _result_to_dict(self, result: ExperimentResult) -> dict:
         """Convert result to dictionary."""
         return {
