@@ -151,6 +151,24 @@ risk:
     if not env_file.exists() and env_template.exists():
         env_file.write_text(env_template.read_text())
         click.echo("Created .env from .env.example (fill in your keys before running).")
+    elif not env_file.exists():
+        env_file.write_text(
+            "# Tinman env\n"
+            "# Fill in the keys you use.\n\n"
+            "OPENAI_API_KEY=\n"
+            "ANTHROPIC_API_KEY=\n"
+            "GEMINI_API_KEY=\n"
+            "GOOGLE_API_KEY=\n"
+            "OPENROUTER_API_KEY=\n"
+            "GROQ_API_KEY=\n"
+            "TOGETHER_API_KEY=\n"
+            "OLLAMA_BASE_URL=\n\n"
+            "GITHUB_TOKEN=\n"
+            "HUGGINGFACE_API_KEY=\n"
+            "REPLICATE_API_TOKEN=\n"
+            "FAL_API_KEY=\n"
+        )
+        click.echo("Created .env template (fill in your keys before running).")
 
     click.echo("Initialization complete.")
 
