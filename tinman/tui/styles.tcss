@@ -29,7 +29,7 @@ Screen {
 }
 
 #header {
-    height: 6;
+    height: 8;
     width: 100%;
     background: $panel-strong-bg;
     border: round $border-strong;
@@ -39,6 +39,20 @@ Screen {
 #header Static {
     color: $accent;
     text-style: bold;
+}
+
+#header-info {
+    padding-left: 2;
+    align: left middle;
+}
+
+.header-subtitle {
+    color: $muted;
+    text-style: bold;
+}
+
+.header-meta {
+    color: $accent-cool;
 }
 
 #ascii-logo {
@@ -165,7 +179,7 @@ TabPane {
 }
 
 #activity-log {
-    height: 100%;
+    height: 1fr;
     border: round $border-strong;
     background: $panel-strong-bg;
     padding: 1;

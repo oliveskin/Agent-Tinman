@@ -34,11 +34,14 @@ if TYPE_CHECKING:
 
 
 # ASCII Art Header
-TINMAN_ASCII = """
-TINMAN
+TINMAN_ASCII = r"""
+████████╗██╗███╗   ██╗███╗   ███╗ █████╗ ███╗   ██╗
+╚══██╔══╝██║████╗  ██║████╗ ████║██╔══██╗████╗  ██║
+   ██║   ██║██╔██╗ ██║██╔████╔██║███████║██╔██╗ ██║
+   ██║   ██║██║╚██╗██║██║╚██╔╝██║██╔══██║██║╚██╗██║
+   ██║   ██║██║ ╚████║██║ ╚═╝ ██║██║  ██║██║ ╚████║
+   ╚═╝   ╚═╝╚═╝  ╚═══╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝
 """
-
-TINMAN_ASCII_SMALL = "TINMAN"
 
 
 class ApprovalModal(ModalScreen):
@@ -313,7 +316,11 @@ class TinmanApp(App):
             # Header with ASCII art
             with Container(id="header"):
                 with Horizontal():
-                    yield Static(TINMAN_ASCII_SMALL, id="ascii-logo")
+                    yield Static(TINMAN_ASCII, id="ascii-logo")
+                    with Vertical(id="header-info"):
+                        yield Static("Forward-Deployed Research Agent", classes="header-subtitle")
+                        yield Static("GitHub: oliveskin/Agent-Tinman", classes="header-meta")
+                        yield Static("Twitter: @cantshutup_", classes="header-meta")
                     with Vertical(id="status-line"):
                         yield Static(f"FDRA v{__version__}", id="version")
                         yield Static(f"Mode: {self.mode}", id="mode-display")
@@ -406,6 +413,7 @@ class TinmanApp(App):
         yield Horizontal(
             Button("Generate Demo Report", id="review-demo-report", variant="primary"),
             Button("Open Latest Report", id="review-open-report", variant="default"),
+            Button("Refresh from DB", id="review-refresh-db", variant="default"),
         )
         yield Static("")
         yield Static("Hypotheses", classes="panel-title")
@@ -739,6 +747,8 @@ class TinmanApp(App):
             self.run_worker(self._generate_demo_report(), exclusive=True)
         elif button_id == "review-open-report":
             self.run_worker(self._open_latest_report(), exclusive=True)
+        elif button_id == "review-refresh-db":
+            self.run_worker(self._refresh_review_from_db(), exclusive=True)
         # Demo controls
         elif button_id == "demo-select-github":
             self._set_demo_defaults("github")
@@ -1079,6 +1089,69 @@ class TinmanApp(App):
             self.log_message(f"Demo report written to {output_path}", "success")
         except Exception as e:
             self.log_message(f"Demo report failed: {e}", "error")
+
+    async def _refresh_review_from_db(self) -> None:
+        """Refresh review tables directly from the memory graph."""
+        if not self.tinman or not self.tinman.graph:
+            self.log_message("No database configured. Refresh requires a DB.", "warning")
+            return
+
+        try:
+            graph = self.tinman.graph
+            hypotheses = graph.get_hypotheses(valid_only=False, limit=50)
+            experiments = graph.get_experiments(valid_only=False, limit=50)
+            failures = graph.get_failures(valid_only=False, limit=50)
+            interventions = graph.get_interventions(valid_only=False, limit=50)
+
+            results = {
+                "hypotheses": [
+                    {
+                        "id": h.id,
+                        "expected_failure": h.data.get("expected_failure", ""),
+                        "confidence": h.data.get("confidence", 0.0),
+                        "status": "active",
+                    } for h in hypotheses
+                ],
+                "experiments": [
+                    {
+                        "id": e.id,
+                        "stress_type": e.data.get("stress_type", ""),
+                        "hypothesis_id": e.data.get("hypothesis_id", ""),
+                    } for e in experiments
+                ],
+                "failures": [
+                    {
+                        "id": f.id,
+                        "primary_class": f.data.get("primary_class", ""),
+                        "description": f.data.get("description", ""),
+                        "reproducibility": f.data.get("reproducibility", 0.0),
+                        "severity": f.data.get("severity", "S2"),
+                        "is_novel": f.data.get("is_novel", False),
+                    } for f in failures
+                ],
+                "interventions": [
+                    {
+                        "id": i.id,
+                        "intervention_type": i.data.get("intervention_type", ""),
+                        "target_failure_id": i.data.get("failure_id", ""),
+                        "expected_improvement": i.data.get("expected_gains", {}).get(
+                            "failure_reduction", ""
+                        ),
+                        "status": "proposed",
+                    } for i in interventions
+                ],
+            }
+
+            self._populate_review(results)
+            self._populate_actions(results)
+            self.hypothesis_count = len(hypotheses)
+            self.experiment_count = len(experiments)
+            self.failure_count = len(failures)
+            self.intervention_count = len(interventions)
+            self._update_metrics()
+            self.log_message("Review refreshed from DB.", "success")
+        except Exception as e:
+            self.log_message(f"Refresh failed: {e}", "error")
 
     async def _open_latest_report(self) -> None:
         """Open the latest report file if present."""
