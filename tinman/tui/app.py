@@ -410,7 +410,7 @@ class TinmanApp(App):
         yield Static("")
         yield Static("Summary", classes="progress-label")
         yield Static("Run not started yet.", id="review-summary", classes="empty-state")
-        yield Horizontal(
+        yield Horizontal(classes="review-actions",
             Button("Generate Demo Report", id="review-demo-report", variant="primary"),
             Button("Open Latest Report", id="review-open-report", variant="default"),
             Button("Refresh from DB", id="review-refresh-db", variant="default"),

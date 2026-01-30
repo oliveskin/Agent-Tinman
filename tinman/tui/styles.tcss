@@ -66,9 +66,41 @@ Screen {
 
 #status-line {
     dock: right;
-    width: auto;
+    width: 22;
     height: 3;
     padding-right: 2;
+}
+
+#header-info {
+    width: 1fr;
+    padding-left: 2;
+    align: left middle;
+}
+
+#ascii-logo {
+    width: 34;
+}
+
+#status-line {
+    align: right middle;
+}
+
+#review-demo-report,
+#review-open-report {
+    min-width: 18;
+}
+
+#review-refresh-db {
+    min-width: 16;
+}
+
+.review-actions Button {
+    min-width: 12;
+    height: 3;
+    content-align: center middle;
+    border: round $border-strong;
+    background: $panel-bg;
+    text-style: bold;
 }
 
 #version {
