@@ -146,7 +146,7 @@ class FailureClassifier:
                 indicators.extend(tool_failures)
 
         # Check for context issues
-        if context and self._check_context_issues(text, context):
+        if isinstance(context, str) and context and self._check_context_issues(text, context):
             class_scores[FailureClass.LONG_CONTEXT] = class_scores.get(
                 FailureClass.LONG_CONTEXT, 0) + 0.4
             indicators.append("context_mismatch")
