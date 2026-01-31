@@ -22,6 +22,17 @@ except Exception:  # pragma: no cover - optional
 
 from .fastapi import create_fastapi_adapter, record_llm_interaction
 
+# Gateway plugin (for real-time monitoring)
+from .gateway_plugin import (
+    GatewayAdapter,
+    GatewayEvent,
+    GatewayMonitor,
+    MonitorConfig,
+    ConsoleAlerter,
+    FileAlerter,
+    Finding,
+)
+
 __all__ = [
     # Base
     "ModelClient",
@@ -43,4 +54,12 @@ __all__ = [
     "TinmanCrewHook",
     "create_fastapi_adapter",
     "record_llm_interaction",
+    # Gateway plugin
+    "GatewayAdapter",
+    "GatewayEvent",
+    "GatewayMonitor",
+    "MonitorConfig",
+    "ConsoleAlerter",
+    "FileAlerter",
+    "Finding",
 ]
