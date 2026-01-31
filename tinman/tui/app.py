@@ -35,12 +35,10 @@ if TYPE_CHECKING:
 
 # ASCII Art Header
 TINMAN_ASCII = r"""
-████████╗██╗███╗   ██╗███╗   ███╗ █████╗ ███╗   ██╗
-╚══██╔══╝██║████╗  ██║████╗ ████║██╔══██╗████╗  ██║
-   ██║   ██║██╔██╗ ██║██╔████╔██║███████║██╔██╗ ██║
-   ██║   ██║██║╚██╗██║██║╚██╔╝██║██╔══██║██║╚██╗██║
-   ██║   ██║██║ ╚████║██║ ╚═╝ ██║██║  ██║██║ ╚████║
-   ╚═╝   ╚═╝╚═╝  ╚═══╝╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝
+_   _                   
+| |_|_|___ _____ ___ ___ 
+|  _| |   |     | .'|   |
+|_| |_|_|_|_|_|_|__,|_|_|
 """
 
 
@@ -325,6 +323,7 @@ class TinmanApp(App):
                         yield Static(f"FDRA v{__version__}", id="version")
                         yield Static(f"Mode: {self.mode}", id="mode-display")
                         yield Static(f"Status: {self.status}", id="status-display")
+                        yield Static("Last: —", id="last-event")
 
             # Navigation buttons
             with Horizontal(id="nav-bar"):
@@ -338,17 +337,23 @@ class TinmanApp(App):
             # Main content with tabs
             with TabbedContent(id="content"):
                 with TabPane("Setup", id="setup"):
-                    yield from self._create_setup_panel()
+                    with ScrollableContainer(id="setup-scroll", classes="tab-scroll"):
+                        yield from self._create_setup_panel()
                 with TabPane("Run", id="run"):
                     yield from self._create_run_panel()
                 with TabPane("Review", id="review"):
-                    yield from self._create_review_panel()
+                    with ScrollableContainer(id="review-scroll", classes="tab-scroll"):
+                        yield from self._create_review_panel()
                 with TabPane("Actions", id="actions"):
-                    yield from self._create_actions_panel()
+                    with ScrollableContainer(id="actions-scroll", classes="tab-scroll"):
+                        yield from self._create_actions_panel()
                 with TabPane("Discuss", id="discuss"):
                     yield from self._create_discuss_panel()
+                with TabPane("Model", id="model"):
+                    with ScrollableContainer(id="model-scroll", classes="tab-scroll"):
+                        yield from self._create_model_panel()
                 with TabPane("Demos", id="demos"):
-                    with ScrollableContainer(id="demos-scroll"):
+                    with ScrollableContainer(id="demos-scroll", classes="tab-scroll"):
                         yield from self._create_demos_panel()
 
             # Footer with metrics
@@ -365,57 +370,62 @@ class TinmanApp(App):
     def _create_setup_panel(self):
         """Create the setup panel."""
         yield Static("═══ SETUP CHECKLIST ═══", classes="panel-title")
-        yield Static("")
-        yield Static("Model configured:", classes="progress-label")
-        yield Static("Unknown", id="setup-model-status", classes="status-muted")
-        yield Static("API key detected:", classes="progress-label")
-        yield Static("Unknown", id="setup-key-status", classes="status-muted")
-        yield Static("Database connected:", classes="progress-label")
-        yield Static("Unknown", id="setup-db-status", classes="status-muted")
-        yield Static("")
-        yield Horizontal(
-            Button("Configure Model", id="setup-configure-model", variant="primary"),
-            Button("Reload Settings", id="setup-reload", variant="default"),
-        )
-        yield Static("")
-        yield Horizontal(
-            Button("Init DB", id="setup-init-db", variant="success"),
-            Button("Check DB", id="setup-check-db", variant="warning"),
-        )
-        yield Static("")
-        yield Static("Tip: Use F6 to open the model picker anytime.", classes="empty-state")
+        with Container(classes="panel-body"):
+            yield Static(
+                "Model configured: Unknown\n"
+                "API key detected: Unknown\n"
+                "Database connected: Unknown",
+                id="setup-checklist",
+                classes="progress-label",
+            )
+
+        yield Static("Actions", classes="panel-title")
+        with Container(classes="panel-body"):
+            with Horizontal(classes="button-row"):
+                yield Button("Configure Model", id="setup-configure-model", variant="primary")
+                yield Button("Reload Settings", id="setup-reload", variant="default")
+            with Horizontal(classes="button-row"):
+                yield Button("Init DB", id="setup-init-db", variant="success")
+                yield Button("Check DB", id="setup-check-db", variant="warning")
+            yield Static("Tip: Use F6 to open the model picker anytime.", classes="empty-state")
+
+        yield Static("─── Setup Log ───", classes="panel-title")
+        with Container(id="setup-log", classes="log-panel"):
+            yield Static("No setup activity yet.", id="setup-log-content")
 
     def _create_run_panel(self):
         """Create the run panel."""
         yield Static("═══ RUN RESEARCH ═══", classes="panel-title")
-        yield Static("")
-        with Horizontal(classes="inline-row"):
-            yield Static("Focus Area:", id="focus-label", classes="progress-label")
-            yield Input(placeholder="e.g., tool_use, long_context, reasoning", id="focus-input")
-        yield Static("")
-        with Horizontal(classes="inline-row cta-row"):
-            yield Static("Run Controls:", id="run-controls-label", classes="progress-label")
-            yield Button("Start Run", id="start-run", variant="success")
-            yield Button("Stop", id="stop-run", variant="error")
-        yield Static("")
+        with Container(classes="panel-body"):
+            with Horizontal(classes="inline-row"):
+                yield Static("Focus Area:", id="focus-label", classes="progress-label")
+                yield Input(placeholder="e.g., tool_use, long_context, reasoning", id="focus-input")
+            with Horizontal(classes="button-row"):
+                yield Static("Run Controls:", id="run-controls-label", classes="progress-label")
+                yield Button("Start Run", id="start-run", variant="success")
+                yield Button("Stop", id="stop-run", variant="error")
+
         yield Static("─── Activity Log ───", classes="panel-title")
         yield ScrollableContainer(
             Static("Configure a model, then start a run.", id="log-content"),
-            id="activity-log"
+            id="activity-log",
+            classes="log-panel",
         )
+        yield Static("Run Summary", classes="panel-title")
+        with Container(classes="panel-body"):
+            yield Static("No runs yet.", id="run-summary", classes="detail-panel")
 
     def _create_review_panel(self):
         """Create the review panel."""
         yield Static("═══ REVIEW RESULTS ═══", classes="panel-title")
-        yield Static("")
-        yield Static("Summary", classes="progress-label")
-        yield Static("Run not started yet.", id="review-summary", classes="empty-state")
-        yield Horizontal(classes="review-actions",
-            Button("Generate Demo Report", id="review-demo-report", variant="primary"),
-            Button("Open Latest Report", id="review-open-report", variant="default"),
-            Button("Refresh from DB", id="review-refresh-db", variant="default"),
-        )
-        yield Static("")
+        with Container(classes="panel-body"):
+            yield Static("Summary", classes="progress-label")
+            yield Static("Run not started yet.", id="review-summary", classes="empty-state")
+            with Horizontal(classes="button-row"):
+                yield Button("Generate Demo Report", id="review-demo-report", variant="primary")
+                yield Button("Open Latest Report", id="review-open-report", variant="default")
+                yield Button("Refresh from DB", id="review-refresh-db", variant="default")
+
         yield Static("Hypotheses", classes="panel-title")
         table = DataTable(id="review-hypotheses-table")
         table.add_columns("ID", "Hypothesis", "Confidence", "Status")
@@ -424,81 +434,107 @@ class TinmanApp(App):
         yield Static("Select a hypothesis to view details.", id="review-hypothesis-detail",
                      classes="detail-panel")
         yield Static("No hypotheses yet.", id="review-hypotheses-empty", classes="empty-state")
-        yield Static("")
         yield Static("Failures", classes="panel-title")
         table = DataTable(id="review-failures-table")
         table.add_columns("Sev", "Class", "Description", "Repro%", "Status")
         yield table
         yield Static("No failures yet.", id="review-failures-empty", classes="empty-state")
-        yield Static("")
         yield Static("Interventions", classes="panel-title")
         table = DataTable(id="review-interventions-table")
         table.add_columns("ID", "Type", "Target Failure", "Est. Effect", "Status")
         yield table
         yield Static("No interventions yet.", id="review-interventions-empty", classes="empty-state")
+        yield Static("─── Review Log ───", classes="panel-title")
+        with Container(id="review-log", classes="log-panel"):
+            yield Static("No review activity yet.", id="review-log-content")
 
     def _create_actions_panel(self):
         """Create the actions panel."""
         yield Static("═══ ACTIONS ═══", classes="panel-title")
-        yield Static("")
-        yield Static("Select a failure to design interventions.", classes="empty-state")
+        with Container(classes="panel-body"):
+            yield Static("Select a failure to design interventions.", classes="empty-state")
+        yield Static("Failures", classes="panel-title")
         table = DataTable(id="actions-failures-table")
         table.add_columns("ID", "Class", "Description")
         yield table
-        yield Static("")
         yield Static("Interventions", classes="panel-title")
         table = DataTable(id="actions-interventions-table")
         table.add_columns("ID", "Type", "Target", "Status")
         yield table
-        yield Static("")
-        yield Horizontal(
-            Button("Design Intervention", id="action-design", variant="primary"),
-            Button("Simulate", id="action-simulate", variant="warning"),
-            Button("Deploy", id="action-deploy", variant="success"),
-        )
+        with Container(classes="panel-body"):
+            with Horizontal(classes="button-row"):
+                yield Button("Design Intervention", id="action-design", variant="primary")
+                yield Button("Simulate", id="action-simulate", variant="warning")
+                yield Button("Deploy", id="action-deploy", variant="success")
+        yield Static("─── Actions Log ───", classes="panel-title")
+        with Container(id="actions-log", classes="log-panel"):
+            yield Static("No action activity yet.", id="actions-log-content")
 
     def _create_demos_panel(self):
         """Create the demos panel."""
         yield Static("═══ DEMO RUNNER ═══", classes="panel-title")
-        yield Static("Run built-in provider demos with editable arguments.", classes="empty-state")
-        yield Static("")
-        yield Static("Required keys: GITHUB_TOKEN, HUGGINGFACE_API_KEY, REPLICATE_API_TOKEN, FAL_API_KEY", classes="demo-warning")
-        yield Static("Select Demo", classes="progress-label")
-        with Horizontal(classes="cta-row demo-row"):
-            yield Button("GitHub", id="demo-select-github", variant="primary")
-            yield Button("HuggingFace", id="demo-select-huggingface", variant="default")
-            yield Button("Replicate", id="demo-select-replicate", variant="default")
-            yield Button("fal.ai", id="demo-select-fal", variant="default")
-        yield Static("")
-        with Horizontal(classes="inline-row demo-field-row"):
-            yield Static("Demo:", id="demo-name-label", classes="progress-label")
-            yield Input(value="github", id="demo-name-input")
-        yield Static("")
-        with Horizontal(classes="inline-row demo-field-row"):
-            yield Static("Args:", id="demo-args-label", classes="progress-label")
-            yield Input(
-                placeholder="e.g., --repo moltbot/moltbot",
-                id="demo-args-input",
-            )
-        yield Static("")
-        yield Static("Env Status: unknown", id="demo-env-status", classes="demo-status")
-        yield Static("")
-        with Horizontal(classes="cta-row demo-row"):
-            yield Button("Use Defaults", id="demo-defaults", variant="default")
-            yield Button("Check Env", id="demo-check-env", variant="default")
-            yield Button("Run Demo", id="demo-run", variant="success")
-        yield Static("")
-        yield Static("Tip: Set provider keys in your shell before running demos.", classes="empty-state")
+        with Container(classes="panel-body"):
+            yield Static("Run built-in provider demos with editable arguments.", classes="empty-state")
+            yield Static("Required keys: GITHUB_TOKEN, HUGGINGFACE_API_KEY, REPLICATE_API_TOKEN, FAL_API_KEY", classes="demo-warning")
+            yield Static("Select Demo", classes="progress-label")
+            with Horizontal(classes="button-row"):
+                yield Button("GitHub", id="demo-select-github", variant="primary")
+                yield Button("HuggingFace", id="demo-select-huggingface", variant="default")
+                yield Button("Replicate", id="demo-select-replicate", variant="default")
+                yield Button("fal.ai", id="demo-select-fal", variant="default")
+            with Horizontal(classes="inline-row demo-field-row"):
+                yield Static("Demo:", id="demo-name-label", classes="progress-label")
+                yield Input(value="github", id="demo-name-input")
+            with Horizontal(classes="inline-row demo-field-row"):
+                yield Static("Args:", id="demo-args-label", classes="progress-label")
+                yield Input(
+                    placeholder="e.g., --repo moltbot/moltbot",
+                    id="demo-args-input",
+                )
+            yield Static("Env Status: unknown", id="demo-env-status", classes="demo-status")
+            with Horizontal(classes="button-row"):
+                yield Button("Use Defaults", id="demo-defaults", variant="default")
+                yield Button("Check Env", id="demo-check-env", variant="default")
+                yield Button("Run Demo", id="demo-run", variant="success")
+            yield Static("Tip: Set provider keys in your shell before running demos.", classes="empty-state")
+
+        yield Static("─── Demo Output ───", classes="panel-title")
+        with Container(id="demos-log", classes="log-panel"):
+            yield Static("No demo output yet.", id="demos-log-content")
 
     def _create_discuss_panel(self):
         """Create the chat/discuss panel."""
         yield Static("═══ RESEARCH DIALOGUE ═══", classes="panel-title")
-        yield ScrollableContainer(
-            Static("No messages yet. Ask a question to start a conversation.", id="chat-empty",
-                   classes="empty-state"),
-            id="chat-log"
-        )
-        yield Input(placeholder="Type your message and press Enter...", id="chat-input")
+        with Container(classes="panel-body"):
+            yield ScrollableContainer(
+                Static("No messages yet. Ask a question to start a conversation.", id="chat-empty",
+                       classes="empty-state"),
+                id="chat-log"
+            )
+            yield Input(placeholder="Type your message and press Enter...", id="chat-input")
+
+    def _create_model_panel(self):
+        """Create the model panel."""
+        provider = self.settings.models.default
+        provider_settings = self.settings.models.providers.get(provider)
+        model = provider_settings.model if provider_settings else ""
+        api_key = provider_settings.api_key if provider_settings else ""
+        key_status = "OK" if api_key else "Missing"
+
+        yield Static("═══ MODEL CONFIG ═══", classes="panel-title")
+        with Container(classes="panel-body"):
+            yield Static(f"Default Provider: {provider}", classes="progress-label")
+            yield Static(f"Default Model: {model or 'Unknown'}", classes="progress-label")
+            yield Static(f"API Key: {key_status}", classes="progress-label")
+            with Horizontal(classes="button-row"):
+                yield Button("Edit Default Model", id="model-edit", variant="primary")
+        yield Static("Providers in config:", classes="panel-title")
+        with Container(classes="panel-body"):
+            for name in sorted(self.settings.models.providers.keys()):
+                yield Static(f"- {name}", classes="empty-state")
+        yield Static("─── Model Log ───", classes="panel-title")
+        with Container(id="model-log", classes="log-panel"):
+            yield Static("No model changes yet.", id="model-log-content")
 
     async def on_mount(self) -> None:
         """Initialize when app mounts."""
@@ -569,18 +605,18 @@ class TinmanApp(App):
             "db": ("OK" if db_ok else "Not connected"),
         }
 
-        def _apply_status(widget_id: str, ok: bool, text: str) -> None:
-            try:
-                widget = self.query_one(f"#{widget_id}", Static)
-                widget.update(text)
-                widget.remove_class("status-ok", "status-warn", "status-muted")
-                widget.add_class("status-ok" if ok else "status-warn")
-            except Exception:
-                pass
-
-        _apply_status("setup-model-status", model_ok, self._setup_status["model"])
-        _apply_status("setup-key-status", key_ok, self._setup_status["key"])
-        _apply_status("setup-db-status", db_ok, self._setup_status["db"])
+        try:
+            checklist = self.query_one("#setup-checklist", Static)
+            checklist.update(
+                "Model configured: "
+                f"{self._setup_status['model']}\n"
+                "API key detected: "
+                f"{self._setup_status['key']}\n"
+                "Database connected: "
+                f"{self._setup_status['db']}"
+            )
+        except Exception:
+            pass
 
     async def _init_db(self) -> None:
         """Initialize database and create tables."""
@@ -623,24 +659,36 @@ class TinmanApp(App):
         self._log_messages.append((message, level, timestamp))
 
         # Update log display
+        # Format recent messages
+        recent = self._log_messages[-50:]  # Keep last 50
+        lines = []
+        for msg, lvl, ts in recent:
+            prefix = {
+                "info": "│",
+                "success": "▶",
+                "warning": "⚠",
+                "error": "✖",
+            }.get(lvl, "│")
+            time_str = ts.strftime("%H:%M:%S")
+            lines.append(f"{prefix} [{time_str}] {msg}")
+
+        rendered = "\n".join(lines)
+        for widget_id in (
+            "#log-content",
+            "#setup-log-content",
+            "#review-log-content",
+            "#actions-log-content",
+            "#demos-log-content",
+            "#model-log-content",
+        ):
+            try:
+                self.query_one(widget_id, Static).update(rendered)
+            except Exception:
+                pass
         try:
-            log_container = self.query_one("#activity-log")
-            log_content = self.query_one("#log-content", Static)
-
-            # Format recent messages
-            recent = self._log_messages[-50:]  # Keep last 50
-            lines = []
-            for msg, lvl, ts in recent:
-                prefix = {
-                    "info": "│",
-                    "success": "▶",
-                    "warning": "⚠",
-                    "error": "✖",
-                }.get(lvl, "│")
-                time_str = ts.strftime("%H:%M:%S")
-                lines.append(f"{prefix} [{time_str}] {msg}")
-
-            log_content.update("\n".join(lines))
+            self.query_one("#last-event", Static).update(
+                f"Last: {message[:28]}{'…' if len(message) > 28 else ''}"
+            )
         except Exception:
             pass  # UI not ready yet
 
@@ -669,11 +717,18 @@ class TinmanApp(App):
     def action_clear_log(self) -> None:
         """Clear the activity log."""
         self._log_messages.clear()
-        try:
-            log_content = self.query_one("#log-content", Static)
-            log_content.update("Log cleared.")
-        except Exception:
-            pass
+        for widget_id in (
+            "#log-content",
+            "#setup-log-content",
+            "#review-log-content",
+            "#actions-log-content",
+            "#demos-log-content",
+            "#model-log-content",
+        ):
+            try:
+                self.query_one(widget_id, Static).update("Log cleared.")
+            except Exception:
+                pass
 
     def action_config_model(self) -> None:
         """Open the model configuration modal."""
@@ -699,6 +754,7 @@ class TinmanApp(App):
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses."""
         button_id = event.button.id
+        self._flash_button(event.button)
 
         # Navigation
         if button_id and button_id.startswith("nav-"):
@@ -758,12 +814,22 @@ class TinmanApp(App):
             self._set_demo_defaults("replicate")
         elif button_id == "demo-select-fal":
             self._set_demo_defaults("fal")
+        elif button_id == "model-edit":
+            self.action_config_model()
         elif button_id == "demo-defaults":
             self._set_demo_defaults(self._current_demo_name())
         elif button_id == "demo-check-env":
             self.run_worker(self._run_demo(check_only=True), exclusive=True)
         elif button_id == "demo-run":
             self.run_worker(self._run_demo(check_only=False), exclusive=True)
+
+    def _flash_button(self, button: Button) -> None:
+        """Briefly highlight a pressed button for visual feedback."""
+        try:
+            button.add_class("pressed")
+            self.set_timer(0.2, lambda: button.remove_class("pressed"))
+        except Exception:
+            pass
 
     def _current_demo_name(self) -> str:
         try:
@@ -916,6 +982,7 @@ class TinmanApp(App):
         self._populate_actions(results)
         self.experiment_count = len(results.get("experiments", []))
         self._update_metrics()
+        self._update_run_summary(results)
         self.log_message("Research cycle complete", "success")
 
         self.status = "IDLE"
@@ -1354,6 +1421,23 @@ class TinmanApp(App):
             self.query_one("#hyp-count", Static).update(str(self.hypothesis_count))
             self.query_one("#exp-count", Static).update(str(self.experiment_count))
             self.query_one("#fail-count", Static).update(str(self.failure_count))
+        except Exception:
+            pass
+
+    def _update_run_summary(self, results: dict) -> None:
+        """Update the run summary panel."""
+        hypotheses = len(results.get("hypotheses", []))
+        experiments = len(results.get("experiments", []))
+        failures = len(results.get("failures", []))
+        interventions = len(results.get("interventions", []))
+        focus = self._last_focus or "General"
+        summary = (
+            f"Focus: {focus}\n"
+            f"Hypotheses: {hypotheses} | Experiments: {experiments} | "
+            f"Failures: {failures} | Interventions: {interventions}"
+        )
+        try:
+            self.query_one("#run-summary", Static).update(summary)
         except Exception:
             pass
 

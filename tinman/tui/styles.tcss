@@ -29,7 +29,7 @@ Screen {
 }
 
 #header {
-    height: 8;
+    height: 7;
     width: 100%;
     background: $panel-strong-bg;
     border: round $border-strong;
@@ -66,8 +66,8 @@ Screen {
 
 #status-line {
     dock: right;
-    width: 22;
-    height: 3;
+    width: 24;
+    height: 5;
     padding-right: 2;
 }
 
@@ -78,7 +78,7 @@ Screen {
 }
 
 #ascii-logo {
-    width: 34;
+    width: 30;
 }
 
 #status-line {
@@ -107,6 +107,10 @@ Screen {
     color: $accent-cool;
 }
 
+#last-event {
+    color: $muted;
+}
+
 #nav-bar {
     height: 3;
     width: 100%;
@@ -129,13 +133,20 @@ Button {
     color: $text;
 }
 
-.cta-row Button {
+TabPane Button {
     min-width: 12;
     height: 3;
     content-align: center middle;
     border: round $border-strong;
     background: $panel-bg;
     text-style: bold;
+    margin-right: 1;
+}
+
+Button.pressed {
+    background: $panel-strong-bg;
+    border: round $accent;
+    color: $accent;
 }
 
 #start-run {
@@ -174,7 +185,7 @@ Button {
     width: 100%;
     height: 1fr;
     background: $bg;
-    padding: 1 0;
+    padding: 1 1;
     layout: vertical;
 }
 
@@ -185,7 +196,11 @@ TabbedContent {
 
 TabPane {
     height: 1fr;
-    padding: 1;
+    padding: 1 1;
+}
+
+.tab-scroll {
+    height: 1fr;
 }
 
 #demos-scroll {
@@ -200,6 +215,28 @@ TabPane {
     background: $panel-bg;
     padding: 0 1;
     border: round $border-strong;
+    margin-bottom: 1;
+    height: 3;
+    content-align: left middle;
+}
+
+.panel-body {
+    padding: 0 1;
+    margin-bottom: 1;
+    layout: vertical;
+    height: auto;
+    width: 100%;
+}
+
+.button-row {
+    height: 3;
+    align: left middle;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+#setup-checklist {
+    height: auto;
 }
 
 #review-demo-report {
@@ -210,11 +247,22 @@ TabPane {
     min-width: 20;
 }
 
-#activity-log {
-    height: 1fr;
+.log-panel {
     border: round $border-strong;
     background: $panel-strong-bg;
     padding: 1;
+}
+
+#activity-log {
+    height: 1fr;
+}
+
+#setup-log,
+#review-log,
+#actions-log,
+#demos-log,
+#model-log {
+    height: 5;
 }
 
 .progress-label {
@@ -246,12 +294,23 @@ TabPane {
 
 Input {
     width: 1fr;
+    height: 3;
 }
 
 DataTable {
-    height: 1fr;
     background: $panel-bg;
     border: round $border-strong;
+}
+
+#review-hypotheses-table,
+#review-failures-table,
+#review-interventions-table {
+    height: 6;
+}
+
+#actions-failures-table,
+#actions-interventions-table {
+    height: 8;
 }
 
 DataTable > .datatable--header {
@@ -327,6 +386,10 @@ DataTable > .datatable--cursor {
     background: $panel-bg;
     color: $text;
     padding: 0 1;
+}
+
+#run-summary {
+    height: 3;
 }
 
 #approval-modal {
