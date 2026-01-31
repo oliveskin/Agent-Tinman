@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 """Replicate API demo wired into Tinman PipelineAdapter."""
 
 import argparse

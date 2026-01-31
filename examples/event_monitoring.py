@@ -23,6 +23,7 @@ from tinman.core.event_bus import EventBus
 @dataclass
 class Alert:
     """Represents an alert triggered by Tinman events."""
+
     timestamp: datetime
     severity: str
     event_type: str
@@ -72,11 +73,15 @@ class AlertManager:
     def _format_message(self, event_type: str, data: dict) -> str:
         """Format alert message."""
         if event_type == "failure.discovered":
-            return (f"AI Failure Discovered: {data.get('failure_class', 'Unknown')} "
-                    f"(Severity: {data.get('severity', 'Unknown')})")
+            return (
+                f"AI Failure Discovered: {data.get('failure_class', 'Unknown')} "
+                f"(Severity: {data.get('severity', 'Unknown')})"
+            )
         elif event_type == "approval.requested":
-            return (f"Approval Required: {data.get('action', 'Unknown')} "
-                    f"(Risk: {data.get('risk_tier', 'Unknown')})")
+            return (
+                f"Approval Required: {data.get('action', 'Unknown')} "
+                f"(Risk: {data.get('risk_tier', 'Unknown')})"
+            )
         elif event_type == "intervention.deployed":
             return f"Intervention Deployed: {data.get('name', 'Unknown')}"
         else:
@@ -91,8 +96,10 @@ class AlertManager:
             "medium": "!",
             "low": "*",
         }
-        print(f"\n{severity_emoji.get(alert.severity, '?')} ALERT [{alert.severity.upper()}]: "
-              f"{alert.message}")
+        print(
+            f"\n{severity_emoji.get(alert.severity, '?')} ALERT [{alert.severity.upper()}]: "
+            f"{alert.message}"
+        )
 
 
 class MetricsCollector:
@@ -247,57 +254,87 @@ async def main():
 
     # Simulate a research cycle's events
     simulated_events = [
-        ("hypothesis.generated", {
-            "id": "hyp_001",
-            "target_surface": "tool_use",
-            "failure_class": "TOOL_USE",
-        }),
-        ("hypothesis.generated", {
-            "id": "hyp_002",
-            "target_surface": "reasoning",
-            "failure_class": "REASONING",
-        }),
-        ("experiment.started", {
-            "id": "exp_001",
-            "hypothesis_id": "hyp_001",
-            "total_runs": 5,
-        }),
-        ("experiment.completed", {
-            "id": "exp_001",
-            "failures_triggered": 2,
-        }),
-        ("failure.discovered", {
-            "id": "fail_001",
-            "failure_class": "TOOL_USE",
-            "severity": "S2",
-            "description": "Tool parameter injection vulnerability",
-        }),
-        ("failure.discovered", {
-            "id": "fail_002",
-            "failure_class": "REASONING",
-            "severity": "S3",
-            "description": "Critical reasoning failure under stress",
-        }),
-        ("approval.requested", {
-            "id": "apr_001",
-            "action": "intervention.deploy",
-            "risk_tier": "REVIEW",
-        }),
-        ("approval.decided", {
-            "id": "apr_001",
-            "approved": True,
-            "reason": "Approved by operator",
-        }),
-        ("intervention.proposed", {
-            "id": "int_001",
-            "name": "Prompt Guardrail",
-            "type": "guardrail",
-        }),
-        ("intervention.deployed", {
-            "id": "int_001",
-            "name": "Prompt Guardrail",
-            "status": "active",
-        }),
+        (
+            "hypothesis.generated",
+            {
+                "id": "hyp_001",
+                "target_surface": "tool_use",
+                "failure_class": "TOOL_USE",
+            },
+        ),
+        (
+            "hypothesis.generated",
+            {
+                "id": "hyp_002",
+                "target_surface": "reasoning",
+                "failure_class": "REASONING",
+            },
+        ),
+        (
+            "experiment.started",
+            {
+                "id": "exp_001",
+                "hypothesis_id": "hyp_001",
+                "total_runs": 5,
+            },
+        ),
+        (
+            "experiment.completed",
+            {
+                "id": "exp_001",
+                "failures_triggered": 2,
+            },
+        ),
+        (
+            "failure.discovered",
+            {
+                "id": "fail_001",
+                "failure_class": "TOOL_USE",
+                "severity": "S2",
+                "description": "Tool parameter injection vulnerability",
+            },
+        ),
+        (
+            "failure.discovered",
+            {
+                "id": "fail_002",
+                "failure_class": "REASONING",
+                "severity": "S3",
+                "description": "Critical reasoning failure under stress",
+            },
+        ),
+        (
+            "approval.requested",
+            {
+                "id": "apr_001",
+                "action": "intervention.deploy",
+                "risk_tier": "REVIEW",
+            },
+        ),
+        (
+            "approval.decided",
+            {
+                "id": "apr_001",
+                "approved": True,
+                "reason": "Approved by operator",
+            },
+        ),
+        (
+            "intervention.proposed",
+            {
+                "id": "int_001",
+                "name": "Prompt Guardrail",
+                "type": "guardrail",
+            },
+        ),
+        (
+            "intervention.deployed",
+            {
+                "id": "int_001",
+                "name": "Prompt Guardrail",
+                "status": "active",
+            },
+        ),
     ]
 
     for event_type, data in simulated_events:

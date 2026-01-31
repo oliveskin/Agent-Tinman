@@ -117,12 +117,14 @@ def tool_registry() -> ToolRegistry:
 def mock_model_client() -> ModelClient:
     """Create a mock model client for tests."""
     client = MagicMock(spec=ModelClient)
-    client.complete = AsyncMock(return_value=ModelResponse(
-        content="Test response",
-        model="test-model",
-        input_tokens=10,
-        output_tokens=20,
-    ))
+    client.complete = AsyncMock(
+        return_value=ModelResponse(
+            content="Test response",
+            model="test-model",
+            input_tokens=10,
+            output_tokens=20,
+        )
+    )
     return client
 
 

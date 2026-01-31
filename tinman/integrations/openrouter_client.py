@@ -11,10 +11,9 @@ Get your API key at: https://openrouter.ai/keys
 """
 
 import os
-from typing import Any, Optional
 
+from ..utils import get_logger, utc_now
 from .model_client import ModelClient, ModelResponse
-from ..utils import utc_now, get_logger
 
 logger = get_logger("openrouter_client")
 
@@ -54,27 +53,22 @@ class OpenRouterClient(ModelClient):
         "deepseek-chat": "deepseek/deepseek-chat",
         "deepseek-coder": "deepseek/deepseek-coder",
         "deepseek-r1": "deepseek/deepseek-r1",
-
         # Qwen - strong general purpose
         "qwen-2.5-72b": "qwen/qwen-2.5-72b-instruct",
         "qwen-2.5-coder-32b": "qwen/qwen-2.5-coder-32b-instruct",
         "qwen-2.5-7b": "qwen/qwen-2.5-7b-instruct",
-
         # Llama 3.x
         "llama-3.1-405b": "meta-llama/llama-3.1-405b-instruct",
         "llama-3.1-70b": "meta-llama/llama-3.1-70b-instruct",
         "llama-3.1-8b": "meta-llama/llama-3.1-8b-instruct",
         "llama-3.3-70b": "meta-llama/llama-3.3-70b-instruct",
-
         # Mistral
         "mistral-large": "mistralai/mistral-large",
         "mixtral-8x22b": "mistralai/mixtral-8x22b-instruct",
         "mistral-7b": "mistralai/mistral-7b-instruct",
-
         # Google (free tier)
         "gemma-2-27b": "google/gemma-2-27b-it",
         "gemma-2-9b": "google/gemma-2-9b-it",
-
         # Free models (no cost)
         "phi-3-mini": "microsoft/phi-3-mini-128k-instruct:free",
         "llama-3.2-3b": "meta-llama/llama-3.2-3b-instruct:free",
@@ -82,12 +76,14 @@ class OpenRouterClient(ModelClient):
 
     DEFAULT_MODEL = "deepseek/deepseek-chat"
 
-    def __init__(self,
-                 api_key: Optional[str] = None,
-                 site_url: Optional[str] = None,
-                 site_name: Optional[str] = None,
-                 default_model: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        site_url: str | None = None,
+        site_name: str | None = None,
+        default_model: str | None = None,
+        **kwargs,
+    ):
         """
         Initialize OpenRouter client.
 
@@ -124,13 +120,12 @@ class OpenRouterClient(ModelClient):
                 )
             except ImportError:
                 raise ImportError(
-                    "OpenRouter client requires 'openai' package. "
-                    "Install with: pip install openai"
+                    "OpenRouter client requires 'openai' package. Install with: pip install openai"
                 )
 
         return self._client
 
-    def _resolve_model(self, model: Optional[str]) -> str:
+    def _resolve_model(self, model: str | None) -> str:
         """Resolve model shorthand to full OpenRouter model ID."""
         if model is None:
             return self.default_model
@@ -142,13 +137,15 @@ class OpenRouterClient(ModelClient):
         # Otherwise assume it's a full model ID
         return model
 
-    async def complete(self,
-                       messages: list[dict[str, str]],
-                       model: Optional[str] = None,
-                       temperature: float = 0.7,
-                       max_tokens: int = 4096,
-                       tools: Optional[list[dict]] = None,
-                       **kwargs) -> ModelResponse:
+    async def complete(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        tools: list[dict] | None = None,
+        **kwargs,
+    ) -> ModelResponse:
         """Send a completion request to OpenRouter."""
         client = self._get_client()
         model = self._resolve_model(model)
@@ -183,14 +180,16 @@ class OpenRouterClient(ModelClient):
             tool_calls = []
             if choice and choice.message.tool_calls:
                 for tc in choice.message.tool_calls:
-                    tool_calls.append({
-                        "id": tc.id,
-                        "type": tc.type,
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
-                    })
+                    tool_calls.append(
+                        {
+                            "id": tc.id,
+                            "type": tc.type,
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            },
+                        }
+                    )
 
             return ModelResponse(
                 content=content or "",
@@ -201,19 +200,21 @@ class OpenRouterClient(ModelClient):
                 tool_calls=tool_calls,
                 finish_reason=choice.finish_reason if choice else "",
                 latency_ms=latency_ms,
-                raw=response.model_dump() if hasattr(response, 'model_dump') else None,
+                raw=response.model_dump() if hasattr(response, "model_dump") else None,
             )
 
         except Exception as e:
             logger.error(f"OpenRouter API error: {e}")
             raise
 
-    async def stream(self,
-                     messages: list[dict[str, str]],
-                     model: Optional[str] = None,
-                     temperature: float = 0.7,
-                     max_tokens: int = 4096,
-                     **kwargs):
+    async def stream(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        **kwargs,
+    ):
         """Stream a completion response."""
         client = self._get_client()
         model = self._resolve_model(model)
@@ -242,14 +243,16 @@ class OpenRouterClient(ModelClient):
         """Format tools for OpenAI-compatible API."""
         formatted = []
         for tool in tools:
-            formatted.append({
-                "type": "function",
-                "function": {
-                    "name": tool.get("name", ""),
-                    "description": tool.get("description", ""),
-                    "parameters": tool.get("parameters", {}),
-                },
-            })
+            formatted.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": tool.get("name", ""),
+                        "description": tool.get("description", ""),
+                        "parameters": tool.get("parameters", {}),
+                    },
+                }
+            )
         return formatted
 
     @classmethod

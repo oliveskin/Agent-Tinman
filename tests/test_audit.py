@@ -140,7 +140,7 @@ class TestAuditLogger:
             "data": {
                 "token": "jwt-token",
                 "name": "visible",
-            }
+            },
         }
 
         execution = logger.log_tool_execution(
@@ -236,12 +236,20 @@ class TestAuditQueries:
         # Create various events
         logger.log_event(event_type=AuditEventType.SYSTEM_START, actor_type="system")
         logger.log_approval_decision(
-            request_id="r1", action_type="test", action_description="test",
-            risk_tier="safe", severity="S0", decision="approved"
+            request_id="r1",
+            action_type="test",
+            action_description="test",
+            risk_tier="safe",
+            severity="S0",
+            decision="approved",
         )
         logger.log_tool_execution(
-            execution_id="e1", tool_name="tool1", action_type="test",
-            description="test", mode="lab", success=True
+            execution_id="e1",
+            tool_name="tool1",
+            action_type="test",
+            description="test",
+            mode="lab",
+            success=True,
         )
 
         db_session.commit()
@@ -290,9 +298,7 @@ class TestAuditImmutability:
         assert decision.audit_log_id is not None
 
         # Verify the linked audit log exists
-        audit_entry = db_session.query(AuditLog).filter_by(
-            id=decision.audit_log_id
-        ).first()
+        audit_entry = db_session.query(AuditLog).filter_by(id=decision.audit_log_id).first()
         assert audit_entry is not None
 
 
@@ -351,16 +357,29 @@ class TestToolExecutionAudit:
 
         # Log some executions
         logger.log_tool_execution(
-            execution_id="e1", tool_name="tool_a", action_type="test",
-            description="test", mode="lab", success=True
+            execution_id="e1",
+            tool_name="tool_a",
+            action_type="test",
+            description="test",
+            mode="lab",
+            success=True,
         )
         logger.log_tool_execution(
-            execution_id="e2", tool_name="tool_a", action_type="test",
-            description="test", mode="lab", success=False, error_message="Failed"
+            execution_id="e2",
+            tool_name="tool_a",
+            action_type="test",
+            description="test",
+            mode="lab",
+            success=False,
+            error_message="Failed",
         )
         logger.log_tool_execution(
-            execution_id="e3", tool_name="tool_b", action_type="test",
-            description="test", mode="lab", success=True
+            execution_id="e3",
+            tool_name="tool_b",
+            action_type="test",
+            description="test",
+            mode="lab",
+            success=True,
         )
 
         db_session.commit()

@@ -1,12 +1,12 @@
 """Complete failure taxonomy for AI model behavior."""
 
-from enum import Enum
 from dataclasses import dataclass
-from typing import Optional
+from enum import Enum
 
 
 class FailureClass(str, Enum):
     """Primary failure class categories."""
+
     REASONING = "reasoning"
     LONG_CONTEXT = "long_context"
     TOOL_USE = "tool_use"
@@ -16,6 +16,7 @@ class FailureClass(str, Enum):
 
 class ReasoningFailure(str, Enum):
     """Failures in model reasoning and inference."""
+
     SPURIOUS_INFERENCE = "spurious_inference"
     GOAL_DRIFT = "goal_drift"
     CONTRADICTION_LOOP = "contradiction_loop"
@@ -26,6 +27,7 @@ class ReasoningFailure(str, Enum):
 
 class LongContextFailure(str, Enum):
     """Failures related to long-context processing."""
+
     ATTENTION_DILUTION = "attention_dilution"
     LATENT_FORGETTING = "latent_forgetting"
     RETRIEVAL_DOMINANCE = "retrieval_dominance"
@@ -36,6 +38,7 @@ class LongContextFailure(str, Enum):
 
 class ToolUseFailure(str, Enum):
     """Failures in tool/function calling."""
+
     TOOL_HALLUCINATION = "tool_hallucination"
     CHAIN_MISORDER = "chain_misorder"
     RETRY_AMPLIFICATION = "retry_amplification"
@@ -47,6 +50,7 @@ class ToolUseFailure(str, Enum):
 
 class FeedbackLoopFailure(str, Enum):
     """Failures in feedback/learning loops."""
+
     REWARD_HACKING = "reward_hacking"
     CONFIRMATION_DRIFT = "confirmation_drift"
     MEMORY_POISONING = "memory_poisoning"
@@ -56,6 +60,7 @@ class FeedbackLoopFailure(str, Enum):
 
 class DeploymentFailure(str, Enum):
     """Operational/deployment failures."""
+
     LATENCY_COLLAPSE = "latency_collapse"
     COST_RUNAWAY = "cost_runaway"
     SAFETY_REGRESSION = "safety_regression"
@@ -67,6 +72,7 @@ class DeploymentFailure(str, Enum):
 @dataclass
 class FailureTypeInfo:
     """Detailed information about a failure type."""
+
     primary_class: FailureClass
     secondary_class: str
     description: str
@@ -117,7 +123,6 @@ class FailureTaxonomy:
             indicators=["ignored_instruction", "missing_context", "reset_behavior"],
             mitigation_hints=["Context summarization", "Key point repetition"],
         ),
-
         # Long-context failures
         "attention_dilution": FailureTypeInfo(
             primary_class=FailureClass.LONG_CONTEXT,
@@ -143,7 +148,6 @@ class FailureTaxonomy:
             indicators=["over_reliance_on_retrieved", "ignored_instructions", "copy_paste"],
             mitigation_hints=["Balance retrieval weight", "Reason before retrieval"],
         ),
-
         # Tool use failures
         "tool_hallucination": FailureTypeInfo(
             primary_class=FailureClass.TOOL_USE,
@@ -177,7 +181,6 @@ class FailureTaxonomy:
             indicators=["delete_operation", "admin_action", "irreversible_call"],
             mitigation_hints=["Tool allowlisting", "Destructive action gate"],
         ),
-
         # Feedback loop failures
         "reward_hacking": FailureTypeInfo(
             primary_class=FailureClass.FEEDBACK_LOOP,
@@ -203,7 +206,6 @@ class FailureTaxonomy:
             indicators=["corrupted_memory", "false_persistent_belief", "tainted_context"],
             mitigation_hints=["Memory validation", "Source attribution"],
         ),
-
         # Deployment failures
         "latency_collapse": FailureTypeInfo(
             primary_class=FailureClass.DEPLOYMENT,
@@ -232,7 +234,7 @@ class FailureTaxonomy:
     }
 
     @classmethod
-    def get_info(cls, failure_type: str) -> Optional[FailureTypeInfo]:
+    def get_info(cls, failure_type: str) -> FailureTypeInfo | None:
         """Get detailed info for a failure type."""
         return cls.TAXONOMY.get(failure_type.lower())
 
@@ -244,18 +246,12 @@ class FailureTaxonomy:
     @classmethod
     def get_types_by_class(cls, failure_class: FailureClass) -> list[str]:
         """Get all failure types in a primary class."""
-        return [
-            k for k, v in cls.TAXONOMY.items()
-            if v.primary_class == failure_class
-        ]
+        return [k for k, v in cls.TAXONOMY.items() if v.primary_class == failure_class]
 
     @classmethod
     def get_high_severity_types(cls) -> list[str]:
         """Get failure types with S3 or S4 typical severity."""
-        return [
-            k for k, v in cls.TAXONOMY.items()
-            if v.typical_severity in ("S3", "S4")
-        ]
+        return [k for k, v in cls.TAXONOMY.items() if v.typical_severity in ("S3", "S4")]
 
     @classmethod
     def get_typical_severity(cls, failure_type: str) -> str:
@@ -272,6 +268,7 @@ class FailureTaxonomy:
 
 class Severity(Enum):
     """Severity levels for failures."""
+
     S0 = 0  # Negligible - cosmetic issues
     S1 = 1  # Low - minor degradation
     S2 = 2  # Medium - noticeable impact
@@ -283,6 +280,7 @@ class Severity(Enum):
 @dataclass
 class FailureClassInfo:
     """Info about a failure class for taxonomy lookup."""
+
     description: str
     base_severity: Severity
     typical_triggers: list[str]

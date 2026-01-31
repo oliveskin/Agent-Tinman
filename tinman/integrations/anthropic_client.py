@@ -1,10 +1,9 @@
 """Anthropic model client implementation."""
 
 import os
-from typing import Any, Optional
 
+from ..utils import get_logger, utc_now
 from .model_client import ModelClient, ModelResponse
-from ..utils import utc_now, get_logger
 
 logger = get_logger("anthropic_client")
 
@@ -18,11 +17,13 @@ class AnthropicClient(ModelClient):
 
     DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
 
-    def __init__(self,
-                 api_key: Optional[str] = None,
-                 base_url: Optional[str] = None,
-                 default_model: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        default_model: str | None = None,
+        **kwargs,
+    ):
         api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         super().__init__(api_key=api_key, default_model=default_model, **kwargs)
 
@@ -53,13 +54,15 @@ class AnthropicClient(ModelClient):
 
         return self._client
 
-    async def complete(self,
-                       messages: list[dict[str, str]],
-                       model: Optional[str] = None,
-                       temperature: float = 0.7,
-                       max_tokens: int = 4096,
-                       tools: Optional[list[dict]] = None,
-                       **kwargs) -> ModelResponse:
+    async def complete(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        tools: list[dict] | None = None,
+        **kwargs,
+    ) -> ModelResponse:
         """Send a completion request to Anthropic."""
         client = self._get_client()
         model = model or self.default_model
@@ -111,14 +114,16 @@ class AnthropicClient(ModelClient):
                 if block.type == "text":
                     content += block.text
                 elif block.type == "tool_use":
-                    tool_calls.append({
-                        "id": block.id,
-                        "type": "tool_use",
-                        "function": {
-                            "name": block.name,
-                            "arguments": block.input,
-                        },
-                    })
+                    tool_calls.append(
+                        {
+                            "id": block.id,
+                            "type": "tool_use",
+                            "function": {
+                                "name": block.name,
+                                "arguments": block.input,
+                            },
+                        }
+                    )
 
             return ModelResponse(
                 content=content,
@@ -129,19 +134,21 @@ class AnthropicClient(ModelClient):
                 tool_calls=tool_calls,
                 finish_reason=response.stop_reason or "",
                 latency_ms=latency_ms,
-                raw=response.model_dump() if hasattr(response, 'model_dump') else None,
+                raw=response.model_dump() if hasattr(response, "model_dump") else None,
             )
 
         except Exception as e:
             logger.error(f"Anthropic API error: {e}")
             raise
 
-    async def stream(self,
-                     messages: list[dict[str, str]],
-                     model: Optional[str] = None,
-                     temperature: float = 0.7,
-                     max_tokens: int = 4096,
-                     **kwargs):
+    async def stream(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        **kwargs,
+    ):
         """Stream a completion response."""
         client = self._get_client()
         model = model or self.default_model
@@ -178,9 +185,11 @@ class AnthropicClient(ModelClient):
         """Format tools for Anthropic API."""
         formatted = []
         for tool in tools:
-            formatted.append({
-                "name": tool.get("name", ""),
-                "description": tool.get("description", ""),
-                "input_schema": tool.get("parameters", {}),
-            })
+            formatted.append(
+                {
+                    "name": tool.get("name", ""),
+                    "description": tool.get("description", ""),
+                    "input_schema": tool.get("parameters", {}),
+                }
+            )
         return formatted

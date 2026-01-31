@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 """Run a Tinman research cycle using GitHub repo issues/PRs as focus context."""
 
 import argparse

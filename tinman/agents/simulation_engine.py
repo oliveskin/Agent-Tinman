@@ -2,16 +2,16 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from .base import BaseAgent, AgentContext, AgentResult
-from .intervention_engine import Intervention, InterventionType
 from ..config.modes import OperatingMode
+from ..integrations.model_client import ModelClient
 from ..memory.graph import MemoryGraph
 from ..memory.models import Node, NodeType
-from ..integrations.model_client import ModelClient
 from ..reasoning.llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
-from ..utils import generate_id, utc_now, get_logger
+from ..utils import generate_id, get_logger, utc_now
+from .base import AgentContext, AgentResult, BaseAgent
+from .intervention_engine import Intervention, InterventionType
 
 if TYPE_CHECKING:
     from ..core.approval_handler import ApprovalHandler
@@ -21,9 +21,10 @@ logger = get_logger("simulation_engine")
 
 class SimulationOutcome(str, Enum):
     """Possible simulation outcomes."""
-    IMPROVED = "improved"        # Intervention helps
-    NO_CHANGE = "no_change"      # No effect
-    DEGRADED = "degraded"        # Made things worse
+
+    IMPROVED = "improved"  # Intervention helps
+    NO_CHANGE = "no_change"  # No effect
+    DEGRADED = "degraded"  # Made things worse
     SIDE_EFFECT = "side_effect"  # Unintended consequence
     INCONCLUSIVE = "inconclusive"
 
@@ -31,6 +32,7 @@ class SimulationOutcome(str, Enum):
 @dataclass
 class SimulationRun:
     """A single simulation run."""
+
     id: str = field(default_factory=generate_id)
     run_number: int = 0
 
@@ -53,6 +55,7 @@ class SimulationRun:
 @dataclass
 class SimulationResult:
     """Result of simulating an intervention."""
+
     id: str = field(default_factory=generate_id)
     intervention_id: str = ""
     failure_id: str = ""
@@ -97,12 +100,14 @@ class SimulationEngine(BaseAgent):
     any production deployment.
     """
 
-    def __init__(self,
-                 graph: Optional[MemoryGraph] = None,
-                 model_client: Optional[ModelClient] = None,
-                 llm_backbone: Optional[LLMBackbone] = None,
-                 approval_handler: Optional["ApprovalHandler"] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        graph: MemoryGraph | None = None,
+        model_client: ModelClient | None = None,
+        llm_backbone: LLMBackbone | None = None,
+        approval_handler: Optional["ApprovalHandler"] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.graph = graph
         self.model_client = model_client
@@ -149,9 +154,7 @@ class SimulationEngine(BaseAgent):
                     skipped.append(intervention.id)
                     continue
 
-            result = await self._simulate_intervention(
-                context, intervention, num_runs
-            )
+            result = await self._simulate_intervention(context, intervention, num_runs)
             results.append(result)
 
         # Record to memory graph
@@ -177,10 +180,9 @@ class SimulationEngine(BaseAgent):
             },
         )
 
-    async def _simulate_intervention(self,
-                                      context: AgentContext,
-                                      intervention: Intervention,
-                                      num_runs: int) -> SimulationResult:
+    async def _simulate_intervention(
+        self, context: AgentContext, intervention: Intervention, num_runs: int
+    ) -> SimulationResult:
         """Run simulation for a single intervention."""
         result = SimulationResult(
             intervention_id=intervention.id,
@@ -191,9 +193,7 @@ class SimulationEngine(BaseAgent):
         traces = self._get_failure_traces(intervention.failure_id)
 
         for i in range(num_runs):
-            run = await self._run_counterfactual(
-                intervention, traces, i + 1
-            )
+            run = await self._run_counterfactual(intervention, traces, i + 1)
             result.runs.append(run)
 
         # Aggregate results
@@ -201,8 +201,9 @@ class SimulationEngine(BaseAgent):
 
         # Determine outcome and recommendation
         result.outcome = self._determine_outcome(result)
-        result.deploy_recommended, result.recommendation_reason = \
-            self._make_recommendation(result, intervention, context)
+        result.deploy_recommended, result.recommendation_reason = self._make_recommendation(
+            result, intervention, context
+        )
 
         return result
 
@@ -216,25 +217,25 @@ class SimulationEngine(BaseAgent):
             if failure_node:
                 # Get experiment runs linked to this failure
                 run_nodes = self.graph.get_neighbors(
-                    failure_id,
-                    relation=None,
-                    direction="outgoing"
+                    failure_id, relation=None, direction="outgoing"
                 )
                 for run in run_nodes:
                     if run.data.get("trace"):
-                        traces.append({
-                            "id": run.id,
-                            "prompt": run.data.get("prompt", ""),
-                            "system_prompt": run.data.get("system_prompt"),
-                            "response": run.data.get("response", ""),
-                            "failure_triggered": True,
-                            "failure_description": failure_node.data.get("description", ""),
-                            "tokens_used": run.data.get("tokens_used", 0),
-                            "latency_ms": run.data.get("latency_ms", 0),
-                            "tool_calls": run.data.get("tool_calls", 0),
-                            "stress_type": run.data.get("stress_type", ""),
-                            **run.data.get("trace", {}),
-                        })
+                        traces.append(
+                            {
+                                "id": run.id,
+                                "prompt": run.data.get("prompt", ""),
+                                "system_prompt": run.data.get("system_prompt"),
+                                "response": run.data.get("response", ""),
+                                "failure_triggered": True,
+                                "failure_description": failure_node.data.get("description", ""),
+                                "tokens_used": run.data.get("tokens_used", 0),
+                                "latency_ms": run.data.get("latency_ms", 0),
+                                "tool_calls": run.data.get("tool_calls", 0),
+                                "stress_type": run.data.get("stress_type", ""),
+                                **run.data.get("trace", {}),
+                            }
+                        )
 
         # If no traces found, generate minimal synthetic traces
         # (allows simulation to proceed with LLM estimation)
@@ -253,17 +254,18 @@ class SimulationEngine(BaseAgent):
                     "tokens_used": 15000,
                     "latency_ms": 2500,
                     "tool_calls": 3,
-                    "stress_type": failure_data.get("trigger_signature", ["unknown"])[0] if failure_data.get("trigger_signature") else "unknown",
+                    "stress_type": failure_data.get("trigger_signature", ["unknown"])[0]
+                    if failure_data.get("trigger_signature")
+                    else "unknown",
                 }
                 for _ in range(3)
             ]
 
         return traces
 
-    async def _run_counterfactual(self,
-                                   intervention: Intervention,
-                                   traces: list[dict],
-                                   run_number: int) -> SimulationRun:
+    async def _run_counterfactual(
+        self, intervention: Intervention, traces: list[dict], run_number: int
+    ) -> SimulationRun:
         """Run a counterfactual simulation - with real model replay when available."""
         run = SimulationRun(run_number=run_number)
 
@@ -296,9 +298,7 @@ class SimulationEngine(BaseAgent):
 
         return run
 
-    async def _replay_with_intervention(self,
-                                        intervention: Intervention,
-                                        trace: dict) -> dict:
+    async def _replay_with_intervention(self, intervention: Intervention, trace: dict) -> dict:
         """Actually replay the prompt with intervention applied."""
         start_time = utc_now()
 
@@ -323,9 +323,7 @@ class SimulationEngine(BaseAgent):
 
             # Use LLM to analyze if intervention helped
             if self.llm:
-                analysis = await self._analyze_replay_result(
-                    intervention, trace, response.content
-                )
+                analysis = await self._analyze_replay_result(intervention, trace, response.content)
                 failure_rate = analysis.get("failure_rate", 0.5)
                 side_effects = analysis.get("side_effects", [])
             else:
@@ -348,10 +346,9 @@ class SimulationEngine(BaseAgent):
                 "side_effects": [f"replay_error: {str(e)}"],
             }
 
-    def _apply_intervention_to_prompt(self,
-                                      intervention: Intervention,
-                                      prompt: str,
-                                      system_prompt: Optional[str]) -> tuple[str, Optional[str]]:
+    def _apply_intervention_to_prompt(
+        self, intervention: Intervention, prompt: str, system_prompt: str | None
+    ) -> tuple[str, str | None]:
         """Apply intervention to prompt/system."""
         modified_prompt = prompt
         modified_system = system_prompt or ""
@@ -369,14 +366,13 @@ class SimulationEngine(BaseAgent):
             max_tokens = intervention.payload.get("max_tokens", 100000)
             # Simple truncation (real impl would be smarter)
             if len(modified_prompt) > max_tokens * 4:  # ~4 chars per token
-                modified_prompt = modified_prompt[:max_tokens * 4]
+                modified_prompt = modified_prompt[: max_tokens * 4]
 
         return modified_prompt, modified_system if modified_system else None
 
-    async def _analyze_replay_result(self,
-                                     intervention: Intervention,
-                                     original_trace: dict,
-                                     new_response: str) -> dict:
+    async def _analyze_replay_result(
+        self, intervention: Intervention, original_trace: dict, new_response: str
+    ) -> dict:
         """Use LLM to analyze whether intervention helped."""
         context = ReasoningContext(
             mode=ReasoningMode.FAILURE_ANALYSIS,
@@ -412,9 +408,7 @@ Respond with JSON:
             "improvement": output.get("improvement", False),
         }
 
-    async def _estimate_intervention_effect(self,
-                                            intervention: Intervention,
-                                            trace: dict) -> dict:
+    async def _estimate_intervention_effect(self, intervention: Intervention, trace: dict) -> dict:
         """Use LLM reasoning to estimate intervention effect without replay."""
         context = ReasoningContext(
             mode=ReasoningMode.INTERVENTION_DESIGN,
@@ -454,9 +448,7 @@ Respond with JSON:
             "side_effects": output.get("potential_side_effects", []),
         }
 
-    def _apply_intervention_to_trace(self,
-                                      intervention: Intervention,
-                                      trace: dict) -> dict:
+    def _apply_intervention_to_trace(self, intervention: Intervention, trace: dict) -> dict:
         """Simulate applying intervention to a trace."""
         import random
 
@@ -517,9 +509,7 @@ Respond with JSON:
             return
 
         # Average improvements
-        failure_improvements = [
-            -run.failure_rate_delta for run in result.runs
-        ]
+        failure_improvements = [-run.failure_rate_delta for run in result.runs]
         latency_impacts = [run.latency_delta for run in result.runs]
 
         result.avg_failure_rate_improvement = sum(failure_improvements) / len(failure_improvements)
@@ -534,7 +524,9 @@ Respond with JSON:
         # Calculate confidence based on consistency
         if failure_improvements:
             mean = result.avg_failure_rate_improvement
-            variance = sum((x - mean) ** 2 for x in failure_improvements) / len(failure_improvements)
+            variance = sum((x - mean) ** 2 for x in failure_improvements) / len(
+                failure_improvements
+            )
             # Higher variance = lower confidence
             result.confidence = max(0.3, 1.0 - min(variance, 0.7))
 
@@ -562,10 +554,9 @@ Respond with JSON:
 
         return SimulationOutcome.NO_CHANGE
 
-    def _make_recommendation(self,
-                              result: SimulationResult,
-                              intervention: Intervention,
-                              context: AgentContext) -> tuple[bool, str]:
+    def _make_recommendation(
+        self, result: SimulationResult, intervention: Intervention, context: AgentContext
+    ) -> tuple[bool, str]:
         """Make deployment recommendation."""
         # Strict criteria for production
         if context.mode == OperatingMode.PRODUCTION:

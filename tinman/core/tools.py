@@ -21,17 +21,19 @@ Usage:
     )
 """
 
+import asyncio
+import collections
+import functools
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Coroutine, Optional, TypeVar, Generic
-import asyncio
-import functools
+from typing import Any, Generic, TypeVar
 
-from .risk_evaluator import RiskEvaluator, Action, ActionType, Severity, RiskTier, RiskAssessment
-from .approval_handler import ApprovalHandler, ApprovalContext
 from ..config.modes import Mode
-from ..utils import get_logger, generate_id, utc_now
+from ..utils import generate_id, get_logger, utc_now
+from .approval_handler import ApprovalContext, ApprovalHandler
+from .risk_evaluator import Action, ActionType, RiskAssessment, RiskTier, Severity
 
 logger = get_logger("tools")
 
@@ -40,47 +42,51 @@ T = TypeVar("T")
 
 class ToolRiskLevel(str, Enum):
     """Predefined risk levels for tools."""
-    SAFE = "safe"           # Read-only, no side effects
-    LOW = "low"             # Minor side effects, easily reversible
-    MEDIUM = "medium"       # Significant side effects, reversible
-    HIGH = "high"           # Major side effects, difficult to reverse
+
+    SAFE = "safe"  # Read-only, no side effects
+    LOW = "low"  # Minor side effects, easily reversible
+    MEDIUM = "medium"  # Significant side effects, reversible
+    HIGH = "high"  # Major side effects, difficult to reverse
     DESTRUCTIVE = "destructive"  # Irreversible, data loss possible
 
 
 @dataclass
 class ToolMetadata:
     """Metadata for a registered tool."""
+
     name: str
     description: str
     risk_level: ToolRiskLevel
     action_type: ActionType
     is_reversible: bool = True
-    rollback_fn: Optional[Callable] = None
+    rollback_fn: Callable | None = None
     estimated_cost_usd: float = 0.0
     estimated_latency_ms: int = 0
     affected_systems: list[str] = field(default_factory=list)
-    requires_approval_override: Optional[bool] = None  # Force approval regardless of risk
+    requires_approval_override: bool | None = None  # Force approval regardless of risk
 
 
 @dataclass
 class ToolExecutionResult(Generic[T]):
     """Result of a guarded tool execution."""
+
     success: bool
-    result: Optional[T] = None
-    error: Optional[str] = None
+    result: T | None = None
+    error: str | None = None
     execution_id: str = field(default_factory=generate_id)
     started_at: datetime = field(default_factory=utc_now)
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     approval_required: bool = False
     approval_granted: bool = False
-    risk_assessment: Optional[RiskAssessment] = None
+    risk_assessment: RiskAssessment | None = None
     blocked: bool = False
-    block_reason: Optional[str] = None
+    block_reason: str | None = None
 
 
 @dataclass
 class ToolExecutionContext:
     """Context for tool execution, used for audit trail."""
+
     execution_id: str
     tool_name: str
     action_type: ActionType
@@ -89,13 +95,13 @@ class ToolExecutionContext:
     mode: Mode
     requester_agent: str
     requester_session: str
-    risk_assessment: Optional[RiskAssessment]
-    approval_context: Optional[ApprovalContext]
+    risk_assessment: RiskAssessment | None
+    approval_context: ApprovalContext | None
     started_at: datetime
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
     success: bool = False
-    error: Optional[str] = None
-    result_summary: Optional[str] = None
+    error: str | None = None
+    result_summary: str | None = None
 
 
 class ToolRegistry:
@@ -105,9 +111,11 @@ class ToolRegistry:
     making it impossible to call a tool without proper risk assessment.
     """
 
-    def __init__(self):
+    def __init__(self, max_history_size: int = 1000):
         self._tools: dict[str, tuple[Callable, ToolMetadata]] = {}
-        self._execution_history: list[ToolExecutionContext] = []
+        self._execution_history: collections.deque[ToolExecutionContext] = collections.deque(
+            maxlen=max_history_size
+        )
 
     def register(
         self,
@@ -115,13 +123,13 @@ class ToolRegistry:
         fn: Callable,
         description: str,
         risk_level: ToolRiskLevel = ToolRiskLevel.MEDIUM,
-        action_type: Optional[ActionType] = None,
+        action_type: ActionType | None = None,
         is_reversible: bool = True,
-        rollback_fn: Optional[Callable] = None,
+        rollback_fn: Callable | None = None,
         estimated_cost_usd: float = 0.0,
         estimated_latency_ms: int = 0,
-        affected_systems: Optional[list[str]] = None,
-        requires_approval_override: Optional[bool] = None,
+        affected_systems: list[str] | None = None,
+        requires_approval_override: bool | None = None,
     ) -> None:
         """Register a tool with its metadata."""
         # Auto-determine action type from risk level if not specified
@@ -155,7 +163,7 @@ class ToolRegistry:
         }
         return mapping.get(risk_level, ActionType.CONFIG_CHANGE)
 
-    def get(self, name: str) -> Optional[tuple[Callable, ToolMetadata]]:
+    def get(self, name: str) -> tuple[Callable, ToolMetadata] | None:
         """Get a tool and its metadata by name."""
         return self._tools.get(name)
 
@@ -169,14 +177,15 @@ class ToolRegistry:
 
     def get_execution_history(self, limit: int = 100) -> list[ToolExecutionContext]:
         """Get recent execution history."""
-        return self._execution_history[-limit:]
+        history_list = list(self._execution_history)
+        return history_list[-limit:]
 
     async def execute(
         self,
         name: str,
         approval_handler: ApprovalHandler,
         mode: Mode,
-        payload: Optional[dict[str, Any]] = None,
+        payload: dict[str, Any] | None = None,
         requester_agent: str = "",
         requester_session: str = "",
         timeout_seconds: int = 300,
@@ -202,7 +211,9 @@ class ToolRegistry:
             mode=mode,
             payload=payload or {},
             is_reversible=metadata.is_reversible,
-            rollback_plan=f"Call rollback function: {metadata.rollback_fn.__name__}" if metadata.rollback_fn else "",
+            rollback_plan=f"Call rollback function: {metadata.rollback_fn.__name__}"
+            if metadata.rollback_fn
+            else "",
             estimated_cost_usd=metadata.estimated_cost_usd,
             estimated_latency_ms=metadata.estimated_latency_ms,
             affected_systems=metadata.affected_systems,
@@ -217,7 +228,7 @@ class ToolRegistry:
 
 
 # Default global registry
-_default_registry: Optional[ToolRegistry] = None
+_default_registry: ToolRegistry | None = None
 
 
 def get_tool_registry() -> ToolRegistry:
@@ -240,19 +251,19 @@ async def guarded_call(
     description: str,
     approval_handler: ApprovalHandler,
     mode: Mode,
-    payload: Optional[dict[str, Any]] = None,
+    payload: dict[str, Any] | None = None,
     is_reversible: bool = True,
     rollback_plan: str = "",
     estimated_cost_usd: float = 0.0,
     estimated_latency_ms: int = 0,
-    affected_systems: Optional[list[str]] = None,
+    affected_systems: list[str] | None = None,
     requester_agent: str = "",
     requester_session: str = "",
     predicted_severity: Severity = Severity.S1,
     timeout_seconds: int = 300,
-    tool_registry: Optional[ToolRegistry] = None,
+    tool_registry: ToolRegistry | None = None,
     tool_name: str = "",
-    requires_approval_override: Optional[bool] = None,
+    requires_approval_override: bool | None = None,
     **kwargs,
 ) -> ToolExecutionResult[T]:
     """
@@ -336,8 +347,16 @@ async def guarded_call(
         started_at=started_at,
     )
 
-    # Check for BLOCK tier
+    # Check for BLOCK tier - BLOCK can NEVER be bypassed, even with override
     if risk_assessment.tier == RiskTier.BLOCK:
+        # Log warning if someone attempted to override a BLOCK decision
+        if requires_approval_override is False:
+            logger.warning(
+                "Cannot override BLOCK tier decision",
+                tool_name=tool_name or "anonymous",
+                risk_tier=risk_assessment.tier.value,
+            )
+
         logger.warning(f"Tool call BLOCKED: {description} (reason: {risk_assessment.reasoning})")
 
         exec_context.completed_at = utc_now()
@@ -364,8 +383,13 @@ async def guarded_call(
         or requires_approval_override is True
     )
 
-    # But can skip if override says no approval needed
-    if requires_approval_override is False:
+    # Override can skip approval for REVIEW tier (acceptable), but NEVER for BLOCK tier
+    # BLOCK tier is already handled above and will always be blocked
+    if requires_approval_override is False and risk_assessment.tier == RiskTier.REVIEW:
+        # REVIEW tier CAN be bypassed with override - this is acceptable
+        needs_approval = False
+    elif requires_approval_override is False and risk_assessment.tier == RiskTier.SAFE:
+        # SAFE tier doesn't need override anyway
         needs_approval = False
 
     approval_granted = False
@@ -387,6 +411,7 @@ async def guarded_call(
                 requester_session=requester_session,
                 predicted_severity=predicted_severity,
                 timeout_seconds=timeout_seconds,
+                force_approval=requires_approval_override is True,
             )
         except Exception as e:
             logger.error(f"Approval request failed: {e}")
@@ -459,7 +484,7 @@ async def guarded_call(
             risk_assessment=risk_assessment,
         )
 
-    except asyncio.TimeoutError:
+    except (asyncio.TimeoutError, TimeoutError):
         logger.error(f"Tool execution timed out: {tool_name or description}")
 
         exec_context.completed_at = utc_now()
@@ -471,7 +496,7 @@ async def guarded_call(
 
         return ToolExecutionResult(
             success=False,
-            error=f"Execution timed out after {timeout_seconds} seconds",
+            error=f"Timeout: execution timed out after {timeout_seconds} seconds",
             execution_id=execution_id,
             started_at=started_at,
             completed_at=exec_context.completed_at,
@@ -506,10 +531,10 @@ def tool(
     name: str,
     description: str,
     risk_level: ToolRiskLevel = ToolRiskLevel.MEDIUM,
-    action_type: Optional[ActionType] = None,
+    action_type: ActionType | None = None,
     is_reversible: bool = True,
     estimated_cost_usd: float = 0.0,
-    affected_systems: Optional[list[str]] = None,
+    affected_systems: list[str] | None = None,
 ):
     """
     Decorator to register a function as a guarded tool.
@@ -525,6 +550,7 @@ def tool(
             # Implementation
             return True
     """
+
     def decorator(fn: Callable) -> Callable:
         registry = get_tool_registry()
         registry.register(

@@ -6,18 +6,17 @@ focusing on key metrics, trends, and actionable insights.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional
 
+from ..core.cost_tracker import CostTracker
+from ..memory.graph import MemoryGraph
+from ..utils import get_logger, utc_now
 from .base import (
     Report,
     ReportGenerator,
-    ReportType,
     ReportMetadata,
     ReportSection,
+    ReportType,
 )
-from ..memory.graph import MemoryGraph
-from ..core.cost_tracker import CostTracker
-from ..utils import get_logger, utc_now
 
 logger = get_logger("reporting.executive")
 
@@ -25,6 +24,7 @@ logger = get_logger("reporting.executive")
 @dataclass
 class ExecutiveData:
     """Data specific to executive reports."""
+
     total_failures: int = 0
     critical_failures: int = 0
     resolved_failures: int = 0
@@ -61,8 +61,8 @@ class ExecutiveSummaryReport(ReportGenerator):
 
     def __init__(
         self,
-        graph: Optional[MemoryGraph] = None,
-        cost_tracker: Optional[CostTracker] = None,
+        graph: MemoryGraph | None = None,
+        cost_tracker: CostTracker | None = None,
     ):
         self.graph = graph
         self.cost_tracker = cost_tracker
@@ -77,8 +77,8 @@ class ExecutiveSummaryReport(ReportGenerator):
 
     async def generate(
         self,
-        period_start: Optional[datetime] = None,
-        period_end: Optional[datetime] = None,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
         **kwargs,
     ) -> Report[ExecutiveData]:
         """Generate executive summary report."""
@@ -131,33 +131,23 @@ class ExecutiveSummaryReport(ReportGenerator):
         failures = self.graph.get_failures(valid_only=False)
 
         # Filter by period
-        period_failures = [
-            f for f in failures
-            if start <= f.created_at <= end
-        ]
+        period_failures = [f for f in failures if start <= f.created_at <= end]
 
         data.total_failures = len(period_failures)
 
         # Count by severity
         data.critical_failures = sum(
-            1 for f in period_failures
-            if f.data.get("severity") in ("S3", "S4")
+            1 for f in period_failures if f.data.get("severity") in ("S3", "S4")
         )
 
         # Count resolved
-        data.resolved_failures = sum(
-            1 for f in period_failures
-            if f.data.get("is_resolved", False)
-        )
+        data.resolved_failures = sum(1 for f in period_failures if f.data.get("is_resolved", False))
 
         if data.total_failures > 0:
             data.resolution_rate = data.resolved_failures / data.total_failures
 
         # Novel findings
-        data.novel_findings = sum(
-            1 for f in period_failures
-            if f.data.get("is_novel", False)
-        )
+        data.novel_findings = sum(1 for f in period_failures if f.data.get("is_novel", False))
 
         # Top failure classes
         class_counts: dict[str, int] = {}
@@ -184,21 +174,16 @@ class ExecutiveSummaryReport(ReportGenerator):
         interventions = self.graph.get_interventions(valid_only=False)
 
         # Filter by period
-        period_interventions = [
-            i for i in interventions
-            if start <= i.created_at <= end
-        ]
+        period_interventions = [i for i in interventions if start <= i.created_at <= end]
 
         # Count deployed
         data.interventions_deployed = sum(
-            1 for i in period_interventions
-            if i.data.get("deployed", False)
+            1 for i in period_interventions if i.data.get("deployed", False)
         )
 
         # Count effective (based on simulation)
         data.interventions_effective = sum(
-            1 for i in period_interventions
-            if i.data.get("simulation_outcome") == "improved"
+            1 for i in period_interventions if i.data.get("simulation_outcome") == "improved"
         )
 
     async def _gather_cost_data(
@@ -238,29 +223,21 @@ class ExecutiveSummaryReport(ReportGenerator):
         failures = self.graph.get_failures(valid_only=False)
 
         # Current period count
-        current_count = sum(
-            1 for f in failures
-            if start <= f.created_at <= end
-        )
+        current_count = sum(1 for f in failures if start <= f.created_at <= end)
 
         # Previous period count
-        prev_count = sum(
-            1 for f in failures
-            if prev_start <= f.created_at <= prev_end
-        )
+        prev_count = sum(1 for f in failures if prev_start <= f.created_at <= prev_end)
 
         if prev_count > 0:
-            data.trend_failures_week_over_week = (
-                (current_count - prev_count) / prev_count * 100
-            )
+            data.trend_failures_week_over_week = (current_count - prev_count) / prev_count * 100
 
         # Similar for resolutions
         current_resolved = sum(
-            1 for f in failures
-            if start <= f.created_at <= end and f.data.get("is_resolved")
+            1 for f in failures if start <= f.created_at <= end and f.data.get("is_resolved")
         )
         prev_resolved = sum(
-            1 for f in failures
+            1
+            for f in failures
             if prev_start <= f.created_at <= prev_end and f.data.get("is_resolved")
         )
 
@@ -300,8 +277,8 @@ class ExecutiveSummaryReport(ReportGenerator):
 
     def _build_summary(self, data: ExecutiveData) -> str:
         """Build executive summary text."""
-        risk_level = "LOW" if data.risk_score < 40 else (
-            "MEDIUM" if data.risk_score < 70 else "HIGH"
+        risk_level = (
+            "LOW" if data.risk_score < 40 else ("MEDIUM" if data.risk_score < 70 else "HIGH")
         )
 
         summary_parts = [
@@ -343,11 +320,27 @@ class ExecutiveSummaryReport(ReportGenerator):
                     "title": "Period Overview",
                     "headers": ["Metric", "Value", "Status"],
                     "rows": [
-                        ["Total Failures", data.total_failures, self._status_icon(data.total_failures < 10)],
-                        ["Critical Failures", data.critical_failures, self._status_icon(data.critical_failures < 3)],
-                        ["Resolution Rate", f"{data.resolution_rate:.0%}", self._status_icon(data.resolution_rate > 0.7)],
+                        [
+                            "Total Failures",
+                            data.total_failures,
+                            self._status_icon(data.total_failures < 10),
+                        ],
+                        [
+                            "Critical Failures",
+                            data.critical_failures,
+                            self._status_icon(data.critical_failures < 3),
+                        ],
+                        [
+                            "Resolution Rate",
+                            f"{data.resolution_rate:.0%}",
+                            self._status_icon(data.resolution_rate > 0.7),
+                        ],
                         ["Novel Findings", data.novel_findings, "🔍"],
-                        ["Risk Score", f"{data.risk_score:.0f}/100", self._risk_icon(data.risk_score)],
+                        [
+                            "Risk Score",
+                            f"{data.risk_score:.0f}/100",
+                            self._risk_icon(data.risk_score),
+                        ],
                     ],
                 }
             ],
@@ -368,12 +361,16 @@ class ExecutiveSummaryReport(ReportGenerator):
                         [
                             cls,
                             count,
-                            f"{count / data.total_failures * 100:.0f}%" if data.total_failures > 0 else "0%"
+                            f"{count / data.total_failures * 100:.0f}%"
+                            if data.total_failures > 0
+                            else "0%",
                         ]
                         for cls, count in data.top_failure_classes
                     ],
                 }
-            ] if data.top_failure_classes else [],
+            ]
+            if data.top_failure_classes
+            else [],
         )
 
     def _build_interventions_section(self, data: ExecutiveData) -> ReportSection:
@@ -392,7 +389,8 @@ class ExecutiveSummaryReport(ReportGenerator):
                         [
                             "Effectiveness Rate",
                             f"{data.interventions_effective / data.interventions_deployed * 100:.0f}%"
-                            if data.interventions_deployed > 0 else "N/A"
+                            if data.interventions_deployed > 0
+                            else "N/A",
                         ],
                     ],
                 }
@@ -416,12 +414,12 @@ class ExecutiveSummaryReport(ReportGenerator):
                         [
                             "Failures",
                             f"{abs(failure_trend):.0f}%",
-                            "📈 Increasing" if failure_trend > 0 else "📉 Decreasing"
+                            "📈 Increasing" if failure_trend > 0 else "📉 Decreasing",
                         ],
                         [
                             "Resolutions",
                             f"{abs(resolution_trend):.0f}%",
-                            "📈 Increasing" if resolution_trend > 0 else "📉 Decreasing"
+                            "📈 Increasing" if resolution_trend > 0 else "📉 Decreasing",
                         ],
                     ],
                 }
@@ -433,29 +431,19 @@ class ExecutiveSummaryReport(ReportGenerator):
         recommendations = []
 
         if data.critical_failures > data.resolved_failures:
-            recommendations.append(
-                "Prioritize resolution of critical (S3+) failures"
-            )
+            recommendations.append("Prioritize resolution of critical (S3+) failures")
 
         if data.resolution_rate < 0.5:
-            recommendations.append(
-                "Investigate bottlenecks in failure resolution process"
-            )
+            recommendations.append("Investigate bottlenecks in failure resolution process")
 
         if data.trend_failures_week_over_week > 30:
-            recommendations.append(
-                "Analyze root causes for increasing failure rate"
-            )
+            recommendations.append("Analyze root causes for increasing failure rate")
 
         if data.novel_findings > 3:
-            recommendations.append(
-                "Schedule deep-dive investigation of novel failure patterns"
-            )
+            recommendations.append("Schedule deep-dive investigation of novel failure patterns")
 
         if data.interventions_deployed < data.critical_failures:
-            recommendations.append(
-                "Develop interventions for unaddressed critical failures"
-            )
+            recommendations.append("Develop interventions for unaddressed critical failures")
 
         if not recommendations:
             recommendations.append("Continue current monitoring and research cadence")

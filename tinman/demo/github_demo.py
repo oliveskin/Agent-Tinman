@@ -1,4 +1,4 @@
-﻿"""Run a Tinman research cycle using GitHub repo issues/PRs as focus context."""
+"""Run a Tinman research cycle using GitHub repo issues/PRs as focus context."""
 
 import argparse
 import asyncio
@@ -73,12 +73,9 @@ def build_focus(repo: str, issues: list[dict[str, Any]], prs: list[dict[str, Any
     return "\n".join(lines)
 
 
-async def run(repo: str,
-              config_path: str | None,
-              issues: int,
-              prs: int,
-              inject_failure: bool,
-              mode: str) -> None:
+async def run(
+    repo: str, config_path: str | None, issues: int, prs: int, inject_failure: bool, mode: str
+) -> None:
     settings = load_config(Path(config_path)) if config_path else load_config()
     settings.mode = OperatingMode(mode)
 
@@ -117,6 +114,7 @@ async def run(repo: str,
     if inject_failure and not results["failures"] and db:
         from tinman.memory.graph import MemoryGraph
         from tinman.memory.models import Node, NodeType
+
         with db.session() as session:
             graph = MemoryGraph(session)
             run_node = Node(
@@ -156,20 +154,26 @@ def main() -> None:
     parser.add_argument("--config", default=None)
     parser.add_argument("--issues", type=int, default=10)
     parser.add_argument("--prs", type=int, default=3)
-    parser.add_argument("--inject-failure", action="store_true",
-                        help="Inject a synthetic failure if none are found")
-    parser.add_argument("--mode", default="lab",
-                        choices=["lab", "shadow", "production"],
-                        help="Operating mode for the demo run")
+    parser.add_argument(
+        "--inject-failure", action="store_true", help="Inject a synthetic failure if none are found"
+    )
+    parser.add_argument(
+        "--mode",
+        default="lab",
+        choices=["lab", "shadow", "production"],
+        help="Operating mode for the demo run",
+    )
     args = parser.parse_args()
-    asyncio.run(run(
-        args.repo,
-        args.config,
-        args.issues,
-        args.prs,
-        args.inject_failure,
-        args.mode,
-    ))
+    asyncio.run(
+        run(
+            args.repo,
+            args.config,
+            args.issues,
+            args.prs,
+            args.inject_failure,
+            args.mode,
+        )
+    )
 
 
 if __name__ == "__main__":

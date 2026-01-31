@@ -9,32 +9,35 @@ It connects:
 """
 
 import asyncio
+import threading
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, Optional, Awaitable
-import threading
+from typing import Any
 
-from .risk_evaluator import RiskEvaluator, RiskAssessment, RiskTier, Action, ActionType, Severity
-from .approval_gate import ApprovalGate, ApprovalRequest, ApprovalStatus
-from .event_bus import EventBus, Topics
 from ..config.modes import Mode
-from ..utils import generate_id, utc_now, get_logger
+from ..utils import generate_id, get_logger, utc_now
+from .approval_gate import ApprovalGate, ApprovalStatus
+from .event_bus import EventBus, Topics
+from .risk_evaluator import Action, ActionType, RiskAssessment, RiskEvaluator, RiskTier, Severity
 
 logger = get_logger("approval_handler")
 
 
 class ApprovalMode(str, Enum):
     """How approvals are handled."""
+
     INTERACTIVE = "interactive"  # Block and wait for human (TUI/CLI)
-    ASYNC = "async"              # Non-blocking, use callbacks
+    ASYNC = "async"  # Non-blocking, use callbacks
     AUTO_APPROVE = "auto_approve"  # Auto-approve everything (dangerous!)
-    AUTO_REJECT = "auto_reject"    # Auto-reject everything (safe but limiting)
+    AUTO_REJECT = "auto_reject"  # Auto-reject everything (safe but limiting)
 
 
 @dataclass
 class ApprovalContext:
     """Full context for an approval request."""
+
     id: str = field(default_factory=generate_id)
 
     # What's being requested
@@ -43,13 +46,13 @@ class ApprovalContext:
     action_details: dict[str, Any] = field(default_factory=dict)
 
     # Risk assessment
-    risk_assessment: Optional[RiskAssessment] = None
+    risk_assessment: RiskAssessment | None = None
     risk_tier: RiskTier = RiskTier.SAFE
     severity: Severity = Severity.S0
 
     # Cost/impact estimates
-    estimated_cost_usd: Optional[float] = None
-    estimated_duration_ms: Optional[int] = None
+    estimated_cost_usd: float | None = None
+    estimated_duration_ms: int | None = None
     affected_systems: list[str] = field(default_factory=list)
 
     # Rollback info
@@ -66,9 +69,9 @@ class ApprovalContext:
 
     # Result (filled after decision)
     status: ApprovalStatus = ApprovalStatus.PENDING
-    decided_at: Optional[datetime] = None
-    decided_by: Optional[str] = None
-    decision_reason: Optional[str] = None
+    decided_at: datetime | None = None
+    decided_by: str | None = None
+    decision_reason: str | None = None
 
 
 # Type for approval UI callback
@@ -110,9 +113,9 @@ class ApprovalHandler:
         self,
         mode: Mode = Mode.LAB,
         approval_mode: ApprovalMode = ApprovalMode.INTERACTIVE,
-        risk_evaluator: Optional[RiskEvaluator] = None,
-        approval_gate: Optional[ApprovalGate] = None,
-        event_bus: Optional[EventBus] = None,
+        risk_evaluator: RiskEvaluator | None = None,
+        approval_gate: ApprovalGate | None = None,
+        event_bus: EventBus | None = None,
         auto_approve_in_lab: bool = True,
         cost_threshold_usd: float = 5.0,
     ):
@@ -125,8 +128,8 @@ class ApprovalHandler:
         self.cost_threshold_usd = cost_threshold_usd
 
         # UI callback for presenting approvals
-        self._ui_callback: Optional[ApprovalUICallback] = None
-        self._fallback_callback: Optional[ApprovalUICallback] = None
+        self._ui_callback: ApprovalUICallback | None = None
+        self._fallback_callback: ApprovalUICallback | None = None
 
         # Pending approvals (for async mode)
         self._pending: dict[str, ApprovalContext] = {}
@@ -144,7 +147,9 @@ class ApprovalHandler:
             "blocked": 0,
         }
 
-        logger.info(f"ApprovalHandler initialized: mode={mode.value}, approval_mode={approval_mode.value}")
+        logger.info(
+            f"ApprovalHandler initialized: mode={mode.value}, approval_mode={approval_mode.value}"
+        )
 
     def register_ui(self, callback: ApprovalUICallback) -> None:
         """
@@ -175,16 +180,17 @@ class ApprovalHandler:
         self,
         action_type: ActionType,
         description: str,
-        details: Optional[dict[str, Any]] = None,
-        estimated_cost_usd: Optional[float] = None,
-        estimated_duration_ms: Optional[int] = None,
-        affected_systems: Optional[list[str]] = None,
+        details: dict[str, Any] | None = None,
+        estimated_cost_usd: float | None = None,
+        estimated_duration_ms: int | None = None,
+        affected_systems: list[str] | None = None,
         is_reversible: bool = True,
         rollback_plan: str = "",
         requester_agent: str = "",
         requester_session: str = "",
         predicted_severity: Severity = Severity.S1,
         timeout_seconds: int = 300,
+        force_approval: bool = False,
     ) -> bool:
         """
         Request approval for an action.
@@ -240,8 +246,8 @@ class ApprovalHandler:
             self._publish_event("blocked", action_type, description, risk_assessment)
             return False
 
-        if risk_assessment.tier == RiskTier.SAFE:
-            # Auto-approve safe actions
+        if risk_assessment.tier == RiskTier.SAFE and not force_approval:
+            # Auto-approve safe actions (unless approval is explicitly forced)
             if risk_assessment.auto_approve:
                 logger.info(f"Auto-approved (SAFE): {description}")
                 self._stats["auto_approved"] += 1
@@ -249,8 +255,8 @@ class ApprovalHandler:
                 return True
 
         # REVIEW tier - needs human approval
-        # But check if we should auto-approve in lab mode
-        if self.mode == Mode.LAB and self.auto_approve_in_lab:
+        # But check if we should auto-approve in lab mode (unless approval is explicitly forced)
+        if self.mode == Mode.LAB and self.auto_approve_in_lab and not force_approval:
             logger.info(f"Auto-approved (LAB mode): {description}")
             self._stats["auto_approved"] += 1
             self._publish_event("auto_approved", action_type, description, risk_assessment)
@@ -305,7 +311,7 @@ class ApprovalHandler:
         # Present to human
         try:
             approved = await self._present_to_human(context)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning(f"Approval timed out: {description}")
             self._stats["timed_out"] += 1
             approved = False
@@ -327,7 +333,9 @@ class ApprovalHandler:
             self._publish_event("approved", action_type, description, risk_assessment, context.id)
             logger.info(f"APPROVED by human: {description}")
         else:
-            self.approval_gate.reject(gate_request.id, "human", context.decision_reason or "Rejected")
+            self.approval_gate.reject(
+                gate_request.id, "human", context.decision_reason or "Rejected"
+            )
             self._stats["human_rejected"] += 1
             self._publish_event("rejected", action_type, description, risk_assessment, context.id)
             logger.info(f"REJECTED by human: {description}")
@@ -366,7 +374,7 @@ class ApprovalHandler:
         action_type: ActionType,
         description: str,
         risk_assessment: RiskAssessment,
-        context_id: Optional[str] = None,
+        context_id: str | None = None,
     ) -> None:
         """Publish approval event to event bus."""
         if not self.event_bus:
@@ -382,15 +390,18 @@ class ApprovalHandler:
 
         topic = topic_map.get(event_type)
         if topic:
-            self.event_bus.publish(topic, {
-                "event_type": event_type,
-                "action_type": action_type.value,
-                "description": description,
-                "risk_tier": risk_assessment.tier.value,
-                "severity": risk_assessment.severity.value,
-                "context_id": context_id,
-                "timestamp": utc_now().isoformat(),
-            })
+            self.event_bus.publish(
+                topic,
+                {
+                    "event_type": event_type,
+                    "action_type": action_type.value,
+                    "description": description,
+                    "risk_tier": risk_assessment.tier.value,
+                    "severity": risk_assessment.severity.value,
+                    "context_id": context_id,
+                    "timestamp": utc_now().isoformat(),
+                },
+            )
 
     def get_pending(self) -> list[ApprovalContext]:
         """Get all pending approval requests."""
@@ -501,7 +512,9 @@ class ApprovalHandler:
                 "change": change_description,
             },
             is_reversible=is_reversible,
-            rollback_plan="Revert to previous policy" if is_reversible else "Manual intervention required",
+            rollback_plan="Revert to previous policy"
+            if is_reversible
+            else "Manual intervention required",
             requester_agent=requester_agent,
             predicted_severity=Severity.S3,  # Tool policy changes are high risk
         )
@@ -514,7 +527,6 @@ async def cli_approval_callback(context: ApprovalContext) -> bool:
 
     Shows approval request details and prompts user for Y/N.
     """
-    import sys
 
     print("\n" + "=" * 60)
     print("  APPROVAL REQUIRED")
@@ -553,7 +565,7 @@ async def cli_approval_callback(context: ApprovalContext) -> bool:
 
 
 # Default handler instance (can be replaced)
-_default_handler: Optional[ApprovalHandler] = None
+_default_handler: ApprovalHandler | None = None
 
 
 def get_approval_handler() -> ApprovalHandler:

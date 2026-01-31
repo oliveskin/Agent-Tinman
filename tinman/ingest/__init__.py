@@ -11,19 +11,19 @@ Supported formats:
 """
 
 from .base import (
-    TraceAdapter,
-    Trace,
+    IngestResult,
     Span,
     SpanEvent,
     SpanLink,
     SpanStatus,
-    IngestResult,
+    Trace,
+    TraceAdapter,
 )
-from .otlp import OTLPAdapter
 from .datadog import DatadogAdapter
-from .xray import XRayAdapter
 from .json_adapter import JSONAdapter
-from .registry import AdapterRegistry, get_adapter, register_adapter
+from .otlp import OTLPAdapter
+from .registry import AdapterRegistry, get_adapter, parse_traces, register_adapter
+from .xray import XRayAdapter
 
 __all__ = [
     # Base types
@@ -42,5 +42,6 @@ __all__ = [
     # Registry
     "AdapterRegistry",
     "get_adapter",
+    "parse_traces",
     "register_adapter",
 ]

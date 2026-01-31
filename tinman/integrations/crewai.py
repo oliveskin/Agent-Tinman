@@ -27,9 +27,9 @@ class TinmanCrewHook:
     Wire these methods into CrewAI's task callbacks or event hooks.
     """
 
-    def __init__(self,
-                 mode: OperatingMode = OperatingMode.SHADOW,
-                 adapter: Optional[PipelineAdapter] = None):
+    def __init__(
+        self, mode: OperatingMode = OperatingMode.SHADOW, adapter: Optional[PipelineAdapter] = None
+    ):
         self.adapter = adapter or PipelineAdapter(mode=mode)
         self.adapter.register_hook(FailureDetectionHook())
         self._context: Optional[PipelineContext] = None

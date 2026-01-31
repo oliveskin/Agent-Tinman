@@ -45,6 +45,7 @@ async def run(config_path: str | None, bundle_path: str) -> None:
     context = tinman.hypothesis_engine._context or None
     if context is None:
         from tinman.agents.base import AgentContext
+
         context = AgentContext(mode=settings.mode)
 
     h_result = await tinman.hypothesis_engine.run(context)
@@ -135,6 +136,7 @@ async def run(config_path: str | None, bundle_path: str) -> None:
 
     if tinman.graph:
         from tinman.memory.models import Node, NodeType
+
         for result in experiment_results:
             for run in result.runs:
                 if tinman.graph.get_node(run.id):

@@ -1,18 +1,17 @@
 """Experiment Executor - runs experiments by actually probing models."""
 
-import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
-from .base import BaseAgent, AgentContext, AgentResult
-from .experiment_architect import ExperimentDesign
 from ..config.modes import OperatingMode
+from ..integrations.model_client import ModelClient
 from ..memory.graph import MemoryGraph
-from ..memory.models import Node, NodeType, EdgeRelation
-from ..integrations.model_client import ModelClient, ModelResponse
+from ..memory.models import EdgeRelation, Node, NodeType
 from ..reasoning.llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
-from ..utils import generate_id, utc_now, get_logger
+from ..utils import generate_id, get_logger, utc_now
+from .base import AgentContext, AgentResult, BaseAgent
+from .experiment_architect import ExperimentDesign
 
 if TYPE_CHECKING:
     from ..core.approval_handler import ApprovalHandler
@@ -23,6 +22,7 @@ logger = get_logger("experiment_executor")
 @dataclass
 class RunResult:
     """Result from a single experiment run."""
+
     id: str = field(default_factory=generate_id)
     experiment_id: str = ""
     run_number: int = 0
@@ -30,24 +30,25 @@ class RunResult:
 
     # Observations
     failure_triggered: bool = False
-    failure_description: Optional[str] = None
+    failure_description: str | None = None
     observations: list[str] = field(default_factory=list)
 
     # Execution details
     tokens_used: int = 0
     duration_ms: int = 0
-    error: Optional[str] = None
+    error: str | None = None
 
     # Raw data for analysis
     trace: dict[str, Any] = field(default_factory=dict)
 
     started_at: datetime = field(default_factory=utc_now)
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
 
 
 @dataclass
 class ExperimentResult:
     """Aggregated result from an experiment."""
+
     id: str = field(default_factory=generate_id)
     experiment_id: str = ""
     hypothesis_id: str = ""
@@ -93,12 +94,14 @@ class ExperimentExecutor(BaseAgent):
     - PRODUCTION: Minimal runs, conservative limits
     """
 
-    def __init__(self,
-                 graph: Optional[MemoryGraph] = None,
-                 model_client: Optional[ModelClient] = None,
-                 llm_backbone: Optional[LLMBackbone] = None,
-                 approval_handler: Optional["ApprovalHandler"] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        graph: MemoryGraph | None = None,
+        model_client: ModelClient | None = None,
+        llm_backbone: LLMBackbone | None = None,
+        approval_handler: Optional["ApprovalHandler"] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.graph = graph
         self.model_client = model_client
@@ -177,9 +180,9 @@ class ExperimentExecutor(BaseAgent):
             requester_agent=self.agent_type,
         )
 
-    async def _run_experiment(self,
-                               context: AgentContext,
-                               experiment: ExperimentDesign) -> ExperimentResult:
+    async def _run_experiment(
+        self, context: AgentContext, experiment: ExperimentDesign
+    ) -> ExperimentResult:
         """Run a single experiment."""
         result = ExperimentResult(
             experiment_id=experiment.id,
@@ -203,7 +206,9 @@ class ExperimentExecutor(BaseAgent):
 
             # Early termination if we've proven the hypothesis
             if result.failures_triggered >= 3 and result.total_runs >= 5:
-                logger.info(f"Early termination: hypothesis validated after {result.total_runs} runs")
+                logger.info(
+                    f"Early termination: hypothesis validated after {result.total_runs} runs"
+                )
                 break
 
         # Calculate aggregate metrics
@@ -219,9 +224,7 @@ class ExperimentExecutor(BaseAgent):
 
         return result
 
-    def _determine_runs(self,
-                        context: AgentContext,
-                        experiment: ExperimentDesign) -> int:
+    def _determine_runs(self, context: AgentContext, experiment: ExperimentDesign) -> int:
         """Determine number of runs based on mode and experiment."""
         # In LAB mode, run full experiment
         if context.mode == OperatingMode.LAB:
@@ -234,10 +237,9 @@ class ExperimentExecutor(BaseAgent):
         # In PRODUCTION mode, minimal runs
         return min(3, experiment.estimated_runs)
 
-    async def _execute_run(self,
-                           context: AgentContext,
-                           experiment: ExperimentDesign,
-                           run_number: int) -> RunResult:
+    async def _execute_run(
+        self, context: AgentContext, experiment: ExperimentDesign, run_number: int
+    ) -> RunResult:
         """Execute a single run of an experiment."""
         result = RunResult(
             experiment_id=experiment.id,
@@ -339,8 +341,7 @@ class ExperimentExecutor(BaseAgent):
             if hasattr(response, "tool_calls") and response.tool_calls:
                 trace["tool_calls"] = len(response.tool_calls)
                 trace["tool_call_details"] = [
-                    {"name": tc.name, "args": tc.arguments}
-                    for tc in response.tool_calls
+                    {"name": tc.name, "args": tc.arguments} for tc in response.tool_calls
                 ]
 
         except Exception as e:
@@ -363,14 +364,16 @@ class ExperimentExecutor(BaseAgent):
         if experiment.stress_type == "attention_dilution":
             # Generate distractor-heavy prompt
             distractor_count = params.get("distractor_count", 50)
-            distractors = "\n".join([f"Irrelevant fact {i}: The sky is blue." for i in range(distractor_count)])
+            distractors = "\n".join(
+                [f"Irrelevant fact {i}: The sky is blue." for i in range(distractor_count)]
+            )
             return f"{distractors}\n\nIMPORTANT: What is 2 + 2?"
 
         if experiment.stress_type == "logical_chain":
             # Generate multi-step reasoning prompt
             chain_length = params.get("chain_length", 5)
             return f"""Solve this step by step:
-If A implies B, and B implies C, {'and C implies D, ' * (chain_length - 2)} what can we conclude from A?
+If A implies B, and B implies C, {"and C implies D, " * (chain_length - 2)} what can we conclude from A?
 Be precise and show your reasoning."""
 
         if experiment.stress_type == "tool_injection":
@@ -396,7 +399,9 @@ Be precise and show your reasoning."""
             "simulated": True,
         }
 
-    async def _detect_failure(self, trace: dict, experiment: ExperimentDesign, test_case: dict = None) -> Optional[str]:
+    async def _detect_failure(
+        self, trace: dict, experiment: ExperimentDesign, test_case: dict = None
+    ) -> str | None:
         """Detect if a failure occurred - uses LLM analysis when available."""
         # Check for explicit errors first
         if trace.get("errors"):
@@ -409,10 +414,9 @@ Be precise and show your reasoning."""
         # Fallback to heuristic detection
         return self._heuristic_failure_detection(trace, experiment)
 
-    async def _analyze_response_for_failure(self,
-                                             trace: dict,
-                                             experiment: ExperimentDesign,
-                                             test_case: dict = None) -> Optional[str]:
+    async def _analyze_response_for_failure(
+        self, trace: dict, experiment: ExperimentDesign, test_case: dict = None
+    ) -> str | None:
         """Use LLM to analyze response for failure indicators."""
         expected_behavior = ""
         failure_indicator = ""
@@ -449,12 +453,17 @@ If a failure occurred, describe it briefly. If no failure, respond with {"failur
 
         # Check for specific failure patterns in analysis
         analysis = output.get("analysis", "").lower()
-        if any(word in analysis for word in ["failed", "incorrect", "inconsistent", "unsafe", "confused"]):
+        if any(
+            word in analysis
+            for word in ["failed", "incorrect", "inconsistent", "unsafe", "confused"]
+        ):
             return output.get("analysis", "Failure detected via analysis")[:200]
 
         return None
 
-    def _heuristic_failure_detection(self, trace: dict, experiment: ExperimentDesign) -> Optional[str]:
+    def _heuristic_failure_detection(
+        self, trace: dict, experiment: ExperimentDesign
+    ) -> str | None:
         """Heuristic failure detection without LLM."""
         response = trace.get("response", "").lower()
 
@@ -512,15 +521,18 @@ If a failure occurred, describe it briefly. If no failure, respond with {"failur
         self.graph.add_node(run_node)
 
         # Update experiment node with outcome metrics
-        self.graph.update_node_data(result.experiment_id, {
-            "total_runs": result.total_runs,
-            "failures_triggered": result.failures_triggered,
-            "reproduction_rate": result.reproduction_rate,
-            "hypothesis_validated": result.hypothesis_validated,
-            "successful_runs": result.successful_runs,
-            "total_tokens": result.total_tokens,
-            "total_duration_ms": result.total_duration_ms,
-        })
+        self.graph.update_node_data(
+            result.experiment_id,
+            {
+                "total_runs": result.total_runs,
+                "failures_triggered": result.failures_triggered,
+                "reproduction_rate": result.reproduction_rate,
+                "hypothesis_validated": result.hypothesis_validated,
+                "successful_runs": result.successful_runs,
+                "total_tokens": result.total_tokens,
+                "total_duration_ms": result.total_duration_ms,
+            },
+        )
 
         # Link experiment to run for lineage queries
         self.graph.link(result.experiment_id, run_node.id, EdgeRelation.EXECUTED_AS)

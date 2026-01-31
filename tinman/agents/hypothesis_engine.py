@@ -1,20 +1,32 @@
 """Hypothesis Engine - generates failure hypotheses using LLM reasoning."""
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
-from .base import BaseAgent, AgentContext, AgentResult
 from ..memory.graph import MemoryGraph
-from ..memory.models import NodeType
-from ..taxonomy.failure_types import FailureClass, FAILURE_TAXONOMY
-from ..reasoning.llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
 from ..reasoning.adaptive_memory import AdaptiveMemory
-from ..utils import generate_id
+from ..reasoning.llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
+from ..taxonomy.failure_types import FAILURE_TAXONOMY, FailureClass
+from ..utils import generate_id, get_logger
+from .base import AgentContext, AgentResult, BaseAgent
+
+logger = get_logger("hypothesis_engine")
+
+
+def safe_get(data: dict, *keys, default=None):
+    """Safely get nested dictionary values."""
+    for key in keys:
+        if isinstance(data, dict):
+            data = data.get(key, default)
+        else:
+            return default
+    return data
 
 
 @dataclass
 class Hypothesis:
     """A hypothesis about potential failure modes."""
+
     id: str = field(default_factory=generate_id)
     target_surface: str = ""  # What we're testing
     expected_failure: str = ""  # What failure we expect
@@ -44,11 +56,13 @@ class HypothesisEngine(BaseAgent):
     4. Attack surface analysis - systematic enumeration
     """
 
-    def __init__(self,
-                 graph: Optional[MemoryGraph] = None,
-                 llm_backbone: Optional[LLMBackbone] = None,
-                 adaptive_memory: Optional[AdaptiveMemory] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        graph: MemoryGraph | None = None,
+        llm_backbone: LLMBackbone | None = None,
+        adaptive_memory: AdaptiveMemory | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.graph = graph
         self.llm = llm_backbone
@@ -138,29 +152,35 @@ class HypothesisEngine(BaseAgent):
             # Recent failures
             failures = self.graph.get_failures(valid_only=True, limit=20)
             for f in failures:
-                observations.append({
-                    "type": "failure",
-                    "description": f"Observed {f.data.get('severity', 'S2')} {f.data.get('primary_class', 'unknown')} failure with trigger {f.data.get('trigger_signature', [])}",
-                    "data": f.data,
-                })
+                observations.append(
+                    {
+                        "type": "failure",
+                        "description": f"Observed {f.data.get('severity', 'S2')} {f.data.get('primary_class', 'unknown')} failure with trigger {f.data.get('trigger_signature', [])}",
+                        "data": f.data,
+                    }
+                )
 
             # Recent experiments
             experiments = self.graph.get_experiments(valid_only=True, limit=10)
             for e in experiments:
-                observations.append({
-                    "type": "experiment",
-                    "description": f"Ran {e.data.get('stress_type', 'unknown')} experiment targeting {e.data.get('hypothesis_id', 'unknown')}",
-                    "data": e.data,
-                })
+                observations.append(
+                    {
+                        "type": "experiment",
+                        "description": f"Ran {e.data.get('stress_type', 'unknown')} experiment targeting {e.data.get('hypothesis_id', 'unknown')}",
+                        "data": e.data,
+                    }
+                )
 
         # Add adaptive memory context
         if self.adaptive_memory:
             memory_context = self.adaptive_memory.get_context_for_reasoning()
             for suggestion in memory_context.get("research_suggestions", []):
-                observations.append({
-                    "type": "suggestion",
-                    "description": suggestion,
-                })
+                observations.append(
+                    {
+                        "type": "suggestion",
+                        "description": suggestion,
+                    }
+                )
 
         return observations
 
@@ -190,28 +210,77 @@ class HypothesisEngine(BaseAgent):
         # Call LLM
         result = await self.llm.reason(reasoning_context)
 
-        # Parse hypotheses from structured output
+        # Parse hypotheses from structured output with validation
         output = result.structured_output
-        llm_hypotheses = output.get("hypotheses", [])
 
-        for h_data in llm_hypotheses:
-            # Map to failure class
-            target = h_data.get("target_surface", "general")
-            failure_class = self._infer_failure_class(target, h_data.get("expected_failure", ""))
+        try:
+            # Validate structured output exists and is a dict
+            if not isinstance(output, dict):
+                logger.warning("LLM output is not a dict, returning empty hypotheses list")
+                return hypotheses
 
-            hypothesis = Hypothesis(
-                target_surface=target,
-                expected_failure=h_data.get("expected_failure", ""),
-                failure_class=failure_class,
-                confidence=float(h_data.get("confidence", 0.5)),
-                priority=self._infer_priority(h_data.get("confidence", 0.5)),
-                rationale=h_data.get("rationale", ""),
-                suggested_experiment=h_data.get("suggested_experiment", ""),
-                evidence=["LLM reasoning"],
-            )
-            hypotheses.append(hypothesis)
+            llm_hypotheses = output.get("hypotheses", [])
+            if not isinstance(llm_hypotheses, list):
+                logger.warning(
+                    "LLM output 'hypotheses' is not a list, returning empty hypotheses list"
+                )
+                return hypotheses
 
-        self.logger.info(f"LLM generated {len(hypotheses)} hypotheses")
+            if not llm_hypotheses:
+                logger.warning("LLM output 'hypotheses' is empty, returning empty hypotheses list")
+                return hypotheses
+
+            for h_data in llm_hypotheses:
+                # Validate each hypothesis entry is a dict
+                if not isinstance(h_data, dict):
+                    logger.warning(f"Skipping non-dict hypothesis entry: {type(h_data)}")
+                    continue
+
+                # Map to failure class with safe access
+                target = h_data.get("target_surface", "general")
+                if not isinstance(target, str):
+                    target = "general"
+
+                expected_failure = h_data.get("expected_failure", "")
+                if not isinstance(expected_failure, str):
+                    expected_failure = ""
+
+                failure_class = self._infer_failure_class(target, expected_failure)
+
+                # Safely parse confidence
+                raw_confidence = h_data.get("confidence", 0.5)
+                try:
+                    confidence = float(raw_confidence)
+                    # Clamp to valid range
+                    confidence = max(0.0, min(1.0, confidence))
+                except (ValueError, TypeError):
+                    logger.warning(f"Invalid confidence value '{raw_confidence}', using 0.5")
+                    confidence = 0.5
+
+                rationale = h_data.get("rationale", "")
+                if not isinstance(rationale, str):
+                    rationale = str(rationale) if rationale else ""
+
+                suggested_experiment = h_data.get("suggested_experiment", "")
+                if not isinstance(suggested_experiment, str):
+                    suggested_experiment = str(suggested_experiment) if suggested_experiment else ""
+
+                hypothesis = Hypothesis(
+                    target_surface=target,
+                    expected_failure=expected_failure,
+                    failure_class=failure_class,
+                    confidence=confidence,
+                    priority=self._infer_priority(confidence),
+                    rationale=rationale,
+                    suggested_experiment=suggested_experiment,
+                    evidence=["LLM reasoning"],
+                )
+                hypotheses.append(hypothesis)
+
+        except Exception as e:
+            logger.warning(f"Failed to parse LLM hypothesis output: {e}, returning partial results")
+
+        logger.info(f"LLM generated {len(hypotheses)} hypotheses")
 
         return hypotheses
 
@@ -241,8 +310,7 @@ class HypothesisEngine(BaseAgent):
         """Apply adaptive memory priors to adjust confidence."""
         for h in hypotheses:
             prior = self.adaptive_memory.get_hypothesis_prior(
-                h.failure_class.value,
-                h.target_surface
+                h.failure_class.value, h.target_surface
             )
 
             # Bayesian-style update
@@ -268,28 +336,36 @@ class HypothesisEngine(BaseAgent):
 
             # If failure was resolved, hypothesize it might recur
             if data.get("is_resolved"):
-                hypotheses.append(Hypothesis(
-                    target_surface=data.get("trigger_signature", ["unknown"])[0] if data.get("trigger_signature") else "unknown",
-                    expected_failure=f"Recurrence of {data.get('primary_class', 'unknown')} failure",
-                    failure_class=FailureClass(data.get("primary_class", "reasoning")),
-                    confidence=0.3,
-                    priority="medium",
-                    rationale="Previously resolved failures may recur",
-                    evidence=[f"Prior failure: {failure.id}"],
-                ))
+                hypotheses.append(
+                    Hypothesis(
+                        target_surface=data.get("trigger_signature", ["unknown"])[0]
+                        if data.get("trigger_signature")
+                        else "unknown",
+                        expected_failure=f"Recurrence of {data.get('primary_class', 'unknown')} failure",
+                        failure_class=FailureClass(data.get("primary_class", "reasoning")),
+                        confidence=0.3,
+                        priority="medium",
+                        rationale="Previously resolved failures may recur",
+                        evidence=[f"Prior failure: {failure.id}"],
+                    )
+                )
 
             # Hypothesize related failures
             secondary = data.get("secondary_class")
             if secondary:
-                hypotheses.append(Hypothesis(
-                    target_surface=data.get("trigger_signature", ["unknown"])[0] if data.get("trigger_signature") else "unknown",
-                    expected_failure=f"Related {secondary} failure",
-                    failure_class=FailureClass(data.get("primary_class", "reasoning")),
-                    confidence=0.4,
-                    priority="medium",
-                    rationale="Related failure modes often co-occur",
-                    evidence=[f"Related to: {failure.id}"],
-                ))
+                hypotheses.append(
+                    Hypothesis(
+                        target_surface=data.get("trigger_signature", ["unknown"])[0]
+                        if data.get("trigger_signature")
+                        else "unknown",
+                        expected_failure=f"Related {secondary} failure",
+                        failure_class=FailureClass(data.get("primary_class", "reasoning")),
+                        confidence=0.4,
+                        priority="medium",
+                        rationale="Related failure modes often co-occur",
+                        evidence=[f"Related to: {failure.id}"],
+                    )
+                )
 
         return hypotheses
 
@@ -312,15 +388,17 @@ class HypothesisEngine(BaseAgent):
         ]
 
         for surface, expected, failure_class in surfaces:
-            hypotheses.append(Hypothesis(
-                target_surface=surface,
-                expected_failure=expected,
-                failure_class=failure_class,
-                confidence=0.5,
-                priority="medium",
-                rationale="Standard attack surface enumeration",
-                evidence=["Systematic surface analysis"],
-            ))
+            hypotheses.append(
+                Hypothesis(
+                    target_surface=surface,
+                    expected_failure=expected,
+                    failure_class=failure_class,
+                    confidence=0.5,
+                    priority="medium",
+                    rationale="Standard attack surface enumeration",
+                    evidence=["Systematic surface analysis"],
+                )
+            )
 
         return hypotheses
 
@@ -330,15 +408,17 @@ class HypothesisEngine(BaseAgent):
 
         for class_name, info in FAILURE_TAXONOMY.items():
             # Generate hypothesis for each failure type
-            hypotheses.append(Hypothesis(
-                target_surface=info.typical_triggers[0] if info.typical_triggers else "general",
-                expected_failure=info.description[:100],
-                failure_class=class_name,
-                confidence=0.4,
-                priority="medium" if info.base_severity.value <= 2 else "high",
-                rationale="Derived from failure taxonomy",
-                evidence=[f"Taxonomy: {class_name.value}"],
-            ))
+            hypotheses.append(
+                Hypothesis(
+                    target_surface=info.typical_triggers[0] if info.typical_triggers else "general",
+                    expected_failure=info.description[:100],
+                    failure_class=class_name,
+                    confidence=0.4,
+                    priority="medium" if info.base_severity.value <= 2 else "high",
+                    rationale="Derived from failure taxonomy",
+                    evidence=[f"Taxonomy: {class_name.value}"],
+                )
+            )
 
         return hypotheses
 

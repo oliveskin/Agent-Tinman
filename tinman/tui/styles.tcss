@@ -1,19 +1,32 @@
-/* Tinman TUI - Superfile-inspired theme (layout-safe) */
+/* Tinman TUI - Modern Research Interface Theme */
+/* Designed for both beginners and power users */
 
 $bg: #0a0d12;
 $panel-bg: #0f141c;
 $panel-strong-bg: #131b26;
+$card-bg: #151d28;
 $border: #243042;
 $border-strong: #2f3e54;
+$border-focus: #4a6080;
 $text: #e7edf5;
+$text-dim: #7d8a9d;
 $muted: #93a3bd;
 $accent: #46f2b3;
 $accent-strong: #19d392;
+$accent-dim: #2a8a6a;
 $accent-cool: #8ad7ff;
+$accent-purple: #a78bfa;
 $danger: #ff6363;
+$danger-dim: #8b3a3a;
 $warning: #f6c36b;
+$warning-dim: #8a6a2a;
 $success: #37e59b;
+$success-dim: #1a6b48;
 $glow: #7af2c4;
+
+/* ============================================ */
+/* SCREEN & MAIN CONTAINER                      */
+/* ============================================ */
 
 Screen {
     background: $bg;
@@ -24,168 +37,176 @@ Screen {
     width: 100%;
     height: 100%;
     background: $bg;
-    padding: 1 2;
+    padding: 0 1;
     layout: vertical;
 }
 
+/* ============================================ */
+/* HEADER - Compact & Informative               */
+/* ============================================ */
+
 #header {
-    height: 7;
+    height: 5;
     width: 100%;
     background: $panel-strong-bg;
-    border: round $border-strong;
-    padding: 0 1;
+    border-bottom: solid $border-strong;
+    padding: 0 2;
+    layout: horizontal;
 }
 
-#header Static {
-    color: $accent;
-    text-style: bold;
-}
-
-#header-info {
-    padding-left: 2;
-    align: left middle;
-}
-
-.header-subtitle {
-    color: $muted;
-    text-style: bold;
-}
-
-.header-meta {
-    color: $accent-cool;
-}
-
-#ascii-logo {
-    color: $accent;
-    text-style: bold;
-}
-
-#status-line Static {
-    color: $muted;
-}
-
-#status-line {
-    dock: right;
-    width: 24;
-    height: 5;
+#logo-section {
+    width: auto;
+    height: 100%;
     padding-right: 2;
 }
 
-#header-info {
-    width: 1fr;
-    padding-left: 2;
-    align: left middle;
-}
-
 #ascii-logo {
-    width: 30;
-}
-
-#status-line {
-    align: right middle;
-}
-
-#review-demo-report,
-#review-open-report {
-    min-width: 18;
-}
-
-#review-refresh-db {
-    min-width: 16;
-}
-
-.review-actions Button {
-    min-width: 12;
-    height: 3;
-    content-align: center middle;
-    border: round $border-strong;
-    background: $panel-bg;
+    color: $accent;
     text-style: bold;
 }
 
-#version {
-    color: $accent-cool;
+#title-section {
+    width: 1fr;
+    height: 100%;
+    padding: 0 1;
+    layout: vertical;
+    content-align: left middle;
 }
 
-#last-event {
+#app-title {
+    color: $accent;
+    text-style: bold;
+}
+
+#app-subtitle {
     color: $muted;
 }
+
+#status-section {
+    width: auto;
+    height: 100%;
+    layout: horizontal;
+    align: right middle;
+    padding-right: 1;
+}
+
+.status-badge {
+    padding: 0 1;
+    margin-left: 1;
+    border: round $border-strong;
+    background: $panel-bg;
+    height: 3;
+    content-align: center middle;
+}
+
+.status-badge-ok {
+    color: $success;
+    border: round $success-dim;
+}
+
+.status-badge-warn {
+    color: $warning;
+    border: round $warning-dim;
+}
+
+.status-badge-error {
+    color: $danger;
+    border: round $danger-dim;
+}
+
+.status-badge-running {
+    color: $accent-cool;
+    border: round $accent-dim;
+}
+
+#mode-badge {
+    color: $accent-purple;
+    border: round $accent-purple;
+}
+
+#clock {
+    color: $muted;
+    width: 10;
+    text-align: right;
+}
+
+/* ============================================ */
+/* NAVIGATION - Streamlined                     */
+/* ============================================ */
 
 #nav-bar {
     height: 3;
     width: 100%;
     background: $panel-bg;
-    border: round $border-strong;
+    border-bottom: solid $border;
     padding: 0 1;
+    layout: horizontal;
+}
+
+#nav-left {
+    width: 1fr;
+    layout: horizontal;
+    align: left middle;
+}
+
+#nav-right {
+    width: auto;
+    layout: horizontal;
+    align: right middle;
 }
 
 #nav-bar Button {
     background: transparent;
-    color: $text;
+    color: $muted;
     border: none;
-    min-width: 10;
-    margin: 0 0;
-    padding: 0 1;
-    text-style: bold;
-}
-
-Button {
-    color: $text;
-}
-
-TabPane Button {
     min-width: 12;
     height: 3;
-    content-align: center middle;
-    border: round $border-strong;
-    background: $panel-bg;
-    text-style: bold;
-    margin-right: 1;
-}
-
-Button.pressed {
-    background: $panel-strong-bg;
-    border: round $accent;
-    color: $accent;
-}
-
-#start-run {
-    background: $panel-strong-bg;
-    color: $text;
-    text-style: bold;
-    border: round $success;
-}
-
-#stop-run {
-    background: $panel-strong-bg;
-    color: $text;
-    text-style: bold;
-    border: round $danger;
+    margin: 0;
+    padding: 0 2;
+    text-style: none;
 }
 
 #nav-bar Button:hover {
     background: $panel-strong-bg;
-    color: $accent;
+    color: $text;
 }
 
 #nav-bar Button:focus {
     background: $panel-strong-bg;
     color: $accent;
-    text-style: bold;
 }
 
 #nav-bar Button.-active {
     background: $panel-strong-bg;
     color: $accent;
     text-style: bold;
-    border: none;
+    border-bottom: solid $accent;
 }
+
+#nav-bar .nav-shortcut {
+    color: $text-dim;
+    text-style: none;
+}
+
+#help-toggle {
+    color: $accent-cool;
+    min-width: 3;
+    padding: 0 1;
+}
+
+#help-toggle:hover {
+    color: $accent;
+}
+
+/* ============================================ */
+/* CONTENT AREA                                 */
+/* ============================================ */
 
 #content {
     width: 100%;
     height: 1fr;
     background: $bg;
-    padding: 1 1;
+    padding: 1;
     layout: vertical;
 }
 
@@ -194,20 +215,203 @@ TabbedContent {
     layout: vertical;
 }
 
+Tabs {
+    display: none;
+}
+
 TabPane {
     height: 1fr;
-    padding: 1 1;
+    padding: 0;
 }
 
 .tab-scroll {
     height: 1fr;
+    padding: 0 1;
 }
 
-#demos-scroll {
-    height: 1fr;
+/* ============================================ */
+/* DASHBOARD CARDS                              */
+/* ============================================ */
+
+.dashboard-grid {
+    layout: grid;
+    grid-size: 3;
+    grid-gutter: 1;
+    height: auto;
+    padding: 0;
+}
+
+.dashboard-card {
+    background: $card-bg;
+    border: round $border-strong;
+    padding: 1;
+    height: auto;
+    min-height: 8;
+}
+
+.dashboard-card:hover {
+    border: round $border-focus;
+}
+
+.card-header {
+    color: $muted;
+    text-style: bold;
     padding-bottom: 1;
+    border-bottom: solid $border;
+    margin-bottom: 1;
 }
 
+.card-icon {
+    color: $accent;
+}
+
+.card-value {
+    color: $accent;
+    text-style: bold;
+}
+
+.card-value-large {
+    color: $accent;
+    text-style: bold;
+}
+
+.card-label {
+    color: $muted;
+}
+
+.card-action {
+    margin-top: 1;
+}
+
+/* ============================================ */
+/* STATUS INDICATORS                            */
+/* ============================================ */
+
+.health-row {
+    height: 3;
+    layout: horizontal;
+    align: left middle;
+    padding: 0 1;
+}
+
+.health-indicator {
+    width: 2;
+    height: 1;
+    margin-right: 1;
+}
+
+.health-ok {
+    color: $success;
+}
+
+.health-warn {
+    color: $warning;
+}
+
+.health-error {
+    color: $danger;
+}
+
+.health-unknown {
+    color: $muted;
+}
+
+.health-label {
+    color: $text;
+    width: 1fr;
+}
+
+.health-status {
+    color: $muted;
+    width: auto;
+}
+
+/* ============================================ */
+/* QUICK ACTIONS                                */
+/* ============================================ */
+
+.quick-actions {
+    layout: horizontal;
+    height: 5;
+    align: left middle;
+    padding: 1;
+}
+
+.action-btn {
+    min-width: 16;
+    height: 3;
+    margin-right: 1;
+    border: round $border-strong;
+    background: $panel-bg;
+    text-style: bold;
+}
+
+.action-btn:hover {
+    border: round $accent-dim;
+    background: $panel-strong-bg;
+}
+
+.action-btn:focus {
+    border: round $accent;
+}
+
+.action-btn-primary {
+    border: round $accent-dim;
+    color: $accent;
+}
+
+.action-btn-primary:hover {
+    border: round $accent;
+    background: $accent-dim;
+}
+
+.action-btn-success {
+    border: round $success-dim;
+    color: $success;
+}
+
+.action-btn-success:hover {
+    border: round $success;
+    background: $success-dim;
+}
+
+.action-btn-danger {
+    border: round $danger-dim;
+    color: $danger;
+}
+
+.action-btn-danger:hover {
+    border: round $danger;
+    background: $danger-dim;
+}
+
+/* ============================================ */
+/* SECTION PANELS                               */
+/* ============================================ */
+
+.section-title {
+    color: $text;
+    text-style: bold;
+    background: $panel-bg;
+    padding: 0 1;
+    border: round $border-strong;
+    margin-bottom: 1;
+    height: 3;
+    content-align: left middle;
+}
+
+.section-title-icon {
+    color: $accent;
+    margin-right: 1;
+}
+
+.section-body {
+    padding: 0;
+    margin-bottom: 1;
+    layout: vertical;
+    height: auto;
+    width: 100%;
+}
 
 .panel-title {
     color: $text;
@@ -228,89 +432,14 @@ TabPane {
     width: 100%;
 }
 
-.button-row {
-    height: 3;
-    align: left middle;
-    padding: 0 1;
-    margin-bottom: 1;
-}
-
-#setup-checklist {
-    height: auto;
-}
-
-#review-demo-report {
-    min-width: 20;
-}
-
-#review-open-report {
-    min-width: 20;
-}
-
-.log-panel {
-    border: round $border-strong;
-    background: $panel-strong-bg;
-    padding: 1;
-}
-
-#activity-log {
-    height: 1fr;
-}
-
-#setup-log,
-#review-log,
-#actions-log,
-#demos-log,
-#model-log {
-    height: 5;
-}
-
-.progress-label {
-    color: $muted;
-}
-
-.inline-row {
-    height: 3;
-    align: left middle;
-    padding: 0 1;
-}
-
-.demo-row {
-    height: 3;
-    margin-bottom: 1;
-}
-
-.demo-field-row {
-    height: 3;
-    margin-bottom: 1;
-}
-
-#focus-label,
-#run-controls-label,
-#demo-name-label,
-#demo-args-label {
-    width: 14;
-}
-
-Input {
-    width: 1fr;
-    height: 3;
-}
+/* ============================================ */
+/* DATA TABLES                                  */
+/* ============================================ */
 
 DataTable {
     background: $panel-bg;
     border: round $border-strong;
-}
-
-#review-hypotheses-table,
-#review-failures-table,
-#review-interventions-table {
-    height: 6;
-}
-
-#actions-failures-table,
-#actions-interventions-table {
-    height: 8;
+    height: auto;
 }
 
 DataTable > .datatable--header {
@@ -324,6 +453,158 @@ DataTable > .datatable--cursor {
     color: $bg;
 }
 
+DataTable > .datatable--hover {
+    background: $panel-strong-bg;
+}
+
+.table-compact {
+    height: 8;
+}
+
+.table-medium {
+    height: 12;
+}
+
+.table-large {
+    height: 16;
+}
+
+/* ============================================ */
+/* LOG PANELS                                   */
+/* ============================================ */
+
+.log-panel {
+    border: round $border-strong;
+    background: $panel-strong-bg;
+    padding: 1;
+    height: auto;
+}
+
+.log-panel-sm {
+    height: 6;
+}
+
+.log-panel-md {
+    height: 10;
+}
+
+.log-panel-lg {
+    height: 1fr;
+}
+
+#activity-log {
+    height: 1fr;
+}
+
+.log-entry-info {
+    color: $muted;
+}
+
+.log-entry-success {
+    color: $success;
+}
+
+.log-entry-warning {
+    color: $warning;
+}
+
+.log-entry-error {
+    color: $danger;
+}
+
+/* ============================================ */
+/* FORMS & INPUTS                               */
+/* ============================================ */
+
+.form-row {
+    height: 3;
+    layout: horizontal;
+    align: left middle;
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+.form-label {
+    width: 16;
+    color: $muted;
+}
+
+Input {
+    width: 1fr;
+    height: 3;
+    background: $panel-bg;
+    border: round $border-strong;
+    color: $text;
+}
+
+Input:focus {
+    border: round $accent-cool;
+}
+
+Input:hover {
+    border: round $border-focus;
+}
+
+.input-hint {
+    color: $text-dim;
+    padding-left: 17;
+}
+
+/* ============================================ */
+/* BUTTONS                                      */
+/* ============================================ */
+
+Button {
+    color: $text;
+    min-width: 12;
+    height: 3;
+    border: round $border-strong;
+    background: $panel-bg;
+    margin-right: 1;
+}
+
+Button:hover {
+    background: $panel-strong-bg;
+    border: round $border-focus;
+}
+
+Button:focus {
+    border: round $accent;
+}
+
+Button.pressed {
+    background: $panel-strong-bg;
+    border: round $accent;
+    color: $accent;
+}
+
+.button-row {
+    height: 3;
+    align: left middle;
+    padding: 0 1;
+    margin-bottom: 1;
+    layout: horizontal;
+}
+
+TabPane Button {
+    min-width: 14;
+    height: 3;
+    content-align: center middle;
+    border: round $border-strong;
+    background: $panel-bg;
+    text-style: bold;
+    margin-right: 1;
+}
+
+/* ============================================ */
+/* CHAT INTERFACE                               */
+/* ============================================ */
+
+#chat-container {
+    height: 1fr;
+    layout: vertical;
+}
+
 #chat-log {
     height: 1fr;
     border: round $border-strong;
@@ -332,7 +613,13 @@ DataTable > .datatable--cursor {
     margin-bottom: 1;
 }
 
+#chat-input-row {
+    height: 3;
+    layout: horizontal;
+}
+
 #chat-input {
+    width: 1fr;
     height: 3;
     border: round $border-strong;
     background: $panel-bg;
@@ -343,26 +630,285 @@ DataTable > .datatable--cursor {
     border: round $accent-cool;
 }
 
+#chat-send {
+    width: 10;
+    margin-left: 1;
+}
+
 .user-message {
-    color: $accent;
+    color: $accent-cool;
     margin-bottom: 1;
+    padding-left: 1;
+    border-left: solid $accent-cool;
 }
 
 .assistant-message {
     color: $text;
     margin-bottom: 1;
+    padding-left: 1;
+    border-left: solid $muted;
 }
 
 .empty-state {
     color: $muted;
     text-align: center;
-    padding: 1;
+    padding: 2;
 }
+
+/* ============================================ */
+/* MODALS                                       */
+/* ============================================ */
+
+ModalScreen {
+    align: center middle;
+    background: rgba(10, 13, 18, 0.85);
+}
+
+#approval-modal {
+    width: 70;
+    height: auto;
+    max-height: 80%;
+    border: round $accent;
+    background: $panel-bg;
+    padding: 1 2;
+}
+
+#approval-modal .modal-title {
+    color: $warning;
+    text-style: bold;
+    text-align: center;
+    padding-bottom: 1;
+    border-bottom: solid $border-strong;
+    margin-bottom: 1;
+}
+
+#approval-modal .modal-content {
+    color: $text;
+    padding: 0 0 1 0;
+}
+
+#approval-modal .modal-warning {
+    color: $danger;
+    text-style: bold;
+}
+
+#approval-modal .modal-actions {
+    layout: horizontal;
+    align: center middle;
+    height: auto;
+    padding-top: 1;
+    border-top: solid $border-strong;
+}
+
+#approval-modal Button {
+    margin: 0 1;
+    min-width: 14;
+}
+
+#approval-modal #approve-btn {
+    background: $success-dim;
+    color: $text;
+    border: round $success;
+}
+
+#approval-modal #approve-btn:hover {
+    background: $success;
+    color: $bg;
+}
+
+#approval-modal #reject-btn {
+    background: $danger-dim;
+    color: $text;
+    border: round $danger;
+}
+
+#approval-modal #reject-btn:hover {
+    background: $danger;
+    color: $bg;
+}
+
+#approval-modal #details-btn {
+    background: $panel-strong-bg;
+    color: $accent;
+    border: round $border-strong;
+}
+
+#model-config-modal {
+    width: 50;
+    height: auto;
+    border: round $border-strong;
+    background: $panel-bg;
+    padding: 1 2;
+}
+
+#model-config-modal Label {
+    padding: 1 0 0 0;
+    color: $muted;
+}
+
+#model-config-modal Input {
+    margin-bottom: 1;
+}
+
+#model-config-modal .modal-actions {
+    layout: horizontal;
+    align: center middle;
+    padding-top: 1;
+}
+
+/* ============================================ */
+/* KEYBOARD SHORTCUTS OVERLAY                   */
+/* ============================================ */
+
+#shortcuts-overlay {
+    width: 60;
+    height: auto;
+    max-height: 80%;
+    border: round $accent-cool;
+    background: $panel-bg;
+    padding: 1 2;
+}
+
+#shortcuts-overlay .shortcuts-title {
+    color: $accent-cool;
+    text-style: bold;
+    text-align: center;
+    padding-bottom: 1;
+    border-bottom: solid $border-strong;
+    margin-bottom: 1;
+}
+
+.shortcut-row {
+    height: 2;
+    layout: horizontal;
+    padding: 0 1;
+}
+
+.shortcut-key {
+    width: 12;
+    color: $accent;
+    text-style: bold;
+}
+
+.shortcut-desc {
+    width: 1fr;
+    color: $text;
+}
+
+.shortcut-section {
+    color: $muted;
+    text-style: bold;
+    padding: 1 0;
+}
+
+/* ============================================ */
+/* GETTING STARTED PANEL                        */
+/* ============================================ */
+
+.getting-started {
+    background: $card-bg;
+    border: round $accent-dim;
+    padding: 1;
+    margin-bottom: 1;
+}
+
+.getting-started-title {
+    color: $accent;
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.step-row {
+    height: 3;
+    layout: horizontal;
+    align: left middle;
+    padding: 0 1;
+}
+
+.step-number {
+    width: 3;
+    color: $accent;
+    text-style: bold;
+}
+
+.step-text {
+    width: 1fr;
+    color: $text;
+}
+
+.step-status {
+    width: 10;
+    text-align: right;
+}
+
+.step-done {
+    color: $success;
+}
+
+.step-pending {
+    color: $muted;
+}
+
+.step-current {
+    color: $warning;
+    text-style: bold;
+}
+
+/* ============================================ */
+/* FOOTER                                       */
+/* ============================================ */
+
+#footer {
+    height: 2;
+    width: 100%;
+    background: $panel-strong-bg;
+    border-top: solid $border;
+    padding: 0 2;
+    layout: horizontal;
+}
+
+#footer-left {
+    width: 1fr;
+    layout: horizontal;
+    align: left middle;
+}
+
+#footer-right {
+    width: auto;
+    layout: horizontal;
+    align: right middle;
+}
+
+.metric-group {
+    layout: horizontal;
+    margin-right: 2;
+}
+
+.metric-label {
+    color: $muted;
+}
+
+.metric-value {
+    color: $accent;
+    text-style: bold;
+    margin-left: 1;
+}
+
+.footer-hint {
+    color: $text-dim;
+}
+
+/* ============================================ */
+/* DEMO PANEL                                   */
+/* ============================================ */
 
 .demo-warning {
     color: $warning;
     text-style: bold;
-    padding: 0 1;
+    padding: 1;
+    border: round $warning-dim;
+    background: rgba(246, 195, 107, 0.1);
+    margin-bottom: 1;
 }
 
 .demo-status {
@@ -379,91 +925,32 @@ DataTable > .datatable--cursor {
     color: $warning;
     text-style: bold;
 }
+
+/* ============================================ */
+/* DETAIL PANELS                                */
+/* ============================================ */
+
 .detail-panel {
     min-height: 3;
     height: auto;
     border: round $border-strong;
     background: $panel-bg;
     color: $text;
-    padding: 0 1;
+    padding: 1;
 }
 
-#run-summary {
-    height: 3;
+.detail-label {
+    color: $muted;
+    margin-right: 1;
 }
 
-#approval-modal {
-    align: center middle;
-    width: 74;
-    height: auto;
-    max-height: 80%;
-    border: round $accent;
-    background: $panel-bg;
-    padding: 1 2;
-}
-
-#approval-modal .modal-title {
-    color: $accent;
-    text-style: bold;
-    text-align: center;
-    padding-bottom: 1;
-}
-
-#approval-modal .modal-content {
+.detail-value {
     color: $text;
-    padding: 1 0;
 }
 
-#approval-modal .modal-actions {
-    layout: horizontal;
-    align: center middle;
-    height: auto;
-    padding-top: 1;
-}
-
-#approval-modal Button {
-    margin: 0 2;
-    min-width: 12;
-}
-
-#approval-modal #approve-btn {
-    background: $success;
-    color: $bg;
-    border: solid $success;
-}
-
-#approval-modal #reject-btn {
-    background: $danger;
-    color: $bg;
-    border: solid $danger;
-}
-
-#approval-modal #details-btn {
-    background: $panel-strong-bg;
-    color: $accent;
-    border: round $accent;
-}
-
-#footer {
-    height: 2;
-    width: 100%;
-    background: $panel-strong-bg;
-    border: none;
-    padding: 0 1;
-}
-
-#footer Static {
-    color: $muted;
-}
-
-.metric-label {
-    color: $muted;
-}
-
-.metric-value {
-    color: $accent;
-    text-style: bold;
-}
+/* ============================================ */
+/* SCROLLBARS                                   */
+/* ============================================ */
 
 Scrollbar {
     background: $panel-strong-bg;
@@ -474,25 +961,88 @@ ScrollbarSlider {
 }
 
 ScrollbarSlider:hover {
-    background: $accent;
+    background: $accent-dim;
 }
+
+/* ============================================ */
+/* LOADING & PROGRESS                           */
+/* ============================================ */
 
 LoadingIndicator {
     color: $accent;
 }
-.status-muted {
+
+.progress-bar {
+    height: 1;
+    background: $border;
+}
+
+.progress-fill {
+    background: $accent;
+}
+
+/* ============================================ */
+/* RESPONSIVE HELPERS                           */
+/* ============================================ */
+
+.hide-narrow {
+    display: block;
+}
+
+.show-narrow {
+    display: none;
+}
+
+/* ============================================ */
+/* INLINE ROW (legacy support)                  */
+/* ============================================ */
+
+.inline-row {
+    height: 3;
+    align: left middle;
+    padding: 0 1;
+    layout: horizontal;
+}
+
+#focus-label,
+#run-controls-label,
+#demo-name-label,
+#demo-args-label {
+    width: 14;
     color: $muted;
 }
 
-.status-ok {
-    color: $success;
-    text-style: bold;
+.progress-label {
+    color: $muted;
 }
 
-.status-warn {
-    color: $warning;
+#setup-checklist {
+    height: auto;
 }
 
-Tabs {
-    display: none;
+#run-summary {
+    height: 3;
+}
+
+/* ============================================ */
+/* TABLE HEIGHTS (legacy support)               */
+/* ============================================ */
+
+#review-hypotheses-table,
+#review-failures-table,
+#review-interventions-table {
+    height: 8;
+}
+
+#actions-failures-table,
+#actions-interventions-table {
+    height: 10;
+}
+
+#setup-log,
+#review-log,
+#actions-log,
+#demos-log,
+#model-log {
+    height: 6;
 }

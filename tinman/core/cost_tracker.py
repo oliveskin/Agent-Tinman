@@ -21,11 +21,12 @@ Usage:
     tracker.enforce_budget()
 """
 
+import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Callable, Optional
-import threading
+from typing import Any
 
 from ..utils import get_logger, utc_now
 
@@ -34,6 +35,7 @@ logger = get_logger("cost_tracker")
 
 class BudgetPeriod(str, Enum):
     """Budget time periods."""
+
     HOURLY = "hourly"
     DAILY = "daily"
     WEEKLY = "weekly"
@@ -45,6 +47,7 @@ class BudgetPeriod(str, Enum):
 @dataclass
 class CostRecord:
     """Record of a single cost event."""
+
     amount_usd: float
     timestamp: datetime
     source: str  # Which component incurred the cost
@@ -58,6 +61,7 @@ class CostRecord:
 @dataclass
 class BudgetConfig:
     """Configuration for cost budget."""
+
     limit_usd: float = 10.0
     period: BudgetPeriod = BudgetPeriod.DAILY
     warn_threshold: float = 0.8  # Warn when 80% consumed
@@ -78,6 +82,7 @@ class BudgetConfig:
 
 class BudgetExceededError(Exception):
     """Raised when budget is exceeded and hard_limit is True."""
+
     def __init__(self, current: float, limit: float, message: str = ""):
         self.current = current
         self.limit = limit
@@ -93,11 +98,11 @@ class CostTracker:
 
     def __init__(
         self,
-        budget_config: Optional[BudgetConfig] = None,
-        budget_usd: Optional[float] = None,
+        budget_config: BudgetConfig | None = None,
+        budget_usd: float | None = None,
         period: BudgetPeriod = BudgetPeriod.DAILY,
-        on_warning: Optional[Callable[[float, float], None]] = None,
-        on_exceeded: Optional[Callable[[float, float], None]] = None,
+        on_warning: Callable[[float, float], None] | None = None,
+        on_exceeded: Callable[[float, float], None] | None = None,
     ):
         """Initialize cost tracker.
 
@@ -142,7 +147,7 @@ class CostTracker:
         operation: str = "unknown",
         input_tokens: int = 0,
         output_tokens: int = 0,
-        metadata: Optional[dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
     ) -> CostRecord:
         """Record a cost event.
 
@@ -177,8 +182,7 @@ class CostTracker:
         self._check_thresholds()
 
         logger.debug(
-            f"Cost recorded: ${amount_usd:.4f} from {source} "
-            f"(model={model}, op={operation})"
+            f"Cost recorded: ${amount_usd:.4f} from {source} (model={model}, op={operation})"
         )
 
         return record
@@ -193,7 +197,7 @@ class CostTracker:
             self._warning_issued = True
             logger.warning(
                 f"Budget warning: ${current:.4f} / ${limit:.2f} "
-                f"({current/limit*100:.1f}% consumed)"
+                f"({current / limit * 100:.1f}% consumed)"
             )
             if self.on_warning:
                 self.on_warning(current, limit)
@@ -213,11 +217,7 @@ class CostTracker:
         period_start = self._get_period_start()
 
         with self._lock:
-            return sum(
-                r.amount_usd
-                for r in self._records
-                if r.timestamp >= period_start
-            )
+            return sum(r.amount_usd for r in self._records if r.timestamp >= period_start)
 
     @property
     def remaining_budget(self) -> float:
@@ -299,7 +299,7 @@ class CostTracker:
                 current + estimated_cost,
                 limit,
                 f"Estimated cost ${estimated_cost:.4f} would exceed budget "
-                f"(current: ${current:.4f}, limit: ${limit:.2f})"
+                f"(current: ${current:.4f}, limit: ${limit:.2f})",
             )
 
     def get_summary(self) -> dict[str, Any]:
@@ -325,7 +325,8 @@ class CostTracker:
             "budget_period": self.config.period.value,
             "utilization_percent": (
                 self.current_period_cost / self.config.limit_usd * 100
-                if self.config.limit_usd > 0 else 0
+                if self.config.limit_usd > 0
+                else 0
             ),
             "record_count": len(records),
             "by_source": by_source,
@@ -335,9 +336,9 @@ class CostTracker:
 
     def get_records(
         self,
-        since: Optional[datetime] = None,
-        source: Optional[str] = None,
-        model: Optional[str] = None,
+        since: datetime | None = None,
+        source: str | None = None,
+        model: str | None = None,
         limit: int = 100,
     ) -> list[CostRecord]:
         """Get cost records with filters.
@@ -379,16 +380,13 @@ class CostTracker:
             # Clear records for new period
             with self._lock:
                 period_start = self._get_period_start()
-                self._records = [
-                    r for r in self._records
-                    if r.timestamp >= period_start
-                ]
+                self._records = [r for r in self._records if r.timestamp >= period_start]
 
         logger.info("Budget period reset")
 
 
 # Default tracker instance
-_default_tracker: Optional[CostTracker] = None
+_default_tracker: CostTracker | None = None
 
 
 def get_cost_tracker() -> CostTracker:

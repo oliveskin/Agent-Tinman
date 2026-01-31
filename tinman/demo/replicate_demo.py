@@ -1,4 +1,4 @@
-﻿"""Replicate API demo wired into Tinman PipelineAdapter."""
+"""Replicate API demo wired into Tinman PipelineAdapter."""
 
 import argparse
 import asyncio

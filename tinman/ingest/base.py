@@ -5,10 +5,11 @@ transform external formats into.
 """
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional, Iterator, AsyncIterator
+from typing import Any
 
 from ..utils import get_logger
 
@@ -17,6 +18,7 @@ logger = get_logger("ingest")
 
 class SpanStatus(str, Enum):
     """Status of a span execution."""
+
     UNSET = "unset"
     OK = "ok"
     ERROR = "error"
@@ -25,6 +27,7 @@ class SpanStatus(str, Enum):
 @dataclass
 class SpanEvent:
     """An event within a span (e.g., exception, log message)."""
+
     name: str
     timestamp: datetime
     attributes: dict[str, Any] = field(default_factory=dict)
@@ -32,12 +35,12 @@ class SpanEvent:
     def is_exception(self) -> bool:
         """Check if this event represents an exception."""
         return (
-            self.name == "exception" or
-            "exception.type" in self.attributes or
-            "exception.message" in self.attributes
+            self.name == "exception"
+            or "exception.type" in self.attributes
+            or "exception.message" in self.attributes
         )
 
-    def get_exception_info(self) -> Optional[dict[str, Any]]:
+    def get_exception_info(self) -> dict[str, Any] | None:
         """Extract exception information if this is an exception event."""
         if not self.is_exception():
             return None
@@ -51,6 +54,7 @@ class SpanEvent:
 @dataclass
 class SpanLink:
     """A link from one span to another (cross-trace reference)."""
+
     trace_id: str
     span_id: str
     attributes: dict[str, Any] = field(default_factory=dict)
@@ -63,16 +67,17 @@ class Span:
     This is Tinman's canonical span representation. All adapter
     implementations must transform their native format into this.
     """
+
     trace_id: str
     span_id: str
     name: str
     start_time: datetime
     end_time: datetime
-    parent_span_id: Optional[str] = None
+    parent_span_id: str | None = None
     status: SpanStatus = SpanStatus.UNSET
-    status_message: Optional[str] = None
+    status_message: str | None = None
     kind: str = "internal"  # client, server, producer, consumer, internal
-    service_name: Optional[str] = None
+    service_name: str | None = None
     attributes: dict[str, Any] = field(default_factory=dict)
     events: list[SpanEvent] = field(default_factory=list)
     links: list[SpanLink] = field(default_factory=list)
@@ -100,10 +105,7 @@ class Span:
 
     def get_exceptions(self) -> list[dict[str, Any]]:
         """Get all exception information from events."""
-        return [
-            info for e in self.events
-            if (info := e.get_exception_info()) is not None
-        ]
+        return [info for e in self.events if (info := e.get_exception_info()) is not None]
 
     def get_attribute(self, key: str, default: Any = None) -> Any:
         """Get an attribute value with fallback to resource attributes."""
@@ -118,14 +120,15 @@ class Trace:
 
     Tinman's canonical trace representation.
     """
+
     trace_id: str
     spans: list[Span] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     source: str = "unknown"  # Which adapter produced this
-    ingested_at: Optional[datetime] = None
+    ingested_at: datetime | None = None
 
     @property
-    def root_span(self) -> Optional[Span]:
+    def root_span(self) -> Span | None:
         """Get the root span of this trace."""
         for span in self.spans:
             if span.is_root:
@@ -133,7 +136,7 @@ class Trace:
         return None
 
     @property
-    def duration_ms(self) -> Optional[float]:
+    def duration_ms(self) -> float | None:
         """Total trace duration in milliseconds."""
         root = self.root_span
         return root.duration_ms if root else None
@@ -162,7 +165,7 @@ class Trace:
         """Get all spans for a specific service."""
         return [s for s in self.spans if s.service_name == service_name]
 
-    def get_span_by_id(self, span_id: str) -> Optional[Span]:
+    def get_span_by_id(self, span_id: str) -> Span | None:
         """Get a span by its ID."""
         for span in self.spans:
             if span.span_id == span_id:
@@ -187,6 +190,7 @@ class Trace:
 @dataclass
 class IngestResult:
     """Result of ingesting traces."""
+
     success: bool
     traces_ingested: int
     spans_ingested: int
@@ -272,7 +276,7 @@ class TraceAdapter(ABC):
     async def ingest(
         self,
         data: Any,
-        storage: Optional[Any] = None,
+        storage: Any | None = None,
     ) -> IngestResult:
         """Parse and optionally store traces.
 
@@ -305,9 +309,7 @@ class TraceAdapter(ABC):
                     try:
                         await self._store_trace(trace, storage)
                     except Exception as e:
-                        ingest_errors.append(
-                            f"Failed to store trace {trace.trace_id}: {e}"
-                        )
+                        ingest_errors.append(f"Failed to store trace {trace.trace_id}: {e}")
         except Exception as e:
             return IngestResult.failure_result(
                 f"Parse error: {e}",

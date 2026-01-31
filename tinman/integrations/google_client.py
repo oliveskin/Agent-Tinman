@@ -19,10 +19,9 @@ class GoogleClient(ModelClient):
 
     DEFAULT_MODEL = "gemini-2.5-flash"
 
-    def __init__(self,
-                 api_key: Optional[str] = None,
-                 default_model: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+        self, api_key: Optional[str] = None, default_model: Optional[str] = None, **kwargs
+    ):
         api_key = api_key or os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
         super().__init__(api_key=api_key, default_model=default_model, **kwargs)
         self._client = None
@@ -64,13 +63,15 @@ class GoogleClient(ModelClient):
             parts.append(f"{role}: {content}")
         return "\n".join(parts)
 
-    async def complete(self,
-                       messages: list[dict[str, str]],
-                       model: Optional[str] = None,
-                       temperature: float = 0.7,
-                       max_tokens: int = 4096,
-                       tools: Optional[list[dict]] = None,
-                       **kwargs) -> ModelResponse:
+    async def complete(
+        self,
+        messages: list[dict[str, str]],
+        model: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        tools: Optional[list[dict]] = None,
+        **kwargs,
+    ) -> ModelResponse:
         """Send a completion request to Gemini."""
         client = self._get_client()
         model_name = model or self.default_model
@@ -109,12 +110,14 @@ class GoogleClient(ModelClient):
             raw=response.to_dict() if hasattr(response, "to_dict") else None,
         )
 
-    async def stream(self,
-                     messages: list[dict[str, str]],
-                     model: Optional[str] = None,
-                     temperature: float = 0.7,
-                     max_tokens: int = 4096,
-                     **kwargs):
+    async def stream(
+        self,
+        messages: list[dict[str, str]],
+        model: Optional[str] = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        **kwargs,
+    ):
         """Stream a completion response (best-effort, non-streaming fallback)."""
         client = self._get_client()
         model_name = model or self.default_model

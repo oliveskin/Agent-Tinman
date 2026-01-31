@@ -2,13 +2,12 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
-from .llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
-from .adaptive_memory import AdaptiveMemory
 from ..memory.graph import MemoryGraph
-from ..memory.models import NodeType
-from ..utils import generate_id, utc_now, get_logger
+from ..utils import generate_id, get_logger, utc_now
+from .adaptive_memory import AdaptiveMemory
+from .llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
 
 logger = get_logger("insight_synthesizer")
 
@@ -16,6 +15,7 @@ logger = get_logger("insight_synthesizer")
 @dataclass
 class Insight:
     """A synthesized research insight."""
+
     id: str = field(default_factory=generate_id)
     insight_type: str = ""  # discovery, pattern, recommendation, question
     title: str = ""
@@ -30,6 +30,7 @@ class Insight:
 @dataclass
 class ResearchBrief:
     """A synthesized research brief for communication."""
+
     id: str = field(default_factory=generate_id)
     title: str = ""
     executive_summary: str = ""
@@ -39,8 +40,8 @@ class ResearchBrief:
     open_questions: list[str] = field(default_factory=list)
     narrative: str = ""
     created_at: datetime = field(default_factory=utc_now)
-    period_start: Optional[datetime] = None
-    period_end: Optional[datetime] = None
+    period_start: datetime | None = None
+    period_end: datetime | None = None
 
 
 class InsightSynthesizer:
@@ -57,17 +58,19 @@ class InsightSynthesizer:
     - Write narrative reports for stakeholders
     """
 
-    def __init__(self,
-                 llm_backbone: LLMBackbone,
-                 graph: Optional[MemoryGraph] = None,
-                 adaptive_memory: Optional[AdaptiveMemory] = None):
+    def __init__(
+        self,
+        llm_backbone: LLMBackbone,
+        graph: MemoryGraph | None = None,
+        adaptive_memory: AdaptiveMemory | None = None,
+    ):
         self.llm = llm_backbone
         self.graph = graph
         self.adaptive_memory = adaptive_memory
 
-    async def synthesize_findings(self,
-                                   findings: list[dict[str, Any]],
-                                   focus: Optional[str] = None) -> list[Insight]:
+    async def synthesize_findings(
+        self, findings: list[dict[str, Any]], focus: str | None = None
+    ) -> list[Insight]:
         """Synthesize a list of findings into insights."""
         if not findings:
             return []
@@ -82,7 +85,9 @@ class InsightSynthesizer:
         if self.adaptive_memory:
             context.prior_knowledge = [
                 f"Known pattern: {p['description']}"
-                for p in self.adaptive_memory.get_context_for_reasoning().get("successful_patterns", [])
+                for p in self.adaptive_memory.get_context_for_reasoning().get(
+                    "successful_patterns", []
+                )
             ]
 
         result = await self.llm.reason(context)
@@ -111,46 +116,53 @@ class InsightSynthesizer:
 
         # Add pattern insights
         for pattern in output.get("patterns", []):
-            insights.append(Insight(
-                insight_type="pattern",
-                title=f"Pattern: {pattern[:50]}...",
-                content=pattern,
-                confidence=result.confidence,
-            ))
+            insights.append(
+                Insight(
+                    insight_type="pattern",
+                    title=f"Pattern: {pattern[:50]}...",
+                    content=pattern,
+                    confidence=result.confidence,
+                )
+            )
 
         # Add recommendation insights
         for rec in output.get("recommendations", []):
             if isinstance(rec, dict):
-                insights.append(Insight(
-                    insight_type="recommendation",
-                    title=rec.get("action", "")[:100],
-                    content=rec.get("rationale", rec.get("action", "")),
-                    priority=rec.get("priority", "medium"),
-                    confidence=result.confidence,
-                ))
+                insights.append(
+                    Insight(
+                        insight_type="recommendation",
+                        title=rec.get("action", "")[:100],
+                        content=rec.get("rationale", rec.get("action", "")),
+                        priority=rec.get("priority", "medium"),
+                        confidence=result.confidence,
+                    )
+                )
             else:
-                insights.append(Insight(
-                    insight_type="recommendation",
-                    title=str(rec)[:100],
-                    content=str(rec),
-                    confidence=result.confidence,
-                ))
+                insights.append(
+                    Insight(
+                        insight_type="recommendation",
+                        title=str(rec)[:100],
+                        content=str(rec),
+                        confidence=result.confidence,
+                    )
+                )
 
         # Add open questions
         for question in output.get("open_questions", []):
-            insights.append(Insight(
-                insight_type="question",
-                title=f"Question: {question[:50]}...",
-                content=question,
-                confidence=0.5,  # Questions inherently uncertain
-            ))
+            insights.append(
+                Insight(
+                    insight_type="question",
+                    title=f"Question: {question[:50]}...",
+                    content=question,
+                    confidence=0.5,  # Questions inherently uncertain
+                )
+            )
 
         return insights
 
-    async def generate_brief(self,
-                              period_days: int = 7,
-                              title: Optional[str] = None,
-                              exclude_demo_failures: bool = False) -> ResearchBrief:
+    async def generate_brief(
+        self, period_days: int = 7, title: str | None = None, exclude_demo_failures: bool = False
+    ) -> ResearchBrief:
         """Generate a research brief for a time period."""
         brief = ResearchBrief(
             title=title or f"Research Brief - Last {period_days} Days",
@@ -171,7 +183,8 @@ class InsightSynthesizer:
         brief.patterns = [i.content for i in insights if i.insight_type == "pattern"]
         brief.recommendations = [
             {"action": i.title, "rationale": i.content, "priority": i.priority}
-            for i in insights if i.insight_type == "recommendation"
+            for i in insights
+            if i.insight_type == "recommendation"
         ]
         brief.open_questions = [i.content for i in insights if i.insight_type == "question"]
 
@@ -183,10 +196,12 @@ class InsightSynthesizer:
 
         return brief
 
-    async def _gather_findings(self,
-                                start: Optional[datetime],
-                                end: Optional[datetime],
-                                exclude_demo_failures: bool = False) -> list[dict[str, Any]]:
+    async def _gather_findings(
+        self,
+        start: datetime | None,
+        end: datetime | None,
+        exclude_demo_failures: bool = False,
+    ) -> list[dict[str, Any]]:
         """Gather findings from the memory graph."""
         findings = []
 
@@ -202,12 +217,14 @@ class InsightSynthesizer:
                 continue
             if exclude_demo_failures and f.data.get("is_synthetic"):
                 continue
-            findings.append({
-                "type": "failure",
-                "description": f"Discovered {f.data.get('severity', 'S2')} {f.data.get('primary_class', 'unknown')} failure: {f.data.get('description', '')[:100]}",
-                "severity": f.data.get("severity"),
-                "data": f.data,
-            })
+            findings.append(
+                {
+                    "type": "failure",
+                    "description": f"Discovered {f.data.get('severity', 'S2')} {f.data.get('primary_class', 'unknown')} failure: {f.data.get('description', '')[:100]}",
+                    "severity": f.data.get("severity"),
+                    "data": f.data,
+                }
+            )
 
         # Get experiments
         experiments = self.graph.get_experiments(valid_only=False, limit=100)
@@ -230,11 +247,13 @@ class InsightSynthesizer:
             if hypothesis_validated is not None:
                 details.append(f"validated={'yes' if hypothesis_validated else 'no'}")
             detail_text = f" ({', '.join(details)})" if details else ""
-            findings.append({
-                "type": "experiment",
-                "description": f"Ran {e.data.get('stress_type', 'unknown')} experiment{detail_text}",
-                "data": e.data,
-            })
+            findings.append(
+                {
+                    "type": "experiment",
+                    "description": f"Ran {e.data.get('stress_type', 'unknown')} experiment{detail_text}",
+                    "data": e.data,
+                }
+            )
 
         # Get interventions
         interventions = self.graph.get_interventions(valid_only=False, limit=100)
@@ -243,18 +262,18 @@ class InsightSynthesizer:
                 continue
             if end and i.created_at > end:
                 continue
-            findings.append({
-                "type": "intervention",
-                "description": f"Proposed {i.data.get('intervention_type', 'unknown')} intervention",
-                "risk_tier": i.data.get("risk_tier"),
-                "data": i.data,
-            })
+            findings.append(
+                {
+                    "type": "intervention",
+                    "description": f"Proposed {i.data.get('intervention_type', 'unknown')} intervention",
+                    "risk_tier": i.data.get("risk_tier"),
+                    "data": i.data,
+                }
+            )
 
         return findings
 
-    async def _generate_summary(self,
-                                 findings: list[dict],
-                                 insights: list[Insight]) -> str:
+    async def _generate_summary(self, findings: list[dict], insights: list[Insight]) -> str:
         """Generate an executive summary."""
         # Count findings by type
         failure_count = sum(1 for f in findings if f["type"] == "failure")
@@ -292,9 +311,7 @@ class InsightSynthesizer:
 
         return ". ".join(summary_parts) + "."
 
-    async def _generate_narrative(self,
-                                   findings: list[dict],
-                                   insights: list[Insight]) -> str:
+    async def _generate_narrative(self, findings: list[dict], insights: list[Insight]) -> str:
         """Generate a full narrative report using LLM."""
         if not findings:
             return "No findings were recorded in this period. Run experiments to generate findings."
@@ -312,12 +329,8 @@ class InsightSynthesizer:
 
         context = ReasoningContext(
             mode=ReasoningMode.INSIGHT_SYNTHESIS,
-            observations=[
-                f.get("description", str(f)) for f in findings
-            ],
-            prior_knowledge=[
-                f"Insight: {i.content}" for i in insights[:10]
-            ],
+            observations=[f.get("description", str(f)) for f in findings],
+            prior_knowledge=[f"Insight: {i.content}" for i in insights[:10]],
             task_description="""Write a research narrative for the team.
 
 This should read like a research memo, not a list of bullet points.
@@ -389,10 +402,8 @@ Write in clear, professional prose.""",
                 f"Description: {failure.data.get('description', 'No description')}",
                 f"Trigger: {failure.data.get('trigger_signature', [])}",
                 f"Reproducibility: {failure.data.get('reproducibility', 0):.0%}",
-            ] + [
-                f"Cause chain: {node.data}"
-                for node, edge in lineage
-            ],
+            ]
+            + [f"Cause chain: {node.data}" for node, edge in lineage],
             task_description="Explain this failure in plain language. What happened? Why? What should we do?",
         )
 
@@ -421,14 +432,12 @@ Write in clear, professional prose.""",
             # Interventions pending deployment
             interventions = self.graph.get_interventions(limit=20)
             safe_pending = [
-                i for i in interventions
-                if i.data.get("risk_tier") == "safe"
-                and not i.data.get("deployed")
+                i
+                for i in interventions
+                if i.data.get("risk_tier") == "safe" and not i.data.get("deployed")
             ]
             if safe_pending:
-                suggestions.append(
-                    f"Consider deploying {len(safe_pending)} safe interventions"
-                )
+                suggestions.append(f"Consider deploying {len(safe_pending)} safe interventions")
 
         # Use LLM to prioritize and add creative suggestions
         if suggestions:

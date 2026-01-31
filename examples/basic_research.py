@@ -52,8 +52,8 @@ async def main():
 
     results = await tinman.research_cycle(
         focus="reasoning failures in code generation",
-        max_hypotheses=3,       # Number of hypotheses to generate
-        max_experiments=2,      # Experiments per hypothesis
+        max_hypotheses=3,  # Number of hypotheses to generate
+        max_experiments=2,  # Experiments per hypothesis
         runs_per_experiment=3,  # Runs per experiment
     )
 
@@ -63,24 +63,29 @@ async def main():
     print("=" * 60)
 
     print(f"\nHypotheses generated: {len(results['hypotheses'])}")
-    for i, h in enumerate(results['hypotheses'], 1):
-        print(f"  {i}. {h.get('target_surface', 'Unknown')} - "
-              f"{h.get('expected_failure', 'Unknown')[:50]}...")
+    for i, h in enumerate(results["hypotheses"], 1):
+        print(
+            f"  {i}. {h.get('target_surface', 'Unknown')} - "
+            f"{h.get('expected_failure', 'Unknown')[:50]}..."
+        )
 
     print(f"\nExperiments designed: {len(results['experiments'])}")
-    for i, e in enumerate(results['experiments'], 1):
+    for i, e in enumerate(results["experiments"], 1):
         print(f"  {i}. {e.get('name', 'Unknown')} ({e.get('stress_type', 'Unknown')})")
 
     print(f"\nFailures discovered: {len(results['failures'])}")
-    for i, f in enumerate(results['failures'], 1):
-        print(f"  {i}. [{f.get('severity', 'Unknown')}] "
-              f"{f.get('primary_class', 'Unknown')}: "
-              f"{f.get('description', 'Unknown')[:50]}...")
+    for i, f in enumerate(results["failures"], 1):
+        print(
+            f"  {i}. [{f.get('severity', 'Unknown')}] "
+            f"{f.get('primary_class', 'Unknown')}: "
+            f"{f.get('description', 'Unknown')[:50]}..."
+        )
 
     print(f"\nInterventions proposed: {len(results['interventions'])}")
-    for i, intervention in enumerate(results['interventions'], 1):
-        print(f"  {i}. {intervention.get('name', 'Unknown')} "
-              f"({intervention.get('type', 'Unknown')})")
+    for i, intervention in enumerate(results["interventions"], 1):
+        print(
+            f"  {i}. {intervention.get('name', 'Unknown')} ({intervention.get('type', 'Unknown')})"
+        )
 
     # Generate a report
     print("\n" + "=" * 60)

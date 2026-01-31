@@ -1,9 +1,10 @@
 """Configuration management for Tinman FDRA."""
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
-import os
+from typing import Any
+
 import yaml
 from dotenv import load_dotenv
 
@@ -20,7 +21,7 @@ class DatabaseSettings:
 class ModelProviderSettings:
     api_key: str = ""
     model: str = ""
-    base_url: Optional[str] = None
+    base_url: str | None = None
 
 
 @dataclass
@@ -87,7 +88,7 @@ class Settings:
         return self.database.url
 
     @property
-    def model_temperature(self) -> Optional[float]:
+    def model_temperature(self) -> float | None:
         return 0.7  # Default temperature
 
     @property
@@ -185,7 +186,7 @@ class Settings:
         )
 
 
-def load_config(path: Optional[Path] = None) -> Settings:
+def load_config(path: Path | None = None) -> Settings:
     """Load configuration from YAML file or defaults."""
     if path is None:
         default_path = Path(".tinman") / "config.yaml"

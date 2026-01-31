@@ -1,4 +1,4 @@
-﻿"""fal.ai REST demo wired into Tinman PipelineAdapter."""
+"""fal.ai REST demo wired into Tinman PipelineAdapter."""
 
 import argparse
 import asyncio
@@ -7,8 +7,8 @@ from typing import Any
 
 import requests
 
-from tinman.integrations.pipeline_adapter import PipelineAdapter, FailureDetectionHook
 from tinman.config.modes import OperatingMode
+from tinman.integrations.pipeline_adapter import FailureDetectionHook, PipelineAdapter
 
 
 def _require_env(name: str) -> str:

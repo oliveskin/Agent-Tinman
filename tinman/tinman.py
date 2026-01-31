@@ -15,28 +15,27 @@ Tinman can:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
-import asyncio
+from typing import Any
 
-from .config.modes import OperatingMode, Mode
-from .config.settings import Settings
-from .agents.base import AgentContext, AgentResult
-from .agents.hypothesis_engine import HypothesisEngine, Hypothesis
+from .agents.base import AgentContext
 from .agents.experiment_architect import ExperimentArchitect, ExperimentDesign
 from .agents.experiment_executor import ExperimentExecutor
-from .agents.failure_discovery import FailureDiscoveryAgent, DiscoveredFailure
+from .agents.failure_discovery import FailureDiscoveryAgent
+from .agents.hypothesis_engine import Hypothesis, HypothesisEngine
 from .agents.intervention_engine import InterventionEngine
 from .agents.simulation_engine import SimulationEngine
-from .memory.graph import MemoryGraph
-from .reasoning.llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
-from .reasoning.adaptive_memory import AdaptiveMemory
-from .reasoning.insight_synthesizer import InsightSynthesizer
-from .integrations.model_client import ModelClient
-from .reporting.lab_reporter import LabReporter
-from .reporting.ops_reporter import OpsReporter
-from .db.connection import DatabaseConnection
+from .config.modes import Mode, OperatingMode
+from .config.settings import Settings
 from .core.approval_handler import ApprovalHandler, ApprovalMode, cli_approval_callback
 from .core.event_bus import EventBus
+from .db.connection import DatabaseConnection
+from .integrations.model_client import ModelClient
+from .memory.graph import MemoryGraph
+from .reasoning.adaptive_memory import AdaptiveMemory
+from .reasoning.insight_synthesizer import InsightSynthesizer
+from .reasoning.llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
+from .reporting.lab_reporter import LabReporter
+from .reporting.ops_reporter import OpsReporter
 from .utils import get_logger, utc_now
 
 logger = get_logger("tinman")
@@ -45,6 +44,7 @@ logger = get_logger("tinman")
 @dataclass
 class TinmanState:
     """Current state of the Tinman researcher."""
+
     mode: OperatingMode = OperatingMode.LAB
     session_id: str = ""
     started_at: Any = field(default_factory=utc_now)
@@ -56,7 +56,7 @@ class TinmanState:
     interventions_proposed: int = 0
 
     # Current focus
-    current_focus: Optional[str] = None
+    current_focus: str | None = None
 
 
 class Tinman:
@@ -82,12 +82,14 @@ class Tinman:
         report = await tinman.generate_report()
     """
 
-    def __init__(self,
-                 model_client: Optional[ModelClient] = None,
-                 settings: Optional[Settings] = None,
-                 mode: OperatingMode = OperatingMode.LAB,
-                 approval_mode: ApprovalMode = ApprovalMode.INTERACTIVE,
-                 auto_approve_in_lab: bool = True):
+    def __init__(
+        self,
+        model_client: ModelClient | None = None,
+        settings: Settings | None = None,
+        mode: OperatingMode = OperatingMode.LAB,
+        approval_mode: ApprovalMode = ApprovalMode.INTERACTIVE,
+        auto_approve_in_lab: bool = True,
+    ):
         self.settings = settings or Settings()
         self.settings.mode = mode
 
@@ -95,15 +97,15 @@ class Tinman:
         self.state = TinmanState(mode=mode)
 
         # Database and memory
-        self.db: Optional[DatabaseConnection] = None
-        self.graph: Optional[MemoryGraph] = None
+        self.db: DatabaseConnection | None = None
+        self.graph: MemoryGraph | None = None
 
         # Event bus for cross-component communication
         self.event_bus = EventBus()
 
         # LLM backbone (the brain)
         self.model_client = model_client
-        self.llm: Optional[LLMBackbone] = None
+        self.llm: LLMBackbone | None = None
         self.adaptive_memory = AdaptiveMemory()
 
         # Approval handler (HITL interface)
@@ -115,24 +117,24 @@ class Tinman:
         )
 
         # Agents
-        self.hypothesis_engine: Optional[HypothesisEngine] = None
-        self.experiment_architect: Optional[ExperimentArchitect] = None
-        self.experiment_executor: Optional[ExperimentExecutor] = None
-        self.failure_discovery: Optional[FailureDiscoveryAgent] = None
-        self.intervention_engine: Optional[InterventionEngine] = None
-        self.simulation_engine: Optional[SimulationEngine] = None
+        self.hypothesis_engine: HypothesisEngine | None = None
+        self.experiment_architect: ExperimentArchitect | None = None
+        self.experiment_executor: ExperimentExecutor | None = None
+        self.failure_discovery: FailureDiscoveryAgent | None = None
+        self.intervention_engine: InterventionEngine | None = None
+        self.simulation_engine: SimulationEngine | None = None
 
         # Synthesis
-        self.insight_synthesizer: Optional[InsightSynthesizer] = None
+        self.insight_synthesizer: InsightSynthesizer | None = None
 
         # Reporters
-        self.lab_reporter: Optional[LabReporter] = None
-        self.ops_reporter: Optional[OpsReporter] = None
+        self.lab_reporter: LabReporter | None = None
+        self.ops_reporter: OpsReporter | None = None
 
         # Conversation history for dialogue
         self._conversation_history: list[dict[str, str]] = []
 
-    async def initialize(self, db_url: Optional[str] = None, skip_db: bool = False) -> None:
+    async def initialize(self, db_url: str | None = None, skip_db: bool = False) -> None:
         """Initialize Tinman with all components."""
         logger.info(f"Initializing Tinman in {self.state.mode.value} mode")
 
@@ -238,11 +240,13 @@ class Tinman:
         """Get list of pending approval requests."""
         return self.approval_handler.get_pending()
 
-    async def research_cycle(self,
-                              focus: Optional[str] = None,
-                              max_hypotheses: int = 5,
-                              max_experiments: int = 3,
-                              runs_per_experiment: int = 5) -> dict[str, Any]:
+    async def research_cycle(
+        self,
+        focus: str | None = None,
+        max_hypotheses: int = 5,
+        max_experiments: int = 3,
+        runs_per_experiment: int = 5,
+    ) -> dict[str, Any]:
         """
         Run a complete research cycle.
 
@@ -278,6 +282,7 @@ class Tinman:
 
             # Convert to Hypothesis objects for next step
             from .taxonomy.failure_types import FailureClass
+
             hypotheses = [
                 Hypothesis(
                     id=h["id"],
@@ -329,6 +334,7 @@ class Tinman:
 
             # Get experiment results for failure discovery
             from .agents.experiment_executor import ExperimentResult
+
             experiment_results = []
             for r in exec_result.data.get("results", []):
                 exp_result = ExperimentResult(
@@ -464,10 +470,12 @@ class Tinman:
         result = await self.llm.reason(context)
 
         # Add response to history
-        self._conversation_history.append({
-            "role": "assistant",
-            "content": result.content,
-        })
+        self._conversation_history.append(
+            {
+                "role": "assistant",
+                "content": result.content,
+            }
+        )
 
         return result.content
 
@@ -497,6 +505,7 @@ class Tinman:
             return self.lab_reporter.to_markdown(report)
         else:
             import json
+
             return json.dumps(self.lab_reporter.to_dict(report), indent=2)
 
     async def health_check(self) -> dict[str, Any]:
@@ -539,8 +548,8 @@ class Tinman:
 # Convenience function for quick start
 async def create_tinman(
     mode: OperatingMode = OperatingMode.LAB,
-    model_client: Optional[ModelClient] = None,
-    db_url: Optional[str] = None,
+    model_client: ModelClient | None = None,
+    db_url: str | None = None,
     skip_db: bool = False,
 ) -> Tinman:
     """

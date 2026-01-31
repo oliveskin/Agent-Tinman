@@ -12,52 +12,42 @@ Usage:
     tinman serve --host 0.0.0.0 --port 8000
 """
 
-import asyncio
 import os
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
-from typing import Any, Optional
 
-from fastapi import FastAPI, HTTPException, Depends, BackgroundTasks, Query
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from ..tinman import Tinman, create_tinman
-from ..config.modes import OperatingMode, Mode
-from ..config.settings import load_config
-from ..core.approval_handler import ApprovalContext
-from ..db.connection import init_db
-from ..db.audit import AuditLogger, set_audit_logger
-from ..utils import get_logger, utc_now
 from .. import __version__
-
+from ..config.modes import Mode, OperatingMode
+from ..config.settings import load_config
+from ..tinman import Tinman, create_tinman
+from ..utils import get_logger, utc_now
 from .models import (
-    ResearchCycleRequest,
-    ResearchCycleResponse,
-    HypothesisResponse,
-    ExperimentResponse,
-    FailureResponse,
-    InterventionResponse,
-    ApprovalRequest,
     ApprovalDecisionRequest,
     ApprovalDecisionResponse,
-    PendingApprovalsResponse,
-    StatusResponse,
-    HealthResponse,
+    ApprovalRequest,
     DiscussRequest,
     DiscussResponse,
-    ReportResponse,
-    ErrorResponse,
+    FailureResponse,
+    HealthResponse,
+    HypothesisResponse,
+    ModeEnum,
     ModeTransitionRequest,
     ModeTransitionResponse,
-    ModeEnum,
+    PendingApprovalsResponse,
+    ReportResponse,
+    ResearchCycleRequest,
+    ResearchCycleResponse,
+    StatusResponse,
 )
 
 logger = get_logger("service")
 
 # Global Tinman instance
-_tinman: Optional[Tinman] = None
+_tinman: Tinman | None = None
 _start_time: float = 0
 
 
@@ -68,7 +58,7 @@ async def get_tinman() -> Tinman:
     return _tinman
 
 
-def get_tinman_service() -> Optional[Tinman]:
+def get_tinman_service() -> Tinman | None:
     """Get the global Tinman service instance."""
     return _tinman
 
@@ -295,7 +285,11 @@ def register_routes(app: FastAPI):
             ],
         )
 
-    @app.post("/approvals/{approval_id}/decide", response_model=ApprovalDecisionResponse, tags=["Approvals"])
+    @app.post(
+        "/approvals/{approval_id}/decide",
+        response_model=ApprovalDecisionResponse,
+        tags=["Approvals"],
+    )
     async def decide_approval(
         approval_id: str,
         request: ApprovalDecisionRequest,
@@ -382,7 +376,7 @@ def register_routes(app: FastAPI):
                 to_mode=ModeEnum(target_mode.value),
                 message="Invalid mode transition",
                 blocked_reason=f"Cannot transition from {current_mode.value} to {target_mode.value}. "
-                              f"Valid transitions: {[m.value for m in valid_transitions.get(current_mode, [])]}",
+                f"Valid transitions: {[m.value for m in valid_transitions.get(current_mode, [])]}",
             )
 
         # Update mode
@@ -420,4 +414,5 @@ app = create_app()
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

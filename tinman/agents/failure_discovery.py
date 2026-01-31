@@ -1,29 +1,40 @@
 """Failure Discovery Agent - discovers and classifies failures using LLM analysis."""
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
-from .base import BaseAgent, AgentContext, AgentResult
-from .experiment_executor import ExperimentResult, RunResult
 from ..memory.graph import MemoryGraph
-from ..taxonomy.classifiers import FailureClassifier, ClassificationResult
-from ..taxonomy.failure_types import FailureClass, Severity
-from ..taxonomy.causal_linker import CausalLinker
-from ..reasoning.llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
 from ..reasoning.adaptive_memory import AdaptiveMemory
+from ..reasoning.llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
+from ..taxonomy.causal_linker import CausalLinker
+from ..taxonomy.classifiers import ClassificationResult, FailureClassifier
+from ..taxonomy.failure_types import FailureClass, Severity
 from ..utils import generate_id, get_logger
+from .base import AgentContext, AgentResult, BaseAgent
+from .experiment_executor import ExperimentResult, RunResult
 
 logger = get_logger("failure_discovery")
+
+
+def safe_get(data: dict, *keys, default=None):
+    """Safely get nested dictionary values."""
+    for key in keys:
+        if isinstance(data, dict):
+            data = data.get(key, default)
+        else:
+            return default
+    return data
 
 
 @dataclass
 class DiscoveredFailure:
     """A newly discovered failure mode."""
+
     id: str = field(default_factory=generate_id)
 
     # Classification
     primary_class: FailureClass = FailureClass.REASONING
-    secondary_class: Optional[str] = None
+    secondary_class: str | None = None
     severity: Severity = Severity.S2
 
     # Details
@@ -37,7 +48,7 @@ class DiscoveredFailure:
 
     # Analysis
     classification_confidence: float = 0.0
-    causal_analysis: Optional[dict[str, Any]] = None
+    causal_analysis: dict[str, Any] | None = None
 
     # LLM-generated insights
     llm_analysis: str = ""
@@ -46,7 +57,7 @@ class DiscoveredFailure:
 
     # Status
     is_novel: bool = False  # First time we've seen this
-    parent_failure_id: Optional[str] = None  # If evolved from another
+    parent_failure_id: str | None = None  # If evolved from another
 
 
 class FailureDiscoveryAgent(BaseAgent):
@@ -60,13 +71,15 @@ class FailureDiscoveryAgent(BaseAgent):
     - What to do about it (recommendations)
     """
 
-    def __init__(self,
-                 graph: Optional[MemoryGraph] = None,
-                 classifier: Optional[FailureClassifier] = None,
-                 causal_linker: Optional[CausalLinker] = None,
-                 llm_backbone: Optional[LLMBackbone] = None,
-                 adaptive_memory: Optional[AdaptiveMemory] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        graph: MemoryGraph | None = None,
+        classifier: FailureClassifier | None = None,
+        causal_linker: CausalLinker | None = None,
+        llm_backbone: LLMBackbone | None = None,
+        adaptive_memory: AdaptiveMemory | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.graph = graph
         self.classifier = classifier or FailureClassifier()
@@ -121,7 +134,7 @@ class FailureDiscoveryAgent(BaseAgent):
             },
         )
 
-    async def _analyze_failure(self, result: ExperimentResult) -> Optional[DiscoveredFailure]:
+    async def _analyze_failure(self, result: ExperimentResult) -> DiscoveredFailure | None:
         """Analyze experiment result and extract failure with deep understanding."""
         # Get runs that triggered failures
         failure_runs = [r for r in result.runs if r.failure_triggered]
@@ -129,10 +142,7 @@ class FailureDiscoveryAgent(BaseAgent):
             return None
 
         # Aggregate failure descriptions
-        descriptions = [
-            r.failure_description for r in failure_runs
-            if r.failure_description
-        ]
+        descriptions = [r.failure_description for r in failure_runs if r.failure_description]
 
         if not descriptions:
             return None
@@ -141,18 +151,15 @@ class FailureDiscoveryAgent(BaseAgent):
 
         # Use LLM for deep analysis if available
         if self.llm:
-            failure = await self._analyze_with_llm(
-                combined_description, failure_runs, result
-            )
+            failure = await self._analyze_with_llm(combined_description, failure_runs, result)
         else:
             failure = self._analyze_heuristic(combined_description, failure_runs, result)
 
         return failure
 
-    async def _analyze_with_llm(self,
-                                 description: str,
-                                 runs: list[RunResult],
-                                 result: ExperimentResult) -> DiscoveredFailure:
+    async def _analyze_with_llm(
+        self, description: str, runs: list[RunResult], result: ExperimentResult
+    ) -> DiscoveredFailure:
         """Perform deep failure analysis using LLM."""
         # Build observations from runs
         observations = [
@@ -178,60 +185,110 @@ class FailureDiscoveryAgent(BaseAgent):
         analysis_result = await self.llm.reason(analysis_context)
         analysis = analysis_result.structured_output
 
-        # Extract classification from LLM
-        classification = analysis.get("classification", {})
-        primary_class_str = classification.get("primary_class", "reasoning").lower()
-
         try:
-            primary_class = FailureClass(primary_class_str)
-        except ValueError:
-            primary_class = FailureClass.REASONING
+            # Validate structured output exists and is a dict
+            if not isinstance(analysis, dict):
+                logger.warning(
+                    "LLM analysis output is not a dict, falling back to heuristic analysis"
+                )
+                return self._analyze_heuristic(description, runs, result)
 
-        severity_str = classification.get("severity", "S2")
-        try:
-            severity = Severity[severity_str]
-        except KeyError:
-            severity = Severity.S2
+            # Extract classification from LLM with safe access
+            classification = analysis.get("classification", {})
+            if not isinstance(classification, dict):
+                logger.warning("LLM 'classification' is not a dict, using empty dict")
+                classification = {}
 
-        # Second pass: root cause analysis
-        rca_context = ReasoningContext(
-            mode=ReasoningMode.ROOT_CAUSE_ANALYSIS,
-            observations=observations + [
-                f"Initial analysis: {analysis.get('analysis', '')}"
-            ],
-        )
+            primary_class_str = safe_get(classification, "primary_class", default="reasoning")
+            if not isinstance(primary_class_str, str):
+                primary_class_str = "reasoning"
+            primary_class_str = primary_class_str.lower()
 
-        rca_result = await self.llm.reason(rca_context)
-        rca = rca_result.structured_output
+            try:
+                primary_class = FailureClass(primary_class_str)
+            except ValueError:
+                logger.warning(f"Invalid failure class '{primary_class_str}', using REASONING")
+                primary_class = FailureClass.REASONING
 
-        # Build failure object
-        trigger_sig = self._extract_trigger_signature(runs)
-        is_novel, parent_id = self._check_novelty_llm(primary_class, trigger_sig, description)
+            severity_str = safe_get(classification, "severity", default="S2")
+            if not isinstance(severity_str, str):
+                severity_str = "S2"
+            try:
+                severity = Severity[severity_str]
+            except KeyError:
+                logger.warning(f"Invalid severity '{severity_str}', using S2")
+                severity = Severity.S2
 
-        failure = DiscoveredFailure(
-            primary_class=primary_class,
-            secondary_class=classification.get("secondary_class"),
-            severity=severity,
-            description=description,
-            trigger_signature=trigger_sig,
-            reproducibility=result.reproduction_rate,
-            experiment_id=result.experiment_id,
-            run_ids=[r.id for r in runs],
-            classification_confidence=analysis_result.confidence,
-            is_novel=classification.get("is_novel", is_novel),
-            parent_failure_id=parent_id,
-            llm_analysis=analysis.get("analysis", ""),
-            contributing_factors=analysis.get("contributing_factors", []),
-            key_insight=analysis.get("key_insight", ""),
-            causal_analysis=rca,
-        )
+            # Safely extract other fields
+            analysis_text = analysis.get("analysis", "")
+            if not isinstance(analysis_text, str):
+                analysis_text = str(analysis_text) if analysis_text else ""
 
-        return failure
+            contributing_factors = analysis.get("contributing_factors", [])
+            if not isinstance(contributing_factors, list):
+                logger.warning("LLM 'contributing_factors' is not a list, using empty list")
+                contributing_factors = []
 
-    def _analyze_heuristic(self,
-                           description: str,
-                           runs: list[RunResult],
-                           result: ExperimentResult) -> DiscoveredFailure:
+            key_insight = analysis.get("key_insight", "")
+            if not isinstance(key_insight, str):
+                key_insight = str(key_insight) if key_insight else ""
+
+            # Second pass: root cause analysis
+            rca_context = ReasoningContext(
+                mode=ReasoningMode.ROOT_CAUSE_ANALYSIS,
+                observations=observations + [f"Initial analysis: {analysis_text}"],
+            )
+
+            rca_result = await self.llm.reason(rca_context)
+            rca = rca_result.structured_output
+
+            # Validate RCA output
+            if not isinstance(rca, dict):
+                logger.warning("LLM RCA output is not a dict, using empty dict")
+                rca = {}
+
+            # Build failure object
+            trigger_sig = self._extract_trigger_signature(runs)
+            is_novel, parent_id = self._check_novelty_llm(primary_class, trigger_sig, description)
+
+            # Safely get is_novel from classification
+            is_novel_from_llm = classification.get("is_novel")
+            if isinstance(is_novel_from_llm, bool):
+                is_novel = is_novel_from_llm
+
+            secondary_class = classification.get("secondary_class")
+            if secondary_class is not None and not isinstance(secondary_class, str):
+                secondary_class = str(secondary_class)
+
+            failure = DiscoveredFailure(
+                primary_class=primary_class,
+                secondary_class=secondary_class,
+                severity=severity,
+                description=description,
+                trigger_signature=trigger_sig,
+                reproducibility=result.reproduction_rate,
+                experiment_id=result.experiment_id,
+                run_ids=[r.id for r in runs],
+                classification_confidence=analysis_result.confidence,
+                is_novel=is_novel,
+                parent_failure_id=parent_id,
+                llm_analysis=analysis_text,
+                contributing_factors=contributing_factors,
+                key_insight=key_insight,
+                causal_analysis=rca,
+            )
+
+            return failure
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to parse LLM failure analysis output: {e}, falling back to heuristic analysis"
+            )
+            return self._analyze_heuristic(description, runs, result)
+
+    def _analyze_heuristic(
+        self, description: str, runs: list[RunResult], result: ExperimentResult
+    ) -> DiscoveredFailure:
         """Fallback heuristic analysis without LLM."""
         # Classify using heuristic classifier
         classification = self.classifier.classify(
@@ -260,9 +317,7 @@ class FailureDiscoveryAgent(BaseAgent):
         # Perform causal analysis
         combined_trace = self._combine_traces(runs)
         failure.causal_analysis = self.causal_linker.export_graph(
-            self.causal_linker.analyze(
-                failure.id, description, combined_trace
-            ).failure_id
+            self.causal_linker.analyze(failure.id, description, combined_trace).failure_id
         )
 
         return failure
@@ -283,9 +338,9 @@ class FailureDiscoveryAgent(BaseAgent):
 
         return context
 
-    def _assess_severity(self,
-                         classification: ClassificationResult,
-                         result: ExperimentResult) -> Severity:
+    def _assess_severity(
+        self, classification: ClassificationResult, result: ExperimentResult
+    ) -> Severity:
         """Assess failure severity."""
         from ..taxonomy.failure_types import FAILURE_TAXONOMY
 
@@ -332,15 +387,14 @@ class FailureDiscoveryAgent(BaseAgent):
             combined["errors"].extend(trace.get("errors", []))
             combined["tool_calls"] += trace.get("tool_calls", 0)
             combined["context_length"] = max(
-                combined["context_length"],
-                trace.get("context_length", 0)
+                combined["context_length"], trace.get("context_length", 0)
             )
 
         return combined
 
-    def _check_novelty(self,
-                       classification: ClassificationResult,
-                       trigger_sig: list[str]) -> tuple[bool, Optional[str]]:
+    def _check_novelty(
+        self, classification: ClassificationResult, trigger_sig: list[str]
+    ) -> tuple[bool, str | None]:
         """Check if failure is novel using graph."""
         if not self.graph:
             return True, None
@@ -362,16 +416,12 @@ class FailureDiscoveryAgent(BaseAgent):
 
         return True, None
 
-    def _check_novelty_llm(self,
-                           primary_class: FailureClass,
-                           trigger_sig: list[str],
-                           description: str) -> tuple[bool, Optional[str]]:
+    def _check_novelty_llm(
+        self, primary_class: FailureClass, trigger_sig: list[str], description: str
+    ) -> tuple[bool, str | None]:
         """Check novelty - could use LLM for semantic similarity in future."""
         # For now, use heuristic check
-        return self._check_novelty(
-            ClassificationResult(primary_class=primary_class),
-            trigger_sig
-        )
+        return self._check_novelty(ClassificationResult(primary_class=primary_class), trigger_sig)
 
     def _merge_similar(self, failures: list[DiscoveredFailure]) -> list[DiscoveredFailure]:
         """Merge similar failures discovered in same batch."""
@@ -386,7 +436,7 @@ class FailureDiscoveryAgent(BaseAgent):
                 continue
 
             similar = [f1]
-            for j, f2 in enumerate(failures[i+1:], i+1):
+            for j, f2 in enumerate(failures[i + 1 :], i + 1):
                 if j in used:
                     continue
                 if self._are_similar(f1, f2):

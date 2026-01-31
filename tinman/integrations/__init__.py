@@ -1,14 +1,14 @@
 """Integrations - model clients and pipeline adapters."""
 
-from .model_client import ModelClient, ModelResponse
-from .openai_client import OpenAIClient
 from .anthropic_client import AnthropicClient
-from .openrouter_client import OpenRouterClient
 from .google_client import GoogleClient
 from .groq_client import GroqClient
+from .model_client import ModelClient, ModelResponse
 from .ollama_client import OllamaClient
-from .together_client import TogetherClient
+from .openai_client import OpenAIClient
+from .openrouter_client import OpenRouterClient
 from .pipeline_adapter import PipelineAdapter, PipelineHook
+from .together_client import TogetherClient
 
 try:  # optional dependencies
     from .langchain import TinmanLangChainCallbackHandler
@@ -31,10 +31,10 @@ __all__ = [
     "AnthropicClient",
     # Open model providers
     "OpenRouterClient",  # DeepSeek, Qwen, Llama, Mistral - many free tiers
-    "GoogleClient",      # Gemini models
-    "GroqClient",        # Ultra-fast inference, generous free tier
-    "OllamaClient",      # Local models, completely free
-    "TogetherClient",    # $25 free credits for new accounts
+    "GoogleClient",  # Gemini models
+    "GroqClient",  # Ultra-fast inference, generous free tier
+    "OllamaClient",  # Local models, completely free
+    "TogetherClient",  # $25 free credits for new accounts
     # Pipeline
     "PipelineAdapter",
     "PipelineHook",

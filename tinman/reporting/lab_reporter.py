@@ -2,11 +2,10 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
 
 from ..memory.graph import MemoryGraph
 from ..memory.models import NodeType
-from ..utils import utc_now, generate_id, get_logger
+from ..utils import generate_id, get_logger, utc_now
 
 logger = get_logger("lab_reporter")
 
@@ -14,9 +13,10 @@ logger = get_logger("lab_reporter")
 @dataclass
 class FailureSummary:
     """Summary of a failure for reporting."""
+
     id: str
     primary_class: str
-    secondary_class: Optional[str]
+    secondary_class: str | None
     severity: str
     description: str
     reproducibility: float
@@ -29,6 +29,7 @@ class FailureSummary:
 @dataclass
 class ExperimentSummary:
     """Summary of an experiment for reporting."""
+
     id: str
     hypothesis_id: str
     stress_type: str
@@ -41,24 +42,26 @@ class ExperimentSummary:
 @dataclass
 class InterventionSummary:
     """Summary of an intervention for reporting."""
+
     id: str
     failure_id: str
     intervention_type: str
     risk_tier: str
     expected_improvement: float
-    simulation_outcome: Optional[str]
+    simulation_outcome: str | None
     deploy_recommended: bool
 
 
 @dataclass
 class LabReport:
     """Complete lab report for a research session."""
+
     id: str = field(default_factory=generate_id)
     generated_at: datetime = field(default_factory=utc_now)
 
     # Time range
-    period_start: Optional[datetime] = None
-    period_end: Optional[datetime] = None
+    period_start: datetime | None = None
+    period_end: datetime | None = None
 
     # Summary stats
     hypotheses_tested: int = 0
@@ -89,13 +92,15 @@ class LabReporter:
     - Intervention recommendations
     """
 
-    def __init__(self, graph: Optional[MemoryGraph] = None):
+    def __init__(self, graph: MemoryGraph | None = None):
         self.graph = graph
 
-    def generate(self,
-                 period_start: Optional[datetime] = None,
-                 period_end: Optional[datetime] = None,
-                 exclude_demo_failures: bool = False) -> LabReport:
+    def generate(
+        self,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
+        exclude_demo_failures: bool = False,
+    ) -> LabReport:
         """Generate a lab report for the given period."""
         report = LabReport(
             period_start=period_start,
@@ -190,9 +195,7 @@ class LabReporter:
 
     def _gather_simulations(self, report: LabReport) -> None:
         """Gather simulation data and link to interventions."""
-        simulations = self.graph.repo.get_nodes_by_type(
-            NodeType.SIMULATION, valid_only=False
-        )
+        simulations = self.graph.repo.get_nodes_by_type(NodeType.SIMULATION, valid_only=False)
         report.simulations_run = len(simulations)
 
         # Link simulation outcomes to interventions
@@ -218,33 +221,26 @@ class LabReporter:
 
         # Novel failure findings
         if report.novel_failures > 0:
-            findings.append(
-                f"Discovered {report.novel_failures} novel failure mode(s)"
-            )
+            findings.append(f"Discovered {report.novel_failures} novel failure mode(s)")
 
         # High severity findings
         high_severity = [f for f in report.failures if f.severity in ("S3", "S4")]
         if high_severity:
-            findings.append(
-                f"{len(high_severity)} high-severity failure(s) require attention"
-            )
+            findings.append(f"{len(high_severity)} high-severity failure(s) require attention")
 
         # Highly reproducible failures
         reproducible = [f for f in report.failures if f.reproducibility >= 0.7]
         if reproducible:
-            findings.append(
-                f"{len(reproducible)} failure(s) are highly reproducible (>70%)"
-            )
+            findings.append(f"{len(reproducible)} failure(s) are highly reproducible (>70%)")
 
         # Effective interventions
         effective = [
-            i for i in report.interventions
+            i
+            for i in report.interventions
             if i.simulation_outcome == "improved" and i.deploy_recommended
         ]
         if effective:
-            findings.append(
-                f"{len(effective)} intervention(s) showed positive simulation results"
-            )
+            findings.append(f"{len(effective)} intervention(s) showed positive simulation results")
 
         # Hypothesis validation rate
         validated = sum(1 for e in report.experiments if e.hypothesis_validated)
@@ -262,8 +258,7 @@ class LabReporter:
 
         # Recommend deploying effective interventions
         deploy_ready = [
-            i for i in report.interventions
-            if i.deploy_recommended and i.risk_tier == "safe"
+            i for i in report.interventions if i.deploy_recommended and i.risk_tier == "safe"
         ]
         if deploy_ready:
             recommendations.append(
@@ -272,7 +267,8 @@ class LabReporter:
 
         # Recommend more testing for high-severity failures
         untreated_severe = [
-            f for f in report.failures
+            f
+            for f in report.failures
             if f.severity in ("S3", "S4")
             and not any(i.failure_id == f.id for i in report.interventions)
         ]
@@ -283,9 +279,7 @@ class LabReporter:
 
         # Recommend investigation of novel failures
         if report.novel_failures > 0:
-            recommendations.append(
-                "Investigate novel failures for potential systemic issues"
-            )
+            recommendations.append("Investigate novel failures for potential systemic issues")
 
         # Recommend more experiments if validation rate is low
         if report.experiments_run > 0:
@@ -301,41 +295,45 @@ class LabReporter:
     def to_markdown(self, report: LabReport) -> str:
         """Convert report to markdown format."""
         lines = [
-            f"# Lab Report",
-            f"",
+            "# Lab Report",
+            "",
             f"**Generated:** {report.generated_at.isoformat()}",
-            f"",
-            f"## Summary",
-            f"",
-            f"| Metric | Count |",
-            f"|--------|-------|",
+            "",
+            "## Summary",
+            "",
+            "| Metric | Count |",
+            "|--------|-------|",
             f"| Hypotheses Tested | {report.hypotheses_tested} |",
             f"| Experiments Run | {report.experiments_run} |",
             f"| Failures Discovered | {report.failures_discovered} |",
             f"| Novel Failures | {report.novel_failures} |",
             f"| Interventions Proposed | {report.interventions_proposed} |",
             f"| Simulations Run | {report.simulations_run} |",
-            f"",
+            "",
         ]
 
         # Key findings
         if report.key_findings:
-            lines.extend([
-                f"## Key Findings",
-                f"",
-            ])
+            lines.extend(
+                [
+                    "## Key Findings",
+                    "",
+                ]
+            )
             for finding in report.key_findings:
                 lines.append(f"- {finding}")
             lines.append("")
 
         # Failures
         if report.failures:
-            lines.extend([
-                f"## Discovered Failures",
-                f"",
-                f"| Severity | Class | Reproducibility | Novel | Synthetic |",
-                f"|----------|-------|-----------------|-------|-----------|",
-            ])
+            lines.extend(
+                [
+                    "## Discovered Failures",
+                    "",
+                    "| Severity | Class | Reproducibility | Novel | Synthetic |",
+                    "|----------|-------|-----------------|-------|-----------|",
+                ]
+            )
             for f in sorted(report.failures, key=lambda x: x.severity, reverse=True):
                 novel = "Yes" if f.is_novel else "No"
                 synthetic = "Yes" if f.is_synthetic else "No"
@@ -346,10 +344,12 @@ class LabReporter:
 
         # Recommendations
         if report.recommendations:
-            lines.extend([
-                f"## Recommendations",
-                f"",
-            ])
+            lines.extend(
+                [
+                    "## Recommendations",
+                    "",
+                ]
+            )
             for rec in report.recommendations:
                 lines.append(f"- {rec}")
             lines.append("")
@@ -381,7 +381,9 @@ class LabReporter:
             lines.append("## Top Failures")
             for failure in sorted(report.failures, key=lambda x: x.severity, reverse=True)[:5]:
                 tag = " (synthetic)" if failure.is_synthetic else ""
-                lines.append(f"- [{failure.severity}] {failure.primary_class}: {failure.description}{tag}")
+                lines.append(
+                    f"- [{failure.severity}] {failure.primary_class}: {failure.description}{tag}"
+                )
             lines.append("")
 
         if report.interventions:

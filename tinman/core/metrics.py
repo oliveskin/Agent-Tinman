@@ -23,10 +23,10 @@ Usage:
     ).inc()
 """
 
-import time
-from contextlib import contextmanager
-from typing import Any, Callable, Optional, Generator
 import threading
+from collections.abc import Generator
+from contextlib import contextmanager
+from typing import Optional
 
 from ..utils import get_logger
 
@@ -35,16 +35,17 @@ logger = get_logger("metrics")
 # Try to import prometheus_client, provide fallback if not available
 try:
     from prometheus_client import (
+        CONTENT_TYPE_LATEST,
+        CollectorRegistry,
         Counter,
         Gauge,
         Histogram,
-        Summary,
         Info,
-        CollectorRegistry,
+        Summary,
         generate_latest,
-        CONTENT_TYPE_LATEST,
         start_http_server,
     )
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -76,6 +77,7 @@ class NoOpMetric:
         @contextmanager
         def noop():
             yield
+
         return noop()
 
     def info(self, *args, **kwargs):
@@ -357,11 +359,13 @@ class TinmanMetrics:
     def set_info(self, version: str, mode: str, **kwargs):
         """Set system info metric."""
         if PROMETHEUS_AVAILABLE:
-            self.info.info({
-                "version": version,
-                "mode": mode,
-                **kwargs,
-            })
+            self.info.info(
+                {
+                    "version": version,
+                    "mode": mode,
+                    **kwargs,
+                }
+            )
 
     def set_mode(self, mode: str):
         """Update current mode metric."""
@@ -421,7 +425,7 @@ class TinmanMetrics:
 
 
 # Default metrics instance
-_metrics: Optional[TinmanMetrics] = None
+_metrics: TinmanMetrics | None = None
 _metrics_lock = threading.Lock()
 
 

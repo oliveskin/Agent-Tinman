@@ -1,5 +1,5 @@
-from .models import Node, Edge, NodeType, EdgeRelation
 from .graph import MemoryGraph
+from .models import Edge, EdgeRelation, Node, NodeType
 from .repository import GraphRepository
 
 __all__ = [

@@ -1,4 +1,4 @@
-﻿"""One-command demo runner for Tinman demos."""
+"""One-command demo runner for Tinman demos."""
 
 import argparse
 import os

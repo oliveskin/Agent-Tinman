@@ -1,16 +1,14 @@
 """Main CLI entry point for Tinman."""
 
 import asyncio
-import sys
 from pathlib import Path
-from typing import Optional
 
 import click
-
-from ..config.settings import Settings, load_settings
-from ..config.modes import OperatingMode
-from ..db.connection import Database, ensure_database, check_database
 from sqlalchemy.engine.url import make_url
+
+from ..config.modes import OperatingMode
+from ..config.settings import Settings, load_settings
+from ..db.connection import Database, check_database, ensure_database
 from ..utils import get_logger
 
 logger = get_logger("cli")
@@ -38,39 +36,48 @@ def get_model_client(settings: Settings):
 
     if provider == "openai":
         from ..integrations.openai_client import OpenAIClient
+
         return OpenAIClient(api_key=api_key, base_url=base_url, default_model=default_model)
     elif provider == "anthropic":
         from ..integrations.anthropic_client import AnthropicClient
+
         return AnthropicClient(api_key=api_key, base_url=base_url, default_model=default_model)
     elif provider == "openrouter":
         from ..integrations.openrouter_client import OpenRouterClient
+
         return OpenRouterClient(api_key=api_key, default_model=default_model)
     elif provider == "google":
         from ..integrations.google_client import GoogleClient
+
         return GoogleClient(api_key=api_key, default_model=default_model)
     elif provider == "groq":
         from ..integrations.groq_client import GroqClient
+
         return GroqClient(api_key=api_key, default_model=default_model)
     elif provider == "together":
         from ..integrations.together_client import TogetherClient
+
         return TogetherClient(api_key=api_key, default_model=default_model)
     elif provider == "ollama":
         from ..integrations.ollama_client import OllamaClient
+
         return OllamaClient(base_url=base_url, default_model=default_model)
 
     return None
 
 
 @click.group()
-@click.option("--config", "-c", type=click.Path(exists=True),
-              help="Path to configuration file")
-@click.option("--mode", "-m",
-              type=click.Choice(["lab", "shadow", "production"]),
-              default="lab",
-              help="Operating mode")
+@click.option("--config", "-c", type=click.Path(exists=True), help="Path to configuration file")
+@click.option(
+    "--mode",
+    "-m",
+    type=click.Choice(["lab", "shadow", "production"]),
+    default="lab",
+    help="Operating mode",
+)
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.pass_context
-def cli(ctx, config: Optional[str], mode: str, verbose: bool):
+def cli(ctx, config: str | None, mode: str, verbose: bool):
     """
     Tinman - Forward-Deployed Research Agent
 
@@ -222,7 +229,9 @@ def db_check(ctx):
 @click.option("--max-experiments", "-e", default=3, help="Maximum experiments to run")
 @click.option("--runs-per-experiment", "-r", default=5, help="Runs per experiment")
 @click.pass_context
-def research(ctx, focus: Optional[str], max_hypotheses: int, max_experiments: int, runs_per_experiment: int):
+def research(
+    ctx, focus: str | None, max_hypotheses: int, max_experiments: int, runs_per_experiment: int
+):
     """Run a complete research cycle."""
     settings = ctx.obj["settings"]
 
@@ -262,24 +271,30 @@ def research(ctx, focus: Optional[str], max_hypotheses: int, max_experiments: in
             click.echo("=" * 50)
 
             click.echo(f"\nHypotheses generated: {len(results['hypotheses'])}")
-            for h in results['hypotheses'][:5]:
-                click.echo(f"  - [{h['priority']}] {h['target_surface']}: {h['expected_failure'][:50]}...")
+            for h in results["hypotheses"][:5]:
+                click.echo(
+                    f"  - [{h['priority']}] {h['target_surface']}: {h['expected_failure'][:50]}..."
+                )
 
             click.echo(f"\nExperiments run: {len(results['experiments'])}")
-            for e in results['experiments'][:5]:
+            for e in results["experiments"][:5]:
                 click.echo(f"  - {e['name']} ({e['stress_type']})")
 
             click.echo(f"\nFailures discovered: {len(results['failures'])}")
-            for f in results['failures']:
-                click.echo(f"  - [{f['severity']}] {f['primary_class']}: {f['description'][:60]}...")
-                if f.get('key_insight'):
+            for f in results["failures"]:
+                click.echo(
+                    f"  - [{f['severity']}] {f['primary_class']}: {f['description'][:60]}..."
+                )
+                if f.get("key_insight"):
                     click.echo(f"    Insight: {f['key_insight'][:80]}...")
 
             click.echo(f"\nInterventions proposed: {len(results['interventions'])}")
-            for i in results['interventions']:
-                click.echo(f"  - [{i['risk_tier']}] {i['name']}: {i.get('description', '')[:50]}...")
+            for i in results["interventions"]:
+                click.echo(
+                    f"  - [{i['risk_tier']}] {i['name']}: {i.get('description', '')[:50]}..."
+                )
 
-            if results['simulations']:
+            if results["simulations"]:
                 click.echo(f"\nSimulations run: {len(results['simulations'])}")
 
         finally:
@@ -292,17 +307,17 @@ def research(ctx, focus: Optional[str], max_hypotheses: int, max_experiments: in
 @click.option("--target", "-t", help="Target surface to investigate")
 @click.option("--limit", "-l", default=10, help="Maximum hypotheses to generate")
 @click.pass_context
-def hypothesize(ctx, target: Optional[str], limit: int):
+def hypothesize(ctx, target: str | None, limit: int):
     """Generate failure hypotheses."""
     settings = ctx.obj["settings"]
 
     click.echo(f"Generating hypotheses (mode: {settings.mode.value})...")
 
     async def run():
-        from ..agents.hypothesis_engine import HypothesisEngine
         from ..agents.base import AgentContext
-        from ..reasoning.llm_backbone import LLMBackbone
+        from ..agents.hypothesis_engine import HypothesisEngine
         from ..reasoning.adaptive_memory import AdaptiveMemory
+        from ..reasoning.llm_backbone import LLMBackbone
 
         model_client = get_model_client(settings)
         llm = LLMBackbone(model_client=model_client) if model_client else None
@@ -311,6 +326,7 @@ def hypothesize(ctx, target: Optional[str], limit: int):
         graph = None
         if db:
             from ..memory.graph import MemoryGraph
+
             with db.session() as session:
                 graph = MemoryGraph(session)
 
@@ -335,7 +351,7 @@ def hypothesize(ctx, target: Optional[str], limit: int):
                 click.echo(f"   Expected: {h['expected_failure']}")
                 click.echo(f"   Class: {h['failure_class']}")
                 click.echo(f"   Confidence: {h['confidence']:.0%}")
-                if h.get('rationale'):
+                if h.get("rationale"):
                     click.echo(f"   Rationale: {h['rationale'][:100]}...")
                 click.echo()
         else:
@@ -349,20 +365,20 @@ def hypothesize(ctx, target: Optional[str], limit: int):
 @click.option("--all", "-a", "run_all", is_flag=True, help="Run all pending experiments")
 @click.option("--runs", "-r", default=5, help="Number of runs per experiment")
 @click.pass_context
-def experiment(ctx, hypothesis_id: Optional[str], run_all: bool, runs: int):
+def experiment(ctx, hypothesis_id: str | None, run_all: bool, runs: int):
     """Design and run experiments."""
     settings = ctx.obj["settings"]
 
     click.echo(f"Running experiments (mode: {settings.mode.value})...")
 
     async def run():
-        from ..agents.hypothesis_engine import HypothesisEngine, Hypothesis
+        from ..agents.base import AgentContext
         from ..agents.experiment_architect import ExperimentArchitect, ExperimentDesign
         from ..agents.experiment_executor import ExperimentExecutor
-        from ..agents.base import AgentContext
-        from ..taxonomy.failure_types import FailureClass
-        from ..reasoning.llm_backbone import LLMBackbone
+        from ..agents.hypothesis_engine import Hypothesis, HypothesisEngine
         from ..reasoning.adaptive_memory import AdaptiveMemory
+        from ..reasoning.llm_backbone import LLMBackbone
+        from ..taxonomy.failure_types import FailureClass
 
         model_client = get_model_client(settings)
         llm = LLMBackbone(model_client=model_client) if model_client else None
@@ -371,6 +387,7 @@ def experiment(ctx, hypothesis_id: Optional[str], run_all: bool, runs: int):
         graph = None
         if db:
             from ..memory.graph import MemoryGraph
+
             with db.session() as session:
                 graph = MemoryGraph(session)
 
@@ -464,13 +481,16 @@ def experiment(ctx, hypothesis_id: Optional[str], run_all: bool, runs: int):
 
 
 @cli.command()
-@click.option("--severity", "-s",
-              type=click.Choice(["S0", "S1", "S2", "S3", "S4"]),
-              help="Minimum severity to show")
+@click.option(
+    "--severity",
+    "-s",
+    type=click.Choice(["S0", "S1", "S2", "S3", "S4"]),
+    help="Minimum severity to show",
+)
 @click.option("--unresolved", "-u", is_flag=True, help="Show only unresolved failures")
 @click.option("--limit", "-l", default=20, help="Maximum failures to show")
 @click.pass_context
-def failures(ctx, severity: Optional[str], unresolved: bool, limit: int):
+def failures(ctx, severity: str | None, unresolved: bool, limit: int):
     """List discovered failures."""
     settings = ctx.obj["settings"]
 
@@ -478,7 +498,10 @@ def failures(ctx, severity: Optional[str], unresolved: bool, limit: int):
 
     db = get_db_session(settings)
     if not db:
-        click.echo("\nNo database configured. Use --config to specify a config with database URL.", err=True)
+        click.echo(
+            "\nNo database configured. Use --config to specify a config with database URL.",
+            err=True,
+        )
         click.echo("Or run 'tinman init' to create a default configuration.")
         return
 
@@ -503,34 +526,42 @@ def failures(ctx, severity: Optional[str], unresolved: bool, limit: int):
 
         for f in failures_list[:limit]:
             data = f.data
-            click.echo(f"[{data.get('severity', 'S?')}] {f.id[:8]}... - {data.get('primary_class', 'unknown')}")
-            if data.get('secondary_class'):
+            click.echo(
+                f"[{data.get('severity', 'S?')}] {f.id[:8]}... - {data.get('primary_class', 'unknown')}"
+            )
+            if data.get("secondary_class"):
                 click.echo(f"     Secondary: {data['secondary_class']}")
-            if data.get('description'):
+            if data.get("description"):
                 click.echo(f"     {data['description'][:80]}...")
             click.echo(f"     Reproducibility: {data.get('reproducibility', 0):.0%}")
             click.echo(f"     Resolved: {'✓' if data.get('is_resolved') else '✗'}")
-            if data.get('trigger_signature'):
+            if data.get("trigger_signature"):
                 click.echo(f"     Triggers: {', '.join(data['trigger_signature'][:3])}")
             click.echo()
 
 
 @cli.command()
 @click.argument("failure_id", required=False)
-@click.option("--all", "-a", "for_all", is_flag=True, help="Generate interventions for all unresolved failures")
+@click.option(
+    "--all",
+    "-a",
+    "for_all",
+    is_flag=True,
+    help="Generate interventions for all unresolved failures",
+)
 @click.pass_context
-def intervene(ctx, failure_id: Optional[str], for_all: bool):
+def intervene(ctx, failure_id: str | None, for_all: bool):
     """Generate intervention recommendations."""
     settings = ctx.obj["settings"]
 
     click.echo(f"Generating interventions (mode: {settings.mode.value})...")
 
     async def run():
-        from ..agents.intervention_engine import InterventionEngine
-        from ..agents.failure_discovery import DiscoveredFailure
         from ..agents.base import AgentContext
-        from ..taxonomy.failure_types import FailureClass, Severity
+        from ..agents.failure_discovery import DiscoveredFailure
+        from ..agents.intervention_engine import InterventionEngine
         from ..reasoning.llm_backbone import LLMBackbone
+        from ..taxonomy.failure_types import FailureClass, Severity
 
         model_client = get_model_client(settings)
         llm = LLMBackbone(model_client=model_client) if model_client else None
@@ -569,14 +600,16 @@ def intervene(ctx, failure_id: Optional[str], for_all: bool):
             for f in failure_nodes:
                 data = f.data
                 try:
-                    failures.append(DiscoveredFailure(
-                        id=f.id,
-                        primary_class=FailureClass(data.get('primary_class', 'reasoning')),
-                        severity=Severity[data.get('severity', 'S2')],
-                        description=data.get('description', ''),
-                        trigger_signature=data.get('trigger_signature', []),
-                        reproducibility=data.get('reproducibility', 0.0),
-                    ))
+                    failures.append(
+                        DiscoveredFailure(
+                            id=f.id,
+                            primary_class=FailureClass(data.get("primary_class", "reasoning")),
+                            severity=Severity[data.get("severity", "S2")],
+                            description=data.get("description", ""),
+                            trigger_signature=data.get("trigger_signature", []),
+                            reproducibility=data.get("reproducibility", 0.0),
+                        )
+                    )
                 except (ValueError, KeyError) as e:
                     logger.warning(f"Could not parse failure {f.id}: {e}")
 
@@ -600,17 +633,19 @@ def intervene(ctx, failure_id: Optional[str], for_all: bool):
                 click.echo("=" * 50)
 
                 by_risk = result.data.get("by_risk_tier", {})
-                click.echo(f"\nBy risk tier: Safe={by_risk.get('safe', 0)}, Review={by_risk.get('review', 0)}, Block={by_risk.get('block', 0)}")
+                click.echo(
+                    f"\nBy risk tier: Safe={by_risk.get('safe', 0)}, Review={by_risk.get('review', 0)}, Block={by_risk.get('block', 0)}"
+                )
 
                 for i in interventions:
                     click.echo(f"\n[{i['risk_tier'].upper()}] {i['name']}")
                     click.echo(f"  Type: {i['type']}")
                     click.echo(f"  For failure: {i['failure_id'][:8]}...")
-                    if i.get('description'):
+                    if i.get("description"):
                         click.echo(f"  Description: {i['description'][:100]}...")
-                    if i.get('rationale'):
+                    if i.get("rationale"):
                         click.echo(f"  Rationale: {i['rationale'][:100]}...")
-                    if i.get('payload'):
+                    if i.get("payload"):
                         click.echo(f"  Payload: {str(i['payload'])[:80]}...")
             else:
                 click.echo(f"Failed to generate interventions: {result.error}", err=True)
@@ -630,7 +665,9 @@ def discuss(ctx, message: str):
 
         model_client = get_model_client(settings)
         if not model_client:
-            click.echo("Discussion requires a model client. Configure openai or anthropic.", err=True)
+            click.echo(
+                "Discussion requires a model client. Configure openai or anthropic.", err=True
+            )
             return
 
         db = get_db_session(settings)
@@ -652,16 +689,20 @@ def discuss(ctx, message: str):
 
 
 @cli.command()
-@click.option("--format", "-f",
-              type=click.Choice(["text", "markdown", "json", "demo"]),
-              default="text",
-              help="Output format")
+@click.option(
+    "--format",
+    "-f",
+    type=click.Choice(["text", "markdown", "json", "demo"]),
+    default="text",
+    help="Output format",
+)
 @click.option("--output", "-o", type=click.Path(), help="Output file")
 @click.option("--days", "-d", default=7, help="Report period in days")
-@click.option("--exclude-demo-failures", is_flag=True,
-              help="Exclude synthetic demo failures from reports")
+@click.option(
+    "--exclude-demo-failures", is_flag=True, help="Exclude synthetic demo failures from reports"
+)
 @click.pass_context
-def report(ctx, format: str, output: Optional[str], days: int, exclude_demo_failures: bool):
+def report(ctx, format: str, output: str | None, days: int, exclude_demo_failures: bool):
     """Generate a research report."""
     settings = ctx.obj["settings"]
 
@@ -672,6 +713,7 @@ def report(ctx, format: str, output: Optional[str], days: int, exclude_demo_fail
         graph = None
         if db:
             from ..memory.graph import MemoryGraph
+
             with db.session() as session:
                 graph = MemoryGraph(session)
 
@@ -682,9 +724,9 @@ def report(ctx, format: str, output: Optional[str], days: int, exclude_demo_fail
 
         # Use InsightSynthesizer for rich reports if LLM available
         if model_client:
-            from ..reasoning.llm_backbone import LLMBackbone
-            from ..reasoning.insight_synthesizer import InsightSynthesizer
             from ..reasoning.adaptive_memory import AdaptiveMemory
+            from ..reasoning.insight_synthesizer import InsightSynthesizer
+            from ..reasoning.llm_backbone import LLMBackbone
 
             llm = LLMBackbone(model_client=model_client)
             synthesizer = InsightSynthesizer(
@@ -728,21 +770,29 @@ def report(ctx, format: str, output: Optional[str], days: int, exclude_demo_fail
 
             elif format == "json":
                 import json
-                content = json.dumps({
-                    "title": brief.title,
-                    "executive_summary": brief.executive_summary,
-                    "key_insights": [{"title": i.title, "content": i.content} for i in brief.key_insights],
-                    "patterns": brief.patterns,
-                    "recommendations": brief.recommendations,
-                    "open_questions": brief.open_questions,
-                    "narrative": brief.narrative,
-                    "period_start": brief.period_start.isoformat() if brief.period_start else None,
-                    "period_end": brief.period_end.isoformat() if brief.period_end else None,
-                }, indent=2)
+
+                content = json.dumps(
+                    {
+                        "title": brief.title,
+                        "executive_summary": brief.executive_summary,
+                        "key_insights": [
+                            {"title": i.title, "content": i.content} for i in brief.key_insights
+                        ],
+                        "patterns": brief.patterns,
+                        "recommendations": brief.recommendations,
+                        "open_questions": brief.open_questions,
+                        "narrative": brief.narrative,
+                        "period_start": brief.period_start.isoformat()
+                        if brief.period_start
+                        else None,
+                        "period_end": brief.period_end.isoformat() if brief.period_end else None,
+                    },
+                    indent=2,
+                )
             else:
                 content = f"""
 {brief.title}
-{'=' * len(brief.title)}
+{"=" * len(brief.title)}
 
 Executive Summary:
 {brief.executive_summary}
@@ -777,6 +827,7 @@ Key Insights:
                 content = reporter.to_markdown(lab_report)
             elif format == "json":
                 import json
+
                 content = json.dumps(reporter.to_dict(lab_report), indent=2)
             else:
                 content = f"""
@@ -811,10 +862,13 @@ Key Findings:
 
 
 @cli.command()
-@click.option("--format", "-f",
-              type=click.Choice(["json", "prometheus"]),
-              default="json",
-              help="Output format")
+@click.option(
+    "--format",
+    "-f",
+    type=click.Choice(["json", "prometheus"]),
+    default="json",
+    help="Output format",
+)
 @click.pass_context
 def health(ctx, format: str):
     """Check system health."""
@@ -826,6 +880,7 @@ def health(ctx, format: str):
     graph = None
     if db:
         from ..memory.graph import MemoryGraph
+
         with db.session() as session:
             graph = MemoryGraph(session)
 
@@ -836,6 +891,7 @@ def health(ctx, format: str):
         click.echo(reporter.to_prometheus(ops_report))
     else:
         import json
+
         click.echo(json.dumps(reporter.to_json(ops_report), indent=2))
 
 
@@ -860,7 +916,7 @@ Database: {db_status}
 Model Provider: {model_status}
 
 Configuration:
-  Database URL: {settings.database_url or '(not set)'}
+  Database URL: {settings.database_url or "(not set)"}
   Model Provider: {settings.model_provider}
   Max hypotheses per run: {settings.max_hypotheses_per_run}
   Max experiments per hypothesis: {settings.max_experiments_per_hypothesis}
@@ -869,6 +925,7 @@ Configuration:
 
     if db:
         from ..memory.graph import MemoryGraph
+
         with db.session() as session:
             graph = MemoryGraph(session)
             stats = graph.get_stats()
@@ -889,7 +946,7 @@ def demo_reset_db(ctx):
         click.echo("Demo reset only supports SQLite database URLs.")
         return
 
-    from sqlalchemy.engine.url import make_url
+
     parsed = make_url(db_url)
     db_path = parsed.database
     if not db_path:
@@ -923,6 +980,7 @@ def tui(ctx):
     click.echo("Press F10 or Ctrl+C to exit.")
 
     from ..tui import run_tui
+
     run_tui(settings)
 
 

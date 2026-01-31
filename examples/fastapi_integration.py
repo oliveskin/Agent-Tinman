@@ -38,8 +38,10 @@ from tinman.core.event_bus import EventBus
 
 # --- Pydantic Models ---
 
+
 class CompletionRequest(BaseModel):
     """LLM completion request."""
+
     messages: list[dict]
     model: str = "gpt-4"
     temperature: float = 0.7
@@ -48,6 +50,7 @@ class CompletionRequest(BaseModel):
 
 class CompletionResponse(BaseModel):
     """LLM completion response."""
+
     id: str
     content: str
     model: str
@@ -56,6 +59,7 @@ class CompletionResponse(BaseModel):
 
 class ResearchRequest(BaseModel):
     """Research cycle request."""
+
     focus: Optional[str] = None
     max_hypotheses: int = 5
     max_experiments: int = 3
@@ -63,6 +67,7 @@ class ResearchRequest(BaseModel):
 
 class ResearchResponse(BaseModel):
     """Research cycle response."""
+
     hypotheses: int
     experiments: int
     failures: int
@@ -83,6 +88,7 @@ research_stats = {
 
 # --- Event Handlers ---
 
+
 @event_bus.on("failure.discovered")
 async def on_failure(data):
     """Track discovered failures."""
@@ -91,6 +97,7 @@ async def on_failure(data):
 
 
 # --- Lifespan Management ---
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -140,13 +147,13 @@ app = FastAPI(
 
 # --- Endpoints ---
 
+
 @app.get("/health")
 async def health():
     """Health check endpoint."""
     if tinman is None:
         return JSONResponse(
-            status_code=503,
-            content={"status": "unhealthy", "error": "Tinman not initialized"}
+            status_code=503, content={"status": "unhealthy", "error": "Tinman not initialized"}
         )
 
     return {

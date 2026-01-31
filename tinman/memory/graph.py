@@ -1,11 +1,12 @@
 """Research Memory Graph - core API for behavioral lineage tracking."""
 
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
+
 from sqlalchemy.orm import Session
 
 from ..utils import get_logger
-from .models import Node, Edge, NodeType, EdgeRelation
+from .models import Edge, EdgeRelation, Node, NodeType
 from .repository import GraphRepository
 
 logger = get_logger("memory_graph")
@@ -34,7 +35,7 @@ class MemoryGraph:
         """Add a node to the graph."""
         return self.repo.add_node(node)
 
-    def get_node(self, node_id: str) -> Optional[Node]:
+    def get_node(self, node_id: str) -> Node | None:
         """Get a node by ID."""
         return self.repo.get_node(node_id)
 
@@ -52,11 +53,13 @@ class MemoryGraph:
         """Add an edge to the graph."""
         return self.repo.add_edge(edge)
 
-    def link(self,
-             src_id: str,
-             dst_id: str,
-             relation: EdgeRelation,
-             metadata: Optional[dict[str, Any]] = None) -> Edge:
+    def link(
+        self,
+        src_id: str,
+        dst_id: str,
+        relation: EdgeRelation,
+        metadata: dict[str, Any] | None = None,
+    ) -> Edge:
         """Create and add an edge between two nodes."""
         edge = Edge(
             src_id=src_id,
@@ -67,7 +70,7 @@ class MemoryGraph:
         self.add_edge(edge)
         return edge
 
-    def get_edge(self, edge_id: str) -> Optional[Edge]:
+    def get_edge(self, edge_id: str) -> Edge | None:
         """Get an edge by ID."""
         return self.repo.get_edge(edge_id)
 
@@ -89,18 +92,15 @@ class MemoryGraph:
         """Get intervention nodes."""
         return self.repo.get_nodes_by_type(NodeType.INTERVENTION, valid_only, limit)
 
-    def get_neighbors(self,
-                      node_id: str,
-                      relation: Optional[EdgeRelation] = None,
-                      direction: str = "outgoing") -> list[Node]:
+    def get_neighbors(
+        self, node_id: str, relation: EdgeRelation | None = None, direction: str = "outgoing"
+    ) -> list[Node]:
         """Get neighboring nodes."""
         return self.repo.get_neighbors(node_id, relation, direction)
 
     # --- Temporal Queries ---
 
-    def snapshot_at(self,
-                    timestamp: datetime,
-                    node_type: Optional[NodeType] = None) -> list[Node]:
+    def snapshot_at(self, timestamp: datetime, node_type: NodeType | None = None) -> list[Node]:
         """
         Get graph state at a specific point in time.
 
@@ -130,10 +130,9 @@ class MemoryGraph:
 
     # --- Search Operations ---
 
-    def search(self,
-               data_filter: dict[str, Any],
-               node_type: Optional[NodeType] = None,
-               limit: int = 100) -> list[Node]:
+    def search(
+        self, data_filter: dict[str, Any], node_type: NodeType | None = None, limit: int = 100
+    ) -> list[Node]:
         """
         Search nodes by data field values.
 
@@ -150,9 +149,7 @@ class MemoryGraph:
 
         results = []
         for severity in severity_order[min_idx:]:
-            results.extend(
-                self.search({"severity": severity}, NodeType.FAILURE_MODE)
-            )
+            results.extend(self.search({"severity": severity}, NodeType.FAILURE_MODE))
         return results
 
     def find_unresolved_failures(self) -> list[Node]:
@@ -165,15 +162,18 @@ class MemoryGraph:
 
     # --- Recording Convenience Methods ---
 
-    def record_hypothesis(self,
-                          target_surface: str,
-                          expected_failure: str,
-                          confidence: float,
-                          priority: str = "medium",
-                          hypothesis_id: Optional[str] = None,
-                          **extra_data: Any) -> Node:
+    def record_hypothesis(
+        self,
+        target_surface: str,
+        expected_failure: str,
+        confidence: float,
+        priority: str = "medium",
+        hypothesis_id: str | None = None,
+        **extra_data: Any,
+    ) -> Node:
         """Record a new hypothesis."""
         from .models import create_hypothesis_node
+
         node = create_hypothesis_node(
             target_surface=target_surface,
             expected_failure=expected_failure,
@@ -186,15 +186,18 @@ class MemoryGraph:
         logger.info(f"Recorded hypothesis: {node.id}")
         return node
 
-    def record_experiment(self,
-                          hypothesis_id: str,
-                          stress_type: str,
-                          mode: str,
-                          constraints: dict[str, Any],
-                          experiment_id: Optional[str] = None,
-                          **extra_data: Any) -> Node:
+    def record_experiment(
+        self,
+        hypothesis_id: str,
+        stress_type: str,
+        mode: str,
+        constraints: dict[str, Any],
+        experiment_id: str | None = None,
+        **extra_data: Any,
+    ) -> Node:
         """Record a new experiment, linked to its hypothesis."""
         from .models import create_experiment_node
+
         node = create_experiment_node(
             hypothesis_id=hypothesis_id,
             stress_type=stress_type,
@@ -211,17 +214,20 @@ class MemoryGraph:
         logger.info(f"Recorded experiment: {node.id}")
         return node
 
-    def record_failure(self,
-                       run_id: str,
-                       primary_class: str,
-                       secondary_class: str,
-                       severity: str,
-                       trigger_signature: list[str],
-                       reproducibility: float = 0.0,
-                       parent_failure_id: Optional[str] = None,
-                       **extra_data: Any) -> Node:
+    def record_failure(
+        self,
+        run_id: str,
+        primary_class: str,
+        secondary_class: str,
+        severity: str,
+        trigger_signature: list[str],
+        reproducibility: float = 0.0,
+        parent_failure_id: str | None = None,
+        **extra_data: Any,
+    ) -> Node:
         """Record a discovered failure, linked to its experiment run."""
         from .models import create_failure_node
+
         node = create_failure_node(
             primary_class=primary_class,
             secondary_class=secondary_class,
@@ -243,15 +249,18 @@ class MemoryGraph:
         logger.info(f"Recorded failure: {node.id} ({severity})")
         return node
 
-    def record_intervention(self,
-                            failure_id: str,
-                            intervention_type: str,
-                            payload: dict[str, Any],
-                            expected_gains: dict[str, float],
-                            expected_regressions: dict[str, float],
-                            risk_tier: str) -> Node:
+    def record_intervention(
+        self,
+        failure_id: str,
+        intervention_type: str,
+        payload: dict[str, Any],
+        expected_gains: dict[str, float],
+        expected_regressions: dict[str, float],
+        risk_tier: str,
+    ) -> Node:
         """Record a proposed intervention, linked to the failure it addresses."""
         from .models import create_intervention_node
+
         node = create_intervention_node(
             intervention_type=intervention_type,
             payload=payload,
@@ -267,10 +276,9 @@ class MemoryGraph:
         logger.info(f"Recorded intervention: {node.id} ({risk_tier})")
         return node
 
-    def record_deployment(self,
-                          intervention_id: str,
-                          mode: str,
-                          rollback_state: Optional[dict[str, Any]] = None) -> Node:
+    def record_deployment(
+        self, intervention_id: str, mode: str, rollback_state: dict[str, Any] | None = None
+    ) -> Node:
         """Record a deployment of an intervention."""
         node = Node(
             node_type=NodeType.DEPLOYMENT,
@@ -289,10 +297,9 @@ class MemoryGraph:
         logger.info(f"Recorded deployment: {node.id}")
         return node
 
-    def record_rollback(self,
-                        deployment_id: str,
-                        reason: str,
-                        regression_failure_id: Optional[str] = None) -> Node:
+    def record_rollback(
+        self, deployment_id: str, reason: str, regression_failure_id: str | None = None
+    ) -> Node:
         """Record a rollback of a deployment."""
         node = Node(
             node_type=NodeType.ROLLBACK,

@@ -1,12 +1,13 @@
 """Control plane for managing FDRA global state and mode transitions."""
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Optional, Callable
 import threading
+import time
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime
 
 from ..config import Mode, Settings
-from ..utils import utc_now, get_logger
+from ..utils import get_logger, utc_now
 from .event_bus import EventBus, Topics
 from .risk_evaluator import RiskEvaluator
 
@@ -16,6 +17,7 @@ logger = get_logger("control_plane")
 @dataclass
 class ControlPlaneState:
     """Current state of the control plane."""
+
     mode: Mode
     started_at: datetime
     last_mode_change: datetime
@@ -37,7 +39,7 @@ class ControlPlane:
     - Risk evaluation integration
     """
 
-    def __init__(self, settings: Settings, event_bus: Optional[EventBus] = None):
+    def __init__(self, settings: Settings, event_bus: EventBus | None = None):
         self.settings = settings
         self.event_bus = event_bus or EventBus()
         self.risk_evaluator = RiskEvaluator(
@@ -101,9 +103,7 @@ class ControlPlane:
 
             # Validate transition
             if not force and not Mode.can_transition(current, new_mode):
-                logger.warning(
-                    f"Invalid mode transition: {current.value} -> {new_mode.value}"
-                )
+                logger.warning(f"Invalid mode transition: {current.value} -> {new_mode.value}")
                 return False
 
             # Execute transition
@@ -114,12 +114,22 @@ class ControlPlane:
 
             logger.info(f"Mode transition: {old_mode.value} -> {new_mode.value}")
 
-        # Notify hooks (outside lock)
-        for hook in self._mode_change_hooks:
-            try:
-                hook(old_mode, new_mode)
-            except Exception as e:
-                logger.error(f"Error in mode change hook: {e}")
+            # Execute hooks inside lock with timeout protection
+            hook_timeout = 5.0  # seconds
+            for hook in self._mode_change_hooks:
+                try:
+                    start_time = time.monotonic()
+                    hook(old_mode, new_mode)
+                    elapsed = time.monotonic() - start_time
+                    if elapsed > hook_timeout:
+                        logger.warning(
+                            "Mode change hook exceeded timeout",
+                            hook=getattr(hook, "__name__", repr(hook)),
+                            elapsed=elapsed,
+                            timeout=hook_timeout,
+                        )
+                except Exception as e:
+                    logger.error("Mode change hook failed", error=str(e), exc_info=True)
 
         return True
 

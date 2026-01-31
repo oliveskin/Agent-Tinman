@@ -1,10 +1,9 @@
 """OpenAI model client implementation."""
 
 import os
-from typing import Any, Optional
 
+from ..utils import get_logger, utc_now
 from .model_client import ModelClient, ModelResponse
-from ..utils import utc_now, get_logger
 
 logger = get_logger("openai_client")
 
@@ -18,12 +17,14 @@ class OpenAIClient(ModelClient):
 
     DEFAULT_MODEL = "gpt-4-turbo-preview"
 
-    def __init__(self,
-                 api_key: Optional[str] = None,
-                 base_url: Optional[str] = None,
-                 organization: Optional[str] = None,
-                 default_model: Optional[str] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        api_key: str | None = None,
+        base_url: str | None = None,
+        organization: str | None = None,
+        default_model: str | None = None,
+        **kwargs,
+    ):
         api_key = api_key or os.environ.get("OPENAI_API_KEY")
         super().__init__(api_key=api_key, default_model=default_model, **kwargs)
 
@@ -51,19 +52,20 @@ class OpenAIClient(ModelClient):
                 self._client = AsyncOpenAI(**kwargs)
             except ImportError:
                 raise ImportError(
-                    "OpenAI client requires 'openai' package. "
-                    "Install with: pip install openai"
+                    "OpenAI client requires 'openai' package. Install with: pip install openai"
                 )
 
         return self._client
 
-    async def complete(self,
-                       messages: list[dict[str, str]],
-                       model: Optional[str] = None,
-                       temperature: float = 0.7,
-                       max_tokens: int = 4096,
-                       tools: Optional[list[dict]] = None,
-                       **kwargs) -> ModelResponse:
+    async def complete(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        tools: list[dict] | None = None,
+        **kwargs,
+    ) -> ModelResponse:
         """Send a completion request to OpenAI."""
         client = self._get_client()
         model = model or self.default_model
@@ -98,14 +100,16 @@ class OpenAIClient(ModelClient):
             tool_calls = []
             if choice and choice.message.tool_calls:
                 for tc in choice.message.tool_calls:
-                    tool_calls.append({
-                        "id": tc.id,
-                        "type": tc.type,
-                        "function": {
-                            "name": tc.function.name,
-                            "arguments": tc.function.arguments,
-                        },
-                    })
+                    tool_calls.append(
+                        {
+                            "id": tc.id,
+                            "type": tc.type,
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments,
+                            },
+                        }
+                    )
 
             return ModelResponse(
                 content=content or "",
@@ -116,19 +120,21 @@ class OpenAIClient(ModelClient):
                 tool_calls=tool_calls,
                 finish_reason=choice.finish_reason if choice else "",
                 latency_ms=latency_ms,
-                raw=response.model_dump() if hasattr(response, 'model_dump') else None,
+                raw=response.model_dump() if hasattr(response, "model_dump") else None,
             )
 
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             raise
 
-    async def stream(self,
-                     messages: list[dict[str, str]],
-                     model: Optional[str] = None,
-                     temperature: float = 0.7,
-                     max_tokens: int = 4096,
-                     **kwargs):
+    async def stream(
+        self,
+        messages: list[dict[str, str]],
+        model: str | None = None,
+        temperature: float = 0.7,
+        max_tokens: int = 4096,
+        **kwargs,
+    ):
         """Stream a completion response."""
         client = self._get_client()
         model = model or self.default_model
@@ -157,12 +163,14 @@ class OpenAIClient(ModelClient):
         """Format tools for OpenAI API."""
         formatted = []
         for tool in tools:
-            formatted.append({
-                "type": "function",
-                "function": {
-                    "name": tool.get("name", ""),
-                    "description": tool.get("description", ""),
-                    "parameters": tool.get("parameters", {}),
-                },
-            })
+            formatted.append(
+                {
+                    "type": "function",
+                    "function": {
+                        "name": tool.get("name", ""),
+                        "description": tool.get("description", ""),
+                        "parameters": tool.get("parameters", {}),
+                    },
+                }
+            )
         return formatted

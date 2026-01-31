@@ -23,6 +23,7 @@ class TestToolRegistry:
 
     def test_register_tool(self, tool_registry):
         """Tools should be registerable."""
+
         async def my_tool(**kwargs):
             return "done"
 
@@ -46,6 +47,7 @@ class TestToolRegistry:
 
     def test_list_tools(self, tool_registry):
         """Should list all registered tools."""
+
         async def tool_a(**kwargs):
             return "a"
 
@@ -63,6 +65,7 @@ class TestToolRegistry:
 
     def test_risk_level_to_action_type_mapping(self, tool_registry):
         """Risk levels should map to appropriate action types."""
+
         async def dummy(**kwargs):
             return None
 
@@ -135,6 +138,7 @@ class TestGuardedCall:
     @pytest.mark.asyncio
     async def test_timeout_handling(self, approval_handler):
         """Slow tools should timeout."""
+
         async def very_slow_tool(**kwargs):
             await asyncio.sleep(100)
             return "done"
@@ -212,6 +216,7 @@ class TestToolRegistryExecution:
     @pytest.mark.asyncio
     async def test_execute_registered_tool(self, tool_registry, approval_handler):
         """Should execute registered tools with guards."""
+
         async def my_tool(**kwargs):
             return f"Processed: {kwargs.get('input', 'none')}"
 
@@ -249,6 +254,7 @@ class TestToolRegistryExecution:
     @pytest.mark.asyncio
     async def test_execution_history_recorded(self, tool_registry, approval_handler):
         """Execution history should be recorded."""
+
         async def tracked_tool(**kwargs):
             return "tracked"
 
@@ -331,6 +337,7 @@ class TestApprovalOverrides:
         # Create handler in production mode with auto-reject
         event_bus = EventBus()
         from tinman.core.risk_evaluator import RiskEvaluator
+
         strict_handler = ApprovalHandler(
             mode=Mode.PRODUCTION,
             approval_mode=ApprovalMode.AUTO_REJECT,
@@ -379,6 +386,7 @@ class TestSyncToolSupport:
     @pytest.mark.asyncio
     async def test_sync_tool_execution(self, approval_handler):
         """Should execute synchronous tools correctly."""
+
         def sync_tool(**kwargs):
             return f"Sync result: {kwargs.get('value', 'none')}"
 

@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
 from ..config import Mode
 from ..utils import get_logger
@@ -12,13 +12,15 @@ logger = get_logger("risk_evaluator")
 
 class RiskTier(str, Enum):
     """Three-tier risk classification."""
-    SAFE = "safe"      # Proceed autonomously
+
+    SAFE = "safe"  # Proceed autonomously
     REVIEW = "review"  # Needs human review
-    BLOCK = "block"    # Cannot proceed
+    BLOCK = "block"  # Cannot proceed
 
 
 class Severity(str, Enum):
     """Failure/action severity levels (S0-S4)."""
+
     S0 = "S0"  # Benign
     S1 = "S1"  # UX degradation
     S2 = "S2"  # Business risk
@@ -45,6 +47,7 @@ class Severity(str, Enum):
 
 class ActionType(str, Enum):
     """Types of actions that can be risk-evaluated."""
+
     PROMPT_MUTATION = "prompt_mutation"
     TOOL_POLICY_CHANGE = "tool_policy_change"
     MEMORY_GATING = "memory_gating"
@@ -57,6 +60,7 @@ class ActionType(str, Enum):
 @dataclass
 class Action:
     """An action to be risk-evaluated."""
+
     action_type: ActionType
     target_surface: str  # lab, shadow, production
     payload: dict[str, Any]
@@ -70,6 +74,7 @@ class Action:
 @dataclass
 class RiskAssessment:
     """Result of risk evaluation."""
+
     tier: RiskTier
     severity: Severity
     reasoning: str
@@ -103,9 +108,12 @@ class RiskEvaluator:
         ActionType.FINE_TUNE,
     }
 
-    def __init__(self, detailed_mode: bool = False,
-                 auto_approve_safe: bool = True,
-                 block_on_destructive: bool = True):
+    def __init__(
+        self,
+        detailed_mode: bool = False,
+        auto_approve_safe: bool = True,
+        block_on_destructive: bool = True,
+    ):
         self.detailed_mode = detailed_mode
         self.auto_approve_safe = auto_approve_safe
         self.block_on_destructive = block_on_destructive
@@ -233,11 +241,13 @@ class RiskEvaluator:
             details={"mode": "production"},
         )
 
-    def compute_severity(self,
-                         failure_class: str,
-                         reproducibility: float,
-                         impact_scope: list[str],
-                         is_safety_related: bool) -> Severity:
+    def compute_severity(
+        self,
+        failure_class: str,
+        reproducibility: float,
+        impact_scope: list[str],
+        is_safety_related: bool,
+    ) -> Severity:
         """
         Compute severity based on failure characteristics.
 
@@ -260,8 +270,11 @@ class RiskEvaluator:
 
         # Certain failure classes are inherently higher severity
         high_severity_classes = {
-            "DESTRUCTIVE_CALL", "SAFETY_REGRESSION", "MEMORY_POISONING",
-            "REWARD_HACKING", "TOOL_HALLUCINATION"
+            "DESTRUCTIVE_CALL",
+            "SAFETY_REGRESSION",
+            "MEMORY_POISONING",
+            "REWARD_HACKING",
+            "TOOL_HALLUCINATION",
         }
         if failure_class.upper() in high_severity_classes:
             score += 0.3

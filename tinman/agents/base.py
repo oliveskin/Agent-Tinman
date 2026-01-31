@@ -1,18 +1,20 @@
 """Base agent class for all Tinman agents."""
 
+import asyncio
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
-from ..utils import generate_id, utc_now, get_logger
-from ..core.event_bus import EventBus
 from ..config.modes import OperatingMode
+from ..core.event_bus import EventBus
+from ..utils import generate_id, get_logger, utc_now
 
 
 class AgentState(str, Enum):
     """Agent lifecycle states."""
+
     IDLE = "idle"
     RUNNING = "running"
     PAUSED = "paused"
@@ -23,21 +25,24 @@ class AgentState(str, Enum):
 @dataclass
 class AgentContext:
     """Context passed to agent operations."""
+
     mode: OperatingMode
     session_id: str = field(default_factory=generate_id)
-    parent_id: Optional[str] = None
+    parent_id: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     started_at: datetime = field(default_factory=utc_now)
+    timeout_seconds: float = 300.0
 
 
 @dataclass
 class AgentResult:
     """Result from an agent operation."""
+
     agent_id: str
     agent_type: str
     success: bool
     data: dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    error: str | None = None
     duration_ms: int = 0
     created_at: datetime = field(default_factory=utc_now)
 
@@ -53,12 +58,12 @@ class BaseAgent(ABC):
     - Context handling
     """
 
-    def __init__(self, event_bus: Optional[EventBus] = None):
+    def __init__(self, event_bus: EventBus | None = None):
         self.id = generate_id()
         self.state = AgentState.IDLE
         self.event_bus = event_bus
         self.logger = get_logger(self.__class__.__name__)
-        self._context: Optional[AgentContext] = None
+        self._context: AgentContext | None = None
 
     @property
     @abstractmethod
@@ -81,30 +86,63 @@ class BaseAgent(ABC):
         self.state = AgentState.RUNNING
         start_time = utc_now()
 
-        self._publish_event("agent.started", {
-            "agent_id": self.id,
-            "agent_type": self.agent_type,
-            "context": {
-                "mode": context.mode.value,
-                "session_id": context.session_id,
+        self._publish_event(
+            "agent.started",
+            {
+                "agent_id": self.id,
+                "agent_type": self.agent_type,
+                "context": {
+                    "mode": context.mode.value,
+                    "session_id": context.session_id,
+                },
             },
-        })
+        )
 
         try:
-            result = await self.execute(context, **kwargs)
+            result = await asyncio.wait_for(
+                self.execute(context, **kwargs),
+                timeout=context.timeout_seconds,
+            )
             self.state = AgentState.COMPLETED
 
             duration_ms = int((utc_now() - start_time).total_seconds() * 1000)
             result.duration_ms = duration_ms
 
-            self._publish_event("agent.completed", {
-                "agent_id": self.id,
-                "agent_type": self.agent_type,
-                "success": result.success,
-                "duration_ms": duration_ms,
-            })
+            self._publish_event(
+                "agent.completed",
+                {
+                    "agent_id": self.id,
+                    "agent_type": self.agent_type,
+                    "success": result.success,
+                    "duration_ms": duration_ms,
+                },
+            )
 
             return result
+
+        except TimeoutError:
+            self.state = AgentState.FAILED
+            duration_ms = int((utc_now() - start_time).total_seconds() * 1000)
+            error_msg = f"Agent execution timed out after {context.timeout_seconds} seconds"
+            self.logger.error(error_msg)
+
+            self._publish_event(
+                "agent.failed",
+                {
+                    "agent_id": self.id,
+                    "agent_type": self.agent_type,
+                    "error": error_msg,
+                    "duration_ms": duration_ms,
+                },
+            )
+
+            return AgentResult(
+                agent_id=self.id,
+                agent_type=self.agent_type,
+                success=False,
+                error=error_msg,
+                duration_ms=duration_ms,
+            )
 
         except Exception as e:
             self.state = AgentState.FAILED
@@ -112,12 +150,15 @@ class BaseAgent(ABC):
 
             duration_ms = int((utc_now() - start_time).total_seconds() * 1000)
 
-            self._publish_event("agent.failed", {
-                "agent_id": self.id,
-                "agent_type": self.agent_type,
-                "error": str(e),
-                "duration_ms": duration_ms,
-            })
+            self._publish_event(
+                "agent.failed",
+                {
+                    "agent_id": self.id,
+                    "agent_type": self.agent_type,
+                    "error": str(e),
+                    "duration_ms": duration_ms,
+                },
+            )
 
             return AgentResult(
                 agent_id=self.id,
@@ -144,7 +185,8 @@ class BaseAgent(ABC):
         if self.event_bus:
             self.event_bus.publish(event_type, data)
 
-    def _check_mode_allowed(self, context: AgentContext,
-                            required_modes: list[OperatingMode]) -> bool:
+    def _check_mode_allowed(
+        self, context: AgentContext, required_modes: list[OperatingMode]
+    ) -> bool:
         """Check if operation is allowed in current mode."""
         return context.mode in required_modes

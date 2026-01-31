@@ -1,13 +1,14 @@
 """Simple in-process event bus for agent communication."""
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Callable, Optional
-from collections import defaultdict
 import asyncio
 import threading
+from collections import defaultdict
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
 
-from ..utils import generate_id, utc_now, get_logger
+from ..utils import generate_id, get_logger, utc_now
 
 logger = get_logger("event_bus")
 
@@ -15,12 +16,13 @@ logger = get_logger("event_bus")
 @dataclass
 class Event:
     """Base event structure."""
+
     id: str = field(default_factory=generate_id)
     topic: str = ""
     timestamp: datetime = field(default_factory=utc_now)
     data: dict[str, Any] = field(default_factory=dict)
-    correlation_id: Optional[str] = None
-    causation_id: Optional[str] = None
+    correlation_id: str | None = None
+    causation_id: str | None = None
 
 
 EventHandler = Callable[[Event], None]
@@ -62,9 +64,13 @@ class EventBus:
             if handler in self._async_handlers[topic]:
                 self._async_handlers[topic].remove(handler)
 
-    def publish(self, topic: str, data: dict[str, Any],
-                correlation_id: Optional[str] = None,
-                causation_id: Optional[str] = None) -> Event:
+    def publish(
+        self,
+        topic: str,
+        data: dict[str, Any],
+        correlation_id: str | None = None,
+        causation_id: str | None = None,
+    ) -> Event:
         """
         Publish an event to all subscribers.
 
@@ -83,9 +89,13 @@ class EventBus:
         logger.debug(f"Published event: {topic} (id={event.id})")
         return event
 
-    async def publish_async(self, topic: str, data: dict[str, Any],
-                           correlation_id: Optional[str] = None,
-                           causation_id: Optional[str] = None) -> Event:
+    async def publish_async(
+        self,
+        topic: str,
+        data: dict[str, Any],
+        correlation_id: str | None = None,
+        causation_id: str | None = None,
+    ) -> Event:
         """
         Publish an event and await async handlers.
 
@@ -110,7 +120,7 @@ class EventBus:
         with self._lock:
             self._event_history.append(event)
             if len(self._event_history) > self._max_history:
-                self._event_history = self._event_history[-self._max_history:]
+                self._event_history = self._event_history[-self._max_history :]
 
     def _dispatch_sync(self, topic: str, event: Event) -> None:
         """Dispatch to synchronous handlers."""
@@ -135,8 +145,7 @@ class EventBus:
         if tasks:
             await asyncio.gather(*tasks)
 
-    async def _safe_call_async(self, handler: AsyncEventHandler,
-                               event: Event, topic: str) -> None:
+    async def _safe_call_async(self, handler: AsyncEventHandler, event: Event, topic: str) -> None:
         """Call async handler with error handling."""
         try:
             result = handler(event)
@@ -145,14 +154,13 @@ class EventBus:
         except Exception as e:
             logger.error(f"Error in async handler for {topic}: {e}")
 
-    def get_history(self, topic: Optional[str] = None,
-                    limit: int = 100) -> list[Event]:
+    def get_history(self, topic: str | None = None, limit: int = 100) -> list[Event]:
         """Get recent event history, optionally filtered by topic."""
         with self._lock:
             events = self._event_history
             if topic:
                 events = [e for e in events if e.topic == topic]
-            return events[-limit:]
+            return list(events[-limit:])
 
     def clear_history(self) -> None:
         """Clear event history."""
@@ -162,13 +170,13 @@ class EventBus:
     def get_subscriber_count(self, topic: str) -> int:
         """Get number of subscribers for a topic."""
         with self._lock:
-            return (len(self._sync_handlers[topic]) +
-                    len(self._async_handlers[topic]))
+            return len(self._sync_handlers[topic]) + len(self._async_handlers[topic])
 
 
 # Event topics used by the system
 class Topics:
     """Standard event topics."""
+
     APPROVAL_REQUESTED = "approval.requested"
     HYPOTHESIS_CREATED = "hypothesis.created"
     EXPERIMENT_CREATED = "experiment.created"

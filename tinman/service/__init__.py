@@ -2,12 +2,12 @@
 
 from .app import create_app, get_tinman_service
 from .models import (
+    ApprovalDecisionRequest,
+    ApprovalRequest,
+    HealthResponse,
     ResearchCycleRequest,
     ResearchCycleResponse,
-    ApprovalRequest,
-    ApprovalDecisionRequest,
     StatusResponse,
-    HealthResponse,
 )
 
 __all__ = [

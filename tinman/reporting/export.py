@@ -8,19 +8,19 @@ import json
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Union
+from typing import Any
 
-from .base import Report, ReportFormat, ReportGenerator
 from ..utils import get_logger
+from .base import Report, ReportFormat, ReportGenerator
 
 logger = get_logger("reporting.export")
 
 
 def export_report(
     report: Report,
-    output_path: Union[str, Path],
+    output_path: str | Path,
     format: ReportFormat,
-    generator: Optional[ReportGenerator] = None,
+    generator: ReportGenerator | None = None,
 ) -> Path:
     """Export a report to a file.
 
@@ -116,7 +116,9 @@ def export_to_markdown(report: Report) -> str:
     lines.append(f"type: {report.metadata.type.value}")
     lines.append(f"generated: {report.metadata.generated_at.isoformat()}")
     if report.metadata.period_start and report.metadata.period_end:
-        lines.append(f"period: {report.metadata.period_start.date()} to {report.metadata.period_end.date()}")
+        lines.append(
+            f"period: {report.metadata.period_start.date()} to {report.metadata.period_end.date()}"
+        )
     lines.append(f"confidentiality: {report.metadata.confidentiality}")
     lines.append("---")
     lines.append("")
@@ -354,11 +356,11 @@ def export_to_html(report: Report) -> str:
         </div>
         <div class="metadata-item">
             <div class="metadata-label">Generated</div>
-            <div>{report.metadata.generated_at.strftime('%Y-%m-%d %H:%M UTC')}</div>
+            <div>{report.metadata.generated_at.strftime("%Y-%m-%d %H:%M UTC")}</div>
         </div>
         <div class="metadata-item">
             <div class="metadata-label">Period</div>
-            <div>{report.metadata.period_start.strftime('%Y-%m-%d') if report.metadata.period_start else 'N/A'} to {report.metadata.period_end.strftime('%Y-%m-%d') if report.metadata.period_end else 'N/A'}</div>
+            <div>{report.metadata.period_start.strftime("%Y-%m-%d") if report.metadata.period_start else "N/A"} to {report.metadata.period_end.strftime("%Y-%m-%d") if report.metadata.period_end else "N/A"}</div>
         </div>
         <div class="metadata-item">
             <div class="metadata-label">Confidentiality</div>
@@ -366,7 +368,7 @@ def export_to_html(report: Report) -> str:
         </div>
     </div>
 
-    {f'<div class="summary"><h2>Executive Summary</h2><p>{report.summary}</p></div>' if report.summary else ''}
+    {f'<div class="summary"><h2>Executive Summary</h2><p>{report.summary}</p></div>' if report.summary else ""}
 
     {sections_html}
 
@@ -447,6 +449,7 @@ def export_to_pdf(report: Report) -> bytes:
     """
     try:
         from weasyprint import HTML
+
         html_content = export_to_html(report)
         return HTML(string=html_content).write_pdf()
     except ImportError:
@@ -483,11 +486,12 @@ def export_to_csv(report: Report) -> str:
 
 # Batch export utilities
 
+
 def export_all_formats(
     report: Report,
-    output_dir: Union[str, Path],
+    output_dir: str | Path,
     base_name: str,
-    formats: Optional[list[ReportFormat]] = None,
+    formats: list[ReportFormat] | None = None,
 ) -> dict[ReportFormat, Path]:
     """Export a report to multiple formats.
 

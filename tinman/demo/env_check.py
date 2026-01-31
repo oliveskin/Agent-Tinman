@@ -1,8 +1,7 @@
-﻿"""Validate required env vars for demo scripts without running providers."""
+"""Validate required env vars for demo scripts without running providers."""
 
 import argparse
 import os
-
 
 REQUIRED = {
     "github": ["GITHUB_TOKEN"],

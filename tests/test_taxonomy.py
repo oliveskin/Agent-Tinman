@@ -23,9 +23,7 @@ def test_classifier_basic_classification():
     """Test basic failure classification."""
     classifier = FailureClassifier()
 
-    result = classifier.classify(
-        description="Model failed to use the search tool correctly"
-    )
+    result = classifier.classify(description="Model failed to use the search tool correctly")
 
     assert result.primary_class == FailureClass.TOOL_USE
     assert result.confidence > 0
@@ -48,9 +46,7 @@ def test_classifier_reasoning_patterns():
     """Test that reasoning patterns are detected."""
     classifier = FailureClassifier()
 
-    result = classifier.classify(
-        description="Model provided inconsistent logical conclusions"
-    )
+    result = classifier.classify(description="Model provided inconsistent logical conclusions")
 
     assert result.primary_class == FailureClass.REASONING
 

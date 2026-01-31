@@ -8,15 +8,16 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional, TypeVar, Generic
+from typing import Any, Generic, TypeVar
 
-from ..utils import get_logger, utc_now, generate_id
+from ..utils import generate_id, get_logger, utc_now
 
 logger = get_logger("reporting.base")
 
 
 class ReportFormat(str, Enum):
     """Supported report output formats."""
+
     JSON = "json"
     MARKDOWN = "markdown"
     HTML = "html"
@@ -26,6 +27,7 @@ class ReportFormat(str, Enum):
 
 class ReportType(str, Enum):
     """Types of reports available."""
+
     EXECUTIVE_SUMMARY = "executive_summary"
     TECHNICAL_ANALYSIS = "technical_analysis"
     COMPLIANCE = "compliance"
@@ -38,6 +40,7 @@ class ReportType(str, Enum):
 @dataclass
 class ReportMetadata:
     """Metadata for a report."""
+
     id: str = field(default_factory=generate_id)
     type: ReportType = ReportType.EXECUTIVE_SUMMARY
     title: str = ""
@@ -46,14 +49,15 @@ class ReportMetadata:
     generated_by: str = "tinman"
     version: str = "1.0"
     confidentiality: str = "internal"  # internal, confidential, public
-    period_start: Optional[datetime] = None
-    period_end: Optional[datetime] = None
+    period_start: datetime | None = None
+    period_end: datetime | None = None
     tags: list[str] = field(default_factory=list)
 
 
 @dataclass
 class ReportSection:
     """A section within a report."""
+
     id: str = field(default_factory=generate_id)
     title: str = ""
     content: str = ""
@@ -68,6 +72,7 @@ class ReportSection:
 @dataclass
 class ReportChart:
     """Chart data for visualization."""
+
     id: str = field(default_factory=generate_id)
     type: str = "bar"  # bar, line, pie, scatter
     title: str = ""
@@ -80,11 +85,12 @@ class ReportChart:
 @dataclass
 class ReportTable:
     """Table data for structured display."""
+
     id: str = field(default_factory=generate_id)
     title: str = ""
     headers: list[str] = field(default_factory=list)
     rows: list[list[Any]] = field(default_factory=list)
-    footer: Optional[list[Any]] = None
+    footer: list[Any] | None = None
     sortable: bool = True
 
 
@@ -94,10 +100,11 @@ T = TypeVar("T")
 @dataclass
 class Report(Generic[T]):
     """Base report class."""
+
     metadata: ReportMetadata = field(default_factory=ReportMetadata)
     sections: list[ReportSection] = field(default_factory=list)
     summary: str = ""
-    raw_data: Optional[T] = None
+    raw_data: T | None = None
     attachments: list[dict[str, Any]] = field(default_factory=list)
 
 
@@ -123,8 +130,8 @@ class ReportGenerator(ABC):
     @abstractmethod
     async def generate(
         self,
-        period_start: Optional[datetime] = None,
-        period_end: Optional[datetime] = None,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
         **kwargs,
     ) -> Report:
         """Generate a report.
@@ -280,7 +287,7 @@ class ReportGenerator(ABC):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{report.metadata.title or 'Report'}</title>
+    <title>{report.metadata.title or "Report"}</title>
     <style>
         body {{
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
@@ -326,7 +333,7 @@ class ReportGenerator(ABC):
     </style>
 </head>
 <body>
-    <h1>{report.metadata.title or 'Report'}</h1>
+    <h1>{report.metadata.title or "Report"}</h1>
 
     <div class="metadata">
         <strong>Generated:</strong> {report.metadata.generated_at.isoformat()}<br>
@@ -334,7 +341,7 @@ class ReportGenerator(ABC):
         <strong>Confidentiality:</strong> {report.metadata.confidentiality}
     </div>
 
-    {f'<div class="summary"><h2>Executive Summary</h2><p>{report.summary}</p></div>' if report.summary else ''}
+    {f'<div class="summary"><h2>Executive Summary</h2><p>{report.summary}</p></div>' if report.summary else ""}
 
     {sections_html}
 
@@ -358,7 +365,7 @@ class ReportGenerator(ABC):
 
         return f"""
     <h{level}>{section.title}</h{level}>
-    {f'<p>{section.content}</p>' if section.content else ''}
+    {f"<p>{section.content}</p>" if section.content else ""}
     {tables_html}
     {subsections_html}
 """
@@ -373,13 +380,13 @@ class ReportGenerator(ABC):
 
         headers_html = "".join(f"<th>{h}</th>" for h in headers)
         rows_html = "".join(
-            "<tr>" + "".join(f"<td>{c}</td>" for c in row) + "</tr>"
-            for row in rows
+            "<tr>" + "".join(f"<td>{c}</td>" for c in row) + "</tr>" for row in rows
         )
 
+        caption = f"<caption>{table['title']}</caption>" if table.get("title") else ""
         return f"""
     <table>
-        {f'<caption>{table["title"]}</caption>' if table.get("title") else ''}
+        {caption}
         <thead><tr>{headers_html}</tr></thead>
         <tbody>{rows_html}</tbody>
     </table>

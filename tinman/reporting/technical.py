@@ -6,18 +6,17 @@ including root cause analysis, reproduction steps, and technical details.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Any
 
+from ..memory.graph import MemoryGraph
+from ..utils import get_logger, utc_now
 from .base import (
     Report,
     ReportGenerator,
-    ReportType,
     ReportMetadata,
     ReportSection,
+    ReportType,
 )
-from ..memory.graph import MemoryGraph
-from ..taxonomy.classifiers import FailureClassifier
-from ..utils import get_logger, utc_now
 
 logger = get_logger("reporting.technical")
 
@@ -25,24 +24,26 @@ logger = get_logger("reporting.technical")
 @dataclass
 class FailureDetail:
     """Detailed failure information."""
+
     id: str
     primary_class: str
-    secondary_class: Optional[str]
+    secondary_class: str | None
     severity: str
     description: str
     reproducibility: float
     trigger_signature: list[str]
     context: dict[str, Any]
-    hypothesis_id: Optional[str]
+    hypothesis_id: str | None
     experiment_ids: list[str]
     intervention_ids: list[str]
     is_resolved: bool
-    resolution_notes: Optional[str]
+    resolution_notes: str | None
 
 
 @dataclass
 class TechnicalData:
     """Data specific to technical reports."""
+
     failures: list[FailureDetail] = field(default_factory=list)
     failure_by_class: dict[str, int] = field(default_factory=dict)
     failure_by_severity: dict[str, int] = field(default_factory=dict)
@@ -72,7 +73,7 @@ class TechnicalAnalysisReport(ReportGenerator):
         )
     """
 
-    def __init__(self, graph: Optional[MemoryGraph] = None):
+    def __init__(self, graph: MemoryGraph | None = None):
         self.graph = graph
 
     @property
@@ -85,11 +86,11 @@ class TechnicalAnalysisReport(ReportGenerator):
 
     async def generate(
         self,
-        period_start: Optional[datetime] = None,
-        period_end: Optional[datetime] = None,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
         include_resolved: bool = True,
-        severity_filter: Optional[list[str]] = None,
-        class_filter: Optional[list[str]] = None,
+        severity_filter: list[str] | None = None,
+        class_filter: list[str] | None = None,
         **kwargs,
     ) -> Report[TechnicalData]:
         """Generate technical analysis report."""
@@ -111,8 +112,7 @@ class TechnicalAnalysisReport(ReportGenerator):
         data = report.raw_data
 
         await self._gather_failures(
-            data, period_start, period_end,
-            include_resolved, severity_filter, class_filter
+            data, period_start, period_end, include_resolved, severity_filter, class_filter
         )
         await self._gather_experiments(data, period_start, period_end)
         await self._analyze_patterns(data)
@@ -134,8 +134,8 @@ class TechnicalAnalysisReport(ReportGenerator):
         start: datetime,
         end: datetime,
         include_resolved: bool,
-        severity_filter: Optional[list[str]],
-        class_filter: Optional[list[str]],
+        severity_filter: list[str] | None,
+        class_filter: list[str] | None,
     ) -> None:
         """Gather detailed failure information."""
         if not self.graph:
@@ -194,14 +194,10 @@ class TechnicalAnalysisReport(ReportGenerator):
             data.failures.append(detail)
 
             # Count by class
-            data.failure_by_class[primary_class] = (
-                data.failure_by_class.get(primary_class, 0) + 1
-            )
+            data.failure_by_class[primary_class] = data.failure_by_class.get(primary_class, 0) + 1
 
             # Count by severity
-            data.failure_by_severity[severity] = (
-                data.failure_by_severity.get(severity, 0) + 1
-            )
+            data.failure_by_severity[severity] = data.failure_by_severity.get(severity, 0) + 1
 
     async def _gather_experiments(
         self,
@@ -215,15 +211,11 @@ class TechnicalAnalysisReport(ReportGenerator):
 
         experiments = self.graph.get_experiments(valid_only=False)
 
-        period_experiments = [
-            e for e in experiments
-            if start <= e.created_at <= end
-        ]
+        period_experiments = [e for e in experiments if start <= e.created_at <= end]
 
         data.experiments_total = len(period_experiments)
         data.experiments_validated = sum(
-            1 for e in period_experiments
-            if e.data.get("hypothesis_validated", False)
+            1 for e in period_experiments if e.data.get("hypothesis_validated", False)
         )
 
         # Calculate average reproduction rate
@@ -328,10 +320,10 @@ class TechnicalAnalysisReport(ReportGenerator):
 **Reproducibility:** {failure.reproducibility:.0%}
 
 **Triggers:**
-{chr(10).join(f'- `{t}`' for t in failure.trigger_signature[:5]) or '- None identified'}
+{chr(10).join(f"- `{t}`" for t in failure.trigger_signature[:5]) or "- None identified"}
 
-**Status:** {'✅ Resolved' if failure.is_resolved else '⚠️ Open'}
-{f'**Resolution:** {failure.resolution_notes}' if failure.resolution_notes else ''}
+**Status:** {"✅ Resolved" if failure.is_resolved else "⚠️ Open"}
+{f"**Resolution:** {failure.resolution_notes}" if failure.resolution_notes else ""}
 """,
             )
             subsections.append(subsection)
@@ -360,7 +352,9 @@ class TechnicalAnalysisReport(ReportGenerator):
             content=(
                 "These triggers appeared most frequently across discovered failures. "
                 "Consider implementing detection mechanisms for these patterns."
-            ) if data.common_triggers else "No common patterns identified.",
+            )
+            if data.common_triggers
+            else "No common patterns identified.",
         )
 
     def _build_surfaces_section(self, data: TechnicalData) -> ReportSection:
@@ -379,7 +373,9 @@ class TechnicalAnalysisReport(ReportGenerator):
             content=(
                 "These surfaces were most frequently affected by failures. "
                 "Prioritize hardening efforts accordingly."
-            ) if data.affected_surfaces else "No surface data available.",
+            )
+            if data.affected_surfaces
+            else "No surface data available.",
         )
 
     def _build_technical_recommendations(self, data: TechnicalData) -> ReportSection:

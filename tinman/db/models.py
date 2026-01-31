@@ -1,24 +1,23 @@
 """SQLAlchemy ORM models for Tinman FDRA."""
 
-from datetime import datetime
-from typing import Optional
 import uuid
+from datetime import datetime
 
 from sqlalchemy import (
-    Column,
-    String,
-    Text,
-    Float,
-    Integer,
+    JSON,
+    BigInteger,
     Boolean,
+    CheckConstraint,
+    Column,
     DateTime,
+    Float,
     ForeignKey,
     Index,
-    CheckConstraint,
-    BigInteger,
+    Integer,
+    String,
+    Text,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy import JSON
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 JSONType = JSON().with_variant(JSONB, "postgresql")
 from sqlalchemy.orm import declarative_base, relationship
@@ -32,6 +31,7 @@ def generate_uuid():
 
 class NodeModel(Base):
     """Research Memory Graph nodes."""
+
     __tablename__ = "nodes"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -45,8 +45,9 @@ class NodeModel(Base):
         CheckConstraint(
             "node_type IN ('model_version', 'hypothesis', 'experiment', 'run', "
             "'failure_mode', 'intervention', 'simulation', 'deployment', 'rollback')",
-            name="valid_node_type"
+            name="valid_node_type",
         ),
+        CheckConstraint("valid_to IS NULL OR valid_from <= valid_to", name="valid_temporal_range"),
         Index("idx_nodes_type", "node_type"),
         Index("idx_nodes_created_at", "created_at"),
         Index("idx_nodes_valid_range", "valid_from", "valid_to"),
@@ -55,6 +56,7 @@ class NodeModel(Base):
 
 class EdgeModel(Base):
     """Research Memory Graph edges (causal relationships)."""
+
     __tablename__ = "edges"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -62,6 +64,8 @@ class EdgeModel(Base):
     dst_id = Column(UUID(as_uuid=False), ForeignKey("nodes.id"), nullable=False)
     relation = Column(String(50), nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    valid_from = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
+    valid_to = Column(DateTime(timezone=True), nullable=True)
     edge_metadata = Column(JSONType, nullable=True)
 
     src_node = relationship("NodeModel", foreign_keys=[src_id])
@@ -72,17 +76,22 @@ class EdgeModel(Base):
             "relation IN ('tested_in', 'executed_as', 'observed_in', 'caused_by', "
             "'addressed_by', 'simulated_by', 'deployed_as', 'rolled_back_by', "
             "'regressed_as', 'evolved_into')",
-            name="valid_relation"
+            name="valid_relation",
+        ),
+        CheckConstraint(
+            "valid_to IS NULL OR valid_from <= valid_to", name="valid_edge_temporal_range"
         ),
         Index("idx_edges_src", "src_id"),
         Index("idx_edges_dst", "dst_id"),
         Index("idx_edges_relation", "relation"),
         Index("idx_edges_src_relation", "src_id", "relation"),
+        Index("idx_edges_valid_range", "valid_from", "valid_to"),
     )
 
 
 class ExperimentModel(Base):
     """Experiment definitions."""
+
     __tablename__ = "experiments"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -94,7 +103,9 @@ class ExperimentModel(Base):
     created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
     status = Column(String(20), nullable=False, default="pending")
 
-    runs = relationship("ExperimentRunModel", back_populates="experiment")
+    runs = relationship(
+        "ExperimentRunModel", back_populates="experiment", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("idx_experiments_mode", "mode"),
@@ -104,6 +115,7 @@ class ExperimentModel(Base):
 
 class ExperimentRunModel(Base):
     """Experiment execution runs."""
+
     __tablename__ = "experiment_runs"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -118,7 +130,7 @@ class ExperimentRunModel(Base):
     determinism_seed = Column(BigInteger, nullable=True)
 
     experiment = relationship("ExperimentModel", back_populates="runs")
-    failures = relationship("FailureModel", back_populates="run")
+    failures = relationship("FailureModel", back_populates="run", cascade="all, delete-orphan")
 
     __table_args__ = (
         Index("idx_runs_experiment", "experiment_id"),
@@ -128,6 +140,7 @@ class ExperimentRunModel(Base):
 
 class FailureModel(Base):
     """Discovered failure modes."""
+
     __tablename__ = "failures"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -147,8 +160,12 @@ class FailureModel(Base):
     parent_failure_id = Column(UUID(as_uuid=False), ForeignKey("failures.id"), nullable=True)
 
     run = relationship("ExperimentRunModel", back_populates="failures")
-    causal_links = relationship("CausalLinkModel", back_populates="failure")
-    interventions = relationship("InterventionModel", back_populates="failure")
+    causal_links = relationship(
+        "CausalLinkModel", back_populates="failure", cascade="all, delete-orphan"
+    )
+    interventions = relationship(
+        "InterventionModel", back_populates="failure", cascade="all, delete-orphan"
+    )
     parent_failure = relationship("FailureModel", remote_side=[id])
 
     __table_args__ = (
@@ -161,6 +178,7 @@ class FailureModel(Base):
 
 class CausalLinkModel(Base):
     """Causal links for root cause analysis."""
+
     __tablename__ = "causal_links"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -176,13 +194,12 @@ class CausalLinkModel(Base):
     failure = relationship("FailureModel", back_populates="causal_links")
     parent_cause = relationship("CausalLinkModel", remote_side=[id])
 
-    __table_args__ = (
-        Index("idx_causal_failure", "failure_id"),
-    )
+    __table_args__ = (Index("idx_causal_failure", "failure_id"),)
 
 
 class InterventionModel(Base):
     """Proposed interventions."""
+
     __tablename__ = "interventions"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -198,9 +215,15 @@ class InterventionModel(Base):
     status = Column(String(20), nullable=False, default="proposed")
 
     failure = relationship("FailureModel", back_populates="interventions")
-    simulations = relationship("SimulationModel", back_populates="intervention")
-    approvals = relationship("ApprovalModel", back_populates="intervention")
-    deployments = relationship("DeploymentModel", back_populates="intervention")
+    simulations = relationship(
+        "SimulationModel", back_populates="intervention", cascade="all, delete-orphan"
+    )
+    approvals = relationship(
+        "ApprovalModel", back_populates="intervention", cascade="all, delete-orphan"
+    )
+    deployments = relationship(
+        "DeploymentModel", back_populates="intervention", cascade="all, delete-orphan"
+    )
 
     __table_args__ = (
         Index("idx_interventions_failure", "failure_id"),
@@ -211,6 +234,7 @@ class InterventionModel(Base):
 
 class SimulationModel(Base):
     """Counterfactual simulation results."""
+
     __tablename__ = "simulations"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -225,13 +249,12 @@ class SimulationModel(Base):
 
     intervention = relationship("InterventionModel", back_populates="simulations")
 
-    __table_args__ = (
-        Index("idx_simulations_intervention", "intervention_id"),
-    )
+    __table_args__ = (Index("idx_simulations_intervention", "intervention_id"),)
 
 
 class ApprovalModel(Base):
     """Human approval queue."""
+
     __tablename__ = "approvals"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -256,6 +279,7 @@ class ApprovalModel(Base):
 
 class DeploymentModel(Base):
     """Deployed interventions."""
+
     __tablename__ = "deployments"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -279,6 +303,7 @@ class DeploymentModel(Base):
 
 class ModelVersionModel(Base):
     """Tracked model versions."""
+
     __tablename__ = "model_versions"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -287,6 +312,4 @@ class ModelVersionModel(Base):
     model_metadata = Column(JSONType, nullable=True)
     registered_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
 
-    __table_args__ = (
-        Index("idx_model_versions_version", "version"),
-    )
+    __table_args__ = (Index("idx_model_versions_version", "version"),)

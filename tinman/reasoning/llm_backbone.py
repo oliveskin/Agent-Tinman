@@ -1,17 +1,18 @@
 """LLM Backbone - the reasoning core that powers Tinman's intelligence."""
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
 from enum import Enum
+from typing import Any
 
 from ..integrations.model_client import ModelClient, ModelResponse
-from ..utils import generate_id, utc_now, get_logger
+from ..utils import generate_id, get_logger
 
 logger = get_logger("llm_backbone")
 
 
 class ReasoningMode(str, Enum):
     """Types of reasoning tasks."""
+
     HYPOTHESIS_GENERATION = "hypothesis_generation"
     FAILURE_ANALYSIS = "failure_analysis"
     ROOT_CAUSE_ANALYSIS = "root_cause_analysis"
@@ -24,6 +25,7 @@ class ReasoningMode(str, Enum):
 @dataclass
 class ReasoningContext:
     """Context for a reasoning task."""
+
     id: str = field(default_factory=generate_id)
     mode: ReasoningMode = ReasoningMode.HYPOTHESIS_GENERATION
 
@@ -43,6 +45,7 @@ class ReasoningContext:
 @dataclass
 class ReasoningResult:
     """Result from a reasoning task."""
+
     id: str = field(default_factory=generate_id)
     mode: ReasoningMode = ReasoningMode.HYPOTHESIS_GENERATION
 
@@ -93,10 +96,7 @@ You are embedded with AI teams to help them understand their models better. Your
 
 Be rigorous. Be curious. Be direct."""
 
-    def __init__(self,
-                 model_client: ModelClient,
-                 temperature: float = 0.7,
-                 max_tokens: int = 4096):
+    def __init__(self, model_client: ModelClient, temperature: float = 0.7, max_tokens: int = 4096):
         self.client = model_client
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -133,9 +133,9 @@ Be rigorous. Be curious. Be direct."""
 
         return result
 
-    async def dialogue(self,
-                       user_message: str,
-                       context: Optional[ReasoningContext] = None) -> ReasoningResult:
+    async def dialogue(
+        self, user_message: str, context: ReasoningContext | None = None
+    ) -> ReasoningResult:
         """
         Engage in collaborative dialogue.
 
@@ -183,13 +183,18 @@ Be rigorous. Be curious. Be direct."""
     def _build_hypothesis_prompt(self, context: ReasoningContext) -> str:
         """Build prompt for hypothesis generation."""
         observations_text = "\n".join(
-            f"- {obs.get('description', obs)}"
-            for obs in context.observations
+            f"- {obs.get('description', obs)}" for obs in context.observations
         )
 
-        prior_text = "\n".join(f"- {p}" for p in context.prior_knowledge) if context.prior_knowledge else "None available"
+        prior_text = (
+            "\n".join(f"- {p}" for p in context.prior_knowledge)
+            if context.prior_knowledge
+            else "None available"
+        )
 
-        focus_text = ", ".join(context.focus_areas) if context.focus_areas else "general model behavior"
+        focus_text = (
+            ", ".join(context.focus_areas) if context.focus_areas else "general model behavior"
+        )
 
         return f"""Generate hypotheses about potential failure modes based on these observations.
 
@@ -235,9 +240,7 @@ Format your response as JSON:
 
     def _build_failure_analysis_prompt(self, context: ReasoningContext) -> str:
         """Build prompt for failure analysis."""
-        observations_text = "\n".join(
-            f"- {obs}" for obs in context.observations
-        )
+        observations_text = "\n".join(f"- {obs}" for obs in context.observations)
 
         return f"""Analyze these failure observations and provide a deep understanding of what went wrong.
 
@@ -278,9 +281,7 @@ Format your response as JSON:
 
     def _build_root_cause_prompt(self, context: ReasoningContext) -> str:
         """Build prompt for root cause analysis."""
-        observations_text = "\n".join(
-            f"- {obs}" for obs in context.observations
-        )
+        observations_text = "\n".join(f"- {obs}" for obs in context.observations)
 
         return f"""Perform root cause analysis on this failure.
 
@@ -324,13 +325,13 @@ Format your response as JSON:
 
     def _build_intervention_prompt(self, context: ReasoningContext) -> str:
         """Build prompt for intervention design."""
-        observations_text = "\n".join(
-            f"- {obs}" for obs in context.observations
-        )
+        observations_text = "\n".join(f"- {obs}" for obs in context.observations)
 
-        constraints_text = "\n".join(
-            f"- {k}: {v}" for k, v in context.constraints.items()
-        ) if context.constraints else "No specific constraints"
+        constraints_text = (
+            "\n".join(f"- {k}: {v}" for k, v in context.constraints.items())
+            if context.constraints
+            else "No specific constraints"
+        )
 
         return f"""Design interventions to address this failure.
 
@@ -381,13 +382,13 @@ Format your response as JSON:
 
     def _build_insight_prompt(self, context: ReasoningContext) -> str:
         """Build prompt for insight synthesis."""
-        observations_text = "\n".join(
-            f"- {obs}" for obs in context.observations
-        )
+        observations_text = "\n".join(f"- {obs}" for obs in context.observations)
 
-        prior_text = "\n".join(
-            f"- {p}" for p in context.prior_knowledge
-        ) if context.prior_knowledge else "None"
+        prior_text = (
+            "\n".join(f"- {p}" for p in context.prior_knowledge)
+            if context.prior_knowledge
+            else "None"
+        )
 
         return f"""Synthesize insights from these research findings.
 
@@ -428,9 +429,7 @@ Format your response as:
 
     def _build_experiment_prompt(self, context: ReasoningContext) -> str:
         """Build prompt for experiment design."""
-        observations_text = "\n".join(
-            f"- {obs}" for obs in context.observations
-        )
+        observations_text = "\n".join(f"- {obs}" for obs in context.observations)
 
         return f"""Design an experiment to test this hypothesis.
 
@@ -478,9 +477,11 @@ Format your response as JSON:
 
     def _build_dialogue_prompt(self, context: ReasoningContext) -> str:
         """Build prompt for dialogue."""
-        recent_findings = "\n".join(
-            f"- {obs}" for obs in context.observations[-5:]
-        ) if context.observations else "No recent findings to reference"
+        recent_findings = (
+            "\n".join(f"- {obs}" for obs in context.observations[-5:])
+            if context.observations
+            else "No recent findings to reference"
+        )
 
         return f"""Respond to this message from a collaborator.
 
@@ -501,9 +502,7 @@ If asked about your findings, reference specific observations.
 If asked for recommendations, be concrete and actionable.
 If asked to explain your reasoning, walk through your logic step by step."""
 
-    def _parse_response(self,
-                        response: ModelResponse,
-                        mode: ReasoningMode) -> ReasoningResult:
+    def _parse_response(self, response: ModelResponse, mode: ReasoningMode) -> ReasoningResult:
         """Parse LLM response into structured result."""
         import json
         import re
@@ -516,7 +515,7 @@ If asked to explain your reasoning, walk through your logic step by step."""
         )
 
         # Try to extract JSON from response
-        json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+        json_match = re.search(r"```json\s*(.*?)\s*```", content, re.DOTALL)
         if json_match:
             try:
                 result.structured_output = json.loads(json_match.group(1))
@@ -541,8 +540,7 @@ If asked to explain your reasoning, walk through your logic step by step."""
 
         # Extract reasoning trace
         result.reasoning_trace = result.structured_output.get(
-            "reasoning",
-            result.structured_output.get("analysis", "")
+            "reasoning", result.structured_output.get("analysis", "")
         )
 
         # Determine if this should be remembered
@@ -554,8 +552,7 @@ If asked to explain your reasoning, walk through your logic step by step."""
         # Extract key insights
         if "key_insights" in result.structured_output:
             result.key_insights = [
-                i.get("insight", str(i))
-                for i in result.structured_output["key_insights"]
+                i.get("insight", str(i)) for i in result.structured_output["key_insights"]
             ]
         elif "key_insight" in result.structured_output:
             result.key_insights = [result.structured_output["key_insight"]]

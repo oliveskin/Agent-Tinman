@@ -6,18 +6,17 @@ purposes, including approval trails, mode transitions, and policy adherence.
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional
 
-from .base import (
-    Report,
-    ReportGenerator,
-    ReportType,
-    ReportMetadata,
-    ReportSection,
-)
 from ..db.audit import AuditLogger
 from ..memory.graph import MemoryGraph
 from ..utils import get_logger, utc_now
+from .base import (
+    Report,
+    ReportGenerator,
+    ReportMetadata,
+    ReportSection,
+    ReportType,
+)
 
 logger = get_logger("reporting.compliance")
 
@@ -25,30 +24,33 @@ logger = get_logger("reporting.compliance")
 @dataclass
 class ApprovalRecord:
     """Record of an approval decision."""
+
     id: str
     action_type: str
     decision: str
     risk_tier: str
     decided_by: str
     decided_at: datetime
-    reason: Optional[str]
+    reason: str | None
     mode: str
 
 
 @dataclass
 class ModeTransitionRecord:
     """Record of a mode transition."""
+
     id: str
     from_mode: str
     to_mode: str
     transitioned_at: datetime
     transitioned_by: str
-    reason: Optional[str]
+    reason: str | None
 
 
 @dataclass
 class PolicyViolation:
     """Record of a policy violation."""
+
     id: str
     action_type: str
     violation_type: str
@@ -60,6 +62,7 @@ class PolicyViolation:
 @dataclass
 class ComplianceData:
     """Data specific to compliance reports."""
+
     approvals: list[ApprovalRecord] = field(default_factory=list)
     approvals_approved: int = 0
     approvals_rejected: int = 0
@@ -97,8 +100,8 @@ class ComplianceReport(ReportGenerator):
 
     def __init__(
         self,
-        audit_logger: Optional[AuditLogger] = None,
-        graph: Optional[MemoryGraph] = None,
+        audit_logger: AuditLogger | None = None,
+        graph: MemoryGraph | None = None,
     ):
         self.audit_logger = audit_logger
         self.graph = graph
@@ -113,8 +116,8 @@ class ComplianceReport(ReportGenerator):
 
     async def generate(
         self,
-        period_start: Optional[datetime] = None,
-        period_end: Optional[datetime] = None,
+        period_start: datetime | None = None,
+        period_end: datetime | None = None,
         **kwargs,
     ) -> Report[ComplianceData]:
         """Generate compliance report."""
@@ -333,8 +336,7 @@ class ComplianceReport(ReportGenerator):
         """Build compliance summary."""
         total_approvals = data.approvals_approved + data.approvals_rejected
         rejection_rate = (
-            data.approvals_rejected / total_approvals * 100
-            if total_approvals > 0 else 0
+            data.approvals_rejected / total_approvals * 100 if total_approvals > 0 else 0
         )
 
         parts = [
@@ -343,14 +345,10 @@ class ComplianceReport(ReportGenerator):
         ]
 
         if data.mode_transitions:
-            parts.append(
-                f"There were **{len(data.mode_transitions)} mode transitions**."
-            )
+            parts.append(f"There were **{len(data.mode_transitions)} mode transitions**.")
 
         if data.policy_violations:
-            parts.append(
-                f"**{len(data.policy_violations)} policy violations** were recorded."
-            )
+            parts.append(f"**{len(data.policy_violations)} policy violations** were recorded.")
 
         if data.blocked_actions:
             parts.append(f"**{data.blocked_actions} actions** were blocked by policy.")
@@ -422,17 +420,23 @@ class ComplianceReport(ReportGenerator):
                         [
                             "Lab",
                             f"{data.time_in_lab:.1f}",
-                            f"{data.time_in_lab / total_hours * 100:.0f}%" if total_hours > 0 else "N/A"
+                            f"{data.time_in_lab / total_hours * 100:.0f}%"
+                            if total_hours > 0
+                            else "N/A",
                         ],
                         [
                             "Shadow",
                             f"{data.time_in_shadow:.1f}",
-                            f"{data.time_in_shadow / total_hours * 100:.0f}%" if total_hours > 0 else "N/A"
+                            f"{data.time_in_shadow / total_hours * 100:.0f}%"
+                            if total_hours > 0
+                            else "N/A",
                         ],
                         [
                             "Production",
                             f"{data.time_in_production:.1f}",
-                            f"{data.time_in_production / total_hours * 100:.0f}%" if total_hours > 0 else "N/A"
+                            f"{data.time_in_production / total_hours * 100:.0f}%"
+                            if total_hours > 0
+                            else "N/A",
                         ],
                     ],
                 },
@@ -482,7 +486,9 @@ class ComplianceReport(ReportGenerator):
                         ]
                         for v in data.policy_violations
                     ],
-                } if data.policy_violations else {},
+                }
+                if data.policy_violations
+                else {},
             ],
         )
 
@@ -517,13 +523,13 @@ class ComplianceReport(ReportGenerator):
             content=f"""
 This report was generated automatically by Tinman FDRA.
 
-**Reporting Period:** {start.strftime('%Y-%m-%d')} to {end.strftime('%Y-%m-%d')}
+**Reporting Period:** {start.strftime("%Y-%m-%d")} to {end.strftime("%Y-%m-%d")}
 **Generated At:** {utc_now().isoformat()}
 
 **Summary of Controls:**
-- All high-risk actions required human approval: {'✅ Verified' if data.approvals_by_tier.get('block', 0) > 0 or data.blocked_actions > 0 else '⚠️ No high-risk actions recorded'}
-- Mode transitions logged: {'✅ ' + str(len(data.mode_transitions)) + ' recorded' if data.mode_transitions else '⚠️ None recorded'}
-- Policy violations tracked: {'✅ System operational' if not data.audit_gaps else '⚠️ Gaps detected'}
+- All high-risk actions required human approval: {"✅ Verified" if data.approvals_by_tier.get("block", 0) > 0 or data.blocked_actions > 0 else "⚠️ No high-risk actions recorded"}
+- Mode transitions logged: {"✅ " + str(len(data.mode_transitions)) + " recorded" if data.mode_transitions else "⚠️ None recorded"}
+- Policy violations tracked: {"✅ System operational" if not data.audit_gaps else "⚠️ Gaps detected"}
 
 ---
 *This document is for compliance and audit purposes. Retain according to data retention policy.*

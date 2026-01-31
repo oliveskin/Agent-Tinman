@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 """Hugging Face Inference API demo wired into Tinman PipelineAdapter."""
 
 import argparse

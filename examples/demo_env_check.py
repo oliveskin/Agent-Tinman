@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python
+#!/usr/bin/env python
 """Validate required env vars for demo scripts without running providers."""
 
 import argparse

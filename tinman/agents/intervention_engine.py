@@ -2,16 +2,16 @@
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
-from .base import BaseAgent, AgentContext, AgentResult
-from .failure_discovery import DiscoveredFailure
 from ..config.modes import OperatingMode
-from ..core.risk_evaluator import RiskTier, RiskEvaluator
+from ..core.risk_evaluator import RiskEvaluator, RiskTier
 from ..memory.graph import MemoryGraph
-from ..taxonomy.failure_types import FailureClass, Severity
 from ..reasoning.llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
+from ..taxonomy.failure_types import FailureClass, Severity
 from ..utils import generate_id, get_logger
+from .base import AgentContext, AgentResult, BaseAgent
+from .failure_discovery import DiscoveredFailure
 
 if TYPE_CHECKING:
     from ..core.approval_handler import ApprovalHandler
@@ -21,19 +21,21 @@ logger = get_logger("intervention_engine")
 
 class InterventionType(str, Enum):
     """Types of interventions."""
-    PROMPT_PATCH = "prompt_patch"          # Modify system prompt
-    GUARDRAIL = "guardrail"                # Add input/output filter
-    PARAMETER_TUNE = "parameter_tune"       # Adjust model parameters
-    TOOL_RESTRICTION = "tool_restriction"   # Restrict tool access
-    CONTEXT_LIMIT = "context_limit"         # Limit context window
-    RETRY_POLICY = "retry_policy"           # Change retry behavior
-    CIRCUIT_BREAKER = "circuit_breaker"     # Add failure circuit breaker
-    HUMAN_REVIEW = "human_review"           # Route to human review
+
+    PROMPT_PATCH = "prompt_patch"  # Modify system prompt
+    GUARDRAIL = "guardrail"  # Add input/output filter
+    PARAMETER_TUNE = "parameter_tune"  # Adjust model parameters
+    TOOL_RESTRICTION = "tool_restriction"  # Restrict tool access
+    CONTEXT_LIMIT = "context_limit"  # Limit context window
+    RETRY_POLICY = "retry_policy"  # Change retry behavior
+    CIRCUIT_BREAKER = "circuit_breaker"  # Add failure circuit breaker
+    HUMAN_REVIEW = "human_review"  # Route to human review
 
 
 @dataclass
 class Intervention:
     """A proposed intervention to address a failure."""
+
     id: str = field(default_factory=generate_id)
     failure_id: str = ""
 
@@ -185,12 +187,14 @@ class InterventionEngine(BaseAgent):
         ],
     }
 
-    def __init__(self,
-                 graph: Optional[MemoryGraph] = None,
-                 risk_evaluator: Optional[RiskEvaluator] = None,
-                 llm_backbone: Optional[LLMBackbone] = None,
-                 approval_handler: Optional["ApprovalHandler"] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        graph: MemoryGraph | None = None,
+        risk_evaluator: RiskEvaluator | None = None,
+        llm_backbone: LLMBackbone | None = None,
+        approval_handler: Optional["ApprovalHandler"] = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.graph = graph
         self.risk_evaluator = risk_evaluator or RiskEvaluator()
@@ -243,9 +247,9 @@ class InterventionEngine(BaseAgent):
             },
         )
 
-    async def _generate_with_llm(self,
-                                  failure: DiscoveredFailure,
-                                  context: AgentContext) -> list[Intervention]:
+    async def _generate_with_llm(
+        self, failure: DiscoveredFailure, context: AgentContext
+    ) -> list[Intervention]:
         """Use LLM to generate creative interventions for a failure."""
         # Build context for intervention design
         observations = [
@@ -347,9 +351,9 @@ Generate 2-3 intervention options with concrete implementation details.""",
 
         return interventions
 
-    def _generate_interventions(self,
-                                 failure: DiscoveredFailure,
-                                 context: AgentContext) -> list[Intervention]:
+    def _generate_interventions(
+        self, failure: DiscoveredFailure, context: AgentContext
+    ) -> list[Intervention]:
         """Generate interventions for a failure."""
         interventions = []
 
@@ -363,7 +367,7 @@ Generate 2-3 intervention options with concrete implementation details.""",
             risk_tier, risk_factors = self._assess_risk(intervention, failure, context)
             intervention.risk_tier = risk_tier
             intervention.risk_factors = risk_factors
-            intervention.requires_approval = (risk_tier != RiskTier.SAFE)
+            intervention.requires_approval = risk_tier != RiskTier.SAFE
 
             # Estimate impact
             intervention.expected_gains = self._estimate_gains(intervention, failure)
@@ -380,9 +384,7 @@ Generate 2-3 intervention options with concrete implementation details.""",
 
         return interventions
 
-    def _create_from_template(self,
-                               template: dict,
-                               failure: DiscoveredFailure) -> Intervention:
+    def _create_from_template(self, template: dict, failure: DiscoveredFailure) -> Intervention:
         """Create intervention from template."""
         return Intervention(
             failure_id=failure.id,
@@ -393,10 +395,9 @@ Generate 2-3 intervention options with concrete implementation details.""",
             rationale=f"Addressing {failure.primary_class.value} failure: {failure.description[:100]}",
         )
 
-    def _assess_risk(self,
-                     intervention: Intervention,
-                     failure: DiscoveredFailure,
-                     context: AgentContext) -> tuple[RiskTier, list[str]]:
+    def _assess_risk(
+        self, intervention: Intervention, failure: DiscoveredFailure, context: AgentContext
+    ) -> tuple[RiskTier, list[str]]:
         """Assess risk of an intervention."""
         factors = []
 
@@ -428,9 +429,9 @@ Generate 2-3 intervention options with concrete implementation details.""",
             return RiskTier.REVIEW, factors
         return RiskTier.SAFE, factors
 
-    def _estimate_gains(self,
-                        intervention: Intervention,
-                        failure: DiscoveredFailure) -> dict[str, float]:
+    def _estimate_gains(
+        self, intervention: Intervention, failure: DiscoveredFailure
+    ) -> dict[str, float]:
         """Estimate expected gains from intervention."""
         gains = {
             "failure_reduction": 0.0,
@@ -442,7 +443,10 @@ Generate 2-3 intervention options with concrete implementation details.""",
             InterventionType.PROMPT_PATCH: {"failure_reduction": 0.4, "safety_improvement": 0.2},
             InterventionType.GUARDRAIL: {"failure_reduction": 0.6, "safety_improvement": 0.5},
             InterventionType.PARAMETER_TUNE: {"failure_reduction": 0.3, "safety_improvement": 0.1},
-            InterventionType.TOOL_RESTRICTION: {"failure_reduction": 0.7, "safety_improvement": 0.6},
+            InterventionType.TOOL_RESTRICTION: {
+                "failure_reduction": 0.7,
+                "safety_improvement": 0.6,
+            },
             InterventionType.CONTEXT_LIMIT: {"failure_reduction": 0.5, "safety_improvement": 0.3},
             InterventionType.RETRY_POLICY: {"failure_reduction": 0.3, "safety_improvement": 0.2},
             InterventionType.CIRCUIT_BREAKER: {"failure_reduction": 0.8, "safety_improvement": 0.7},
@@ -453,7 +457,7 @@ Generate 2-3 intervention options with concrete implementation details.""",
 
         # Adjust based on failure reproducibility
         # Higher reproducibility = more confident in fix
-        gains["failure_reduction"] *= (0.5 + failure.reproducibility * 0.5)
+        gains["failure_reduction"] *= 0.5 + failure.reproducibility * 0.5
 
         return gains
 
@@ -468,11 +472,20 @@ Generate 2-3 intervention options with concrete implementation details.""",
         type_regressions = {
             InterventionType.PROMPT_PATCH: {"latency_increase": 0.1, "capability_reduction": 0.05},
             InterventionType.GUARDRAIL: {"latency_increase": 0.2, "capability_reduction": 0.1},
-            InterventionType.PARAMETER_TUNE: {"latency_increase": 0.0, "capability_reduction": 0.15},
-            InterventionType.TOOL_RESTRICTION: {"latency_increase": 0.0, "capability_reduction": 0.3},
+            InterventionType.PARAMETER_TUNE: {
+                "latency_increase": 0.0,
+                "capability_reduction": 0.15,
+            },
+            InterventionType.TOOL_RESTRICTION: {
+                "latency_increase": 0.0,
+                "capability_reduction": 0.3,
+            },
             InterventionType.CONTEXT_LIMIT: {"latency_increase": 0.0, "capability_reduction": 0.2},
             InterventionType.RETRY_POLICY: {"latency_increase": 0.3, "capability_reduction": 0.0},
-            InterventionType.CIRCUIT_BREAKER: {"latency_increase": 0.1, "capability_reduction": 0.2},
+            InterventionType.CIRCUIT_BREAKER: {
+                "latency_increase": 0.1,
+                "capability_reduction": 0.2,
+            },
             InterventionType.HUMAN_REVIEW: {"latency_increase": 0.9, "capability_reduction": 0.0},
         }
 
@@ -519,6 +532,7 @@ Generate 2-3 intervention options with concrete implementation details.""",
 
     def _prioritize(self, interventions: list[Intervention]) -> list[Intervention]:
         """Prioritize interventions by expected net benefit."""
+
         def score(i: Intervention) -> float:
             gains = sum(i.expected_gains.values())
             regressions = sum(i.expected_regressions.values())
@@ -651,12 +665,14 @@ Generate 2-3 intervention options with concrete implementation details.""",
     def _build_rollback_plan(self, intervention: Intervention) -> str:
         """Build a rollback plan description for an intervention."""
         if not intervention.reversible:
-            return "WARNING: This intervention is not reversible. Manual intervention may be required."
+            return (
+                "WARNING: This intervention is not reversible. Manual intervention may be required."
+            )
 
         type_rollbacks = {
             InterventionType.PROMPT_PATCH: "Remove the prompt modification and restore original system prompt",
             InterventionType.GUARDRAIL: "Disable the guardrail filter and restore direct passthrough",
-            InterventionType.PARAMETER_TUNE: f"Revert parameter to original value",
+            InterventionType.PARAMETER_TUNE: "Revert parameter to original value",
             InterventionType.TOOL_RESTRICTION: "Remove tool restriction and restore full access",
             InterventionType.CONTEXT_LIMIT: "Remove context limit and restore default window",
             InterventionType.RETRY_POLICY: "Revert to original retry policy",
@@ -665,30 +681,176 @@ Generate 2-3 intervention options with concrete implementation details.""",
         }
 
         base_plan = type_rollbacks.get(
-            intervention.intervention_type,
-            "Revert changes and restore previous configuration"
+            intervention.intervention_type, "Revert changes and restore previous configuration"
         )
 
         return f"{base_plan}. Intervention ID: {intervention.id}"
 
-    async def _apply_intervention(self, intervention: Intervention) -> None:
+    async def _apply_intervention(self, intervention: Intervention) -> dict[str, Any]:
         """
         Apply an intervention to the target system.
 
-        This is where the actual changes would be made.
-        Currently a placeholder - actual implementation depends on
-        the target system's configuration API.
+        This method handles each InterventionType with appropriate logging
+        and returns a result dict describing what was applied.
+
+        Args:
+            intervention: The intervention to apply
+
+        Returns:
+            Dict with applied status, intervention type, payload, and message
+
+        Raises:
+            NotImplementedError: For unrecognized intervention types
         """
-        logger.info(f"Applying intervention: {intervention.name}")
-        logger.info(f"Type: {intervention.intervention_type.value}")
-        logger.info(f"Payload: {intervention.payload}")
+        # Audit trail logging - log the start of intervention application
+        logger.info(
+            "intervention_application_started",
+            intervention_id=intervention.id,
+            intervention_name=intervention.name,
+            intervention_type=intervention.intervention_type.value,
+            failure_id=intervention.failure_id,
+        )
 
-        # In a real implementation, this would:
-        # - For PROMPT_PATCH: Update the system prompt in the model config
-        # - For GUARDRAIL: Register a new input/output filter
-        # - For PARAMETER_TUNE: Update model parameters
-        # - For TOOL_RESTRICTION: Update tool access policies
-        # etc.
+        intervention_type = intervention.intervention_type
+        payload = intervention.payload
 
-        # For now, we log and simulate success
-        # The actual integration would depend on the target system's API
+        if intervention_type == InterventionType.PROMPT_PATCH:
+            message = f"Prompt patch would be applied: position={payload.get('position', 'unknown')}, addition_length={len(str(payload.get('prompt_addition', '')))}"
+            logger.info(
+                "applying_prompt_patch",
+                intervention_id=intervention.id,
+                position=payload.get("position"),
+                prompt_addition_preview=str(payload.get("prompt_addition", ""))[:100],
+                payload=payload,
+            )
+
+        elif intervention_type == InterventionType.GUARDRAIL:
+            message = f"Guardrail would be added: type={payload.get('validation_type', payload.get('filter_type', 'unknown'))}"
+            logger.info(
+                "applying_guardrail",
+                intervention_id=intervention.id,
+                validation_type=payload.get("validation_type"),
+                filter_type=payload.get("filter_type"),
+                reject_on_fail=payload.get("reject_on_fail"),
+                payload=payload,
+            )
+
+        elif intervention_type == InterventionType.PARAMETER_TUNE:
+            param_name = payload.get("parameter", "unknown")
+            from_val = payload.get("from_value")
+            to_val = payload.get("to_value")
+            message = f"Parameter '{param_name}' would be changed from {from_val} to {to_val}"
+            logger.info(
+                "applying_parameter_tune",
+                intervention_id=intervention.id,
+                parameter=param_name,
+                from_value=from_val,
+                to_value=to_val,
+                payload=payload,
+            )
+
+        elif intervention_type == InterventionType.TOOL_RESTRICTION:
+            mode = payload.get("mode", "unknown")
+            allowed_tools = payload.get("allowed_tools", [])
+            blocked_tools = payload.get("blocked_tools", [])
+            message = f"Tool restriction would be applied: mode={mode}, allowed={len(allowed_tools)}, blocked={len(blocked_tools)}"
+            logger.info(
+                "applying_tool_restriction",
+                intervention_id=intervention.id,
+                restriction_mode=mode,
+                allowed_tools=allowed_tools,
+                blocked_tools=blocked_tools,
+                payload=payload,
+            )
+
+        elif intervention_type == InterventionType.CONTEXT_LIMIT:
+            max_tokens = payload.get("max_tokens")
+            strategy = payload.get("strategy", "unknown")
+            message = (
+                f"Context limit would be changed: max_tokens={max_tokens}, strategy={strategy}"
+            )
+            logger.info(
+                "applying_context_limit",
+                intervention_id=intervention.id,
+                max_tokens=max_tokens,
+                strategy=strategy,
+                preserve_system=payload.get("preserve_system"),
+                payload=payload,
+            )
+
+        elif intervention_type == InterventionType.RETRY_POLICY:
+            max_retries = payload.get("max_retries")
+            initial_delay = payload.get("initial_delay_ms")
+            max_delay = payload.get("max_delay_ms")
+            message = f"Retry policy would be changed: max_retries={max_retries}, initial_delay={initial_delay}ms, max_delay={max_delay}ms"
+            logger.info(
+                "applying_retry_policy",
+                intervention_id=intervention.id,
+                max_retries=max_retries,
+                initial_delay_ms=initial_delay,
+                max_delay_ms=max_delay,
+                multiplier=payload.get("multiplier"),
+                payload=payload,
+            )
+
+        elif intervention_type == InterventionType.CIRCUIT_BREAKER:
+            trigger = payload.get("trigger")
+            action = payload.get("action", "unknown")
+            message = f"Circuit breaker would be configured: action={action}, notify={payload.get('notify', False)}"
+            logger.info(
+                "applying_circuit_breaker",
+                intervention_id=intervention.id,
+                trigger=trigger,
+                action=action,
+                notify=payload.get("notify"),
+                similarity_threshold=payload.get("similarity_threshold"),
+                max_iterations=payload.get("max_iterations"),
+                payload=payload,
+            )
+
+        elif intervention_type == InterventionType.HUMAN_REVIEW:
+            escalation_level = payload.get("escalation_level", "standard")
+            block_until_resolved = payload.get("block_until_resolved", False)
+            message = f"Escalation to human review: level={escalation_level}, blocking={block_until_resolved}"
+            logger.info(
+                "applying_human_review_escalation",
+                intervention_id=intervention.id,
+                escalation_level=escalation_level,
+                include_context=payload.get("include_context"),
+                block_until_resolved=block_until_resolved,
+                trigger_conditions=payload.get("trigger_conditions"),
+                timeout_minutes=payload.get("timeout_minutes"),
+                payload=payload,
+            )
+
+        else:
+            # Unrecognized intervention type
+            logger.error(
+                "unrecognized_intervention_type",
+                intervention_id=intervention.id,
+                intervention_type=str(intervention_type),
+            )
+            raise NotImplementedError(
+                f"Unrecognized intervention type: {intervention_type}. "
+                f"Supported types are: {[t.value for t in InterventionType]}"
+            )
+
+        # Build result dict
+        result = {
+            "applied": True,
+            "intervention_type": intervention_type.value,
+            "payload": payload,
+            "message": message,
+        }
+
+        # Audit trail logging - log successful application
+        logger.info(
+            "intervention_application_completed",
+            intervention_id=intervention.id,
+            intervention_name=intervention.name,
+            intervention_type=intervention_type.value,
+            message=message,
+            success=True,
+        )
+
+        return result

@@ -147,9 +147,7 @@ class TestRiskPolicy:
         assert override.tier == RiskTier.BLOCK
 
         # Config change should not be overridden
-        override = default_risk_policy.check_action_override(
-            ActionType.CONFIG_CHANGE, Mode.LAB
-        )
+        override = default_risk_policy.check_action_override(ActionType.CONFIG_CHANGE, Mode.LAB)
         assert override is None
 
     def test_cost_threshold_lookup(self, default_risk_policy):
@@ -213,8 +211,20 @@ class TestPolicyDrivenRiskEvaluator:
         strict_policy = RiskPolicy(
             base_matrix={
                 "lab": {"S0": "block", "S1": "block", "S2": "block", "S3": "block", "S4": "block"},
-                "shadow": {"S0": "block", "S1": "block", "S2": "block", "S3": "block", "S4": "block"},
-                "production": {"S0": "block", "S1": "block", "S2": "block", "S3": "block", "S4": "block"},
+                "shadow": {
+                    "S0": "block",
+                    "S1": "block",
+                    "S2": "block",
+                    "S3": "block",
+                    "S4": "block",
+                },
+                "production": {
+                    "S0": "block",
+                    "S1": "block",
+                    "S2": "block",
+                    "S3": "block",
+                    "S4": "block",
+                },
             },
             action_overrides=[],
             block_destructive_always=False,  # For this test
@@ -260,7 +270,7 @@ class TestModeTransitionRules:
         """Test that valid mode transitions are allowed."""
         # These transitions should be valid according to MODES.md
         valid_transitions = [
-            (Mode.LAB, Mode.SHADOW),      # LAB -> SHADOW
+            (Mode.LAB, Mode.SHADOW),  # LAB -> SHADOW
             (Mode.SHADOW, Mode.PRODUCTION),  # SHADOW -> PRODUCTION
             (Mode.PRODUCTION, Mode.SHADOW),  # PRODUCTION -> SHADOW (regression fallback)
         ]

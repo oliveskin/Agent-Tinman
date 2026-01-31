@@ -35,8 +35,7 @@ def _load_base_callback_handler():
         from langchain.callbacks.base import BaseCallbackHandler
     except Exception as exc:  # pragma: no cover - depends on optional package
         raise ImportError(
-            "LangChain integration requires langchain. "
-            "Install with: pip install langchain"
+            "LangChain integration requires langchain. Install with: pip install langchain"
         ) from exc
     return BaseCallbackHandler
 
@@ -50,9 +49,9 @@ class TinmanLangChainCallbackHandler:  # intentionally not typed to avoid hard d
             cls.__bases__ = (base,)
         return super().__new__(cls)
 
-    def __init__(self,
-                 mode: OperatingMode = OperatingMode.SHADOW,
-                 adapter: Optional[PipelineAdapter] = None):
+    def __init__(
+        self, mode: OperatingMode = OperatingMode.SHADOW, adapter: Optional[PipelineAdapter] = None
+    ):
         self.adapter = adapter or PipelineAdapter(mode=mode)
         self.adapter.register_hook(FailureDetectionHook())
         self._context: Optional[PipelineContext] = None

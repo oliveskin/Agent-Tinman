@@ -1,12 +1,13 @@
 """PostgreSQL repository for the Research Memory Graph."""
 
 from datetime import datetime
-from typing import Any, Optional
-from sqlalchemy.orm import Session
+from typing import Any
 
-from ..db.models import NodeModel, EdgeModel
-from ..utils import utc_now, get_logger
-from .models import Node, Edge, NodeType, EdgeRelation
+from sqlalchemy.orm import Session, selectinload
+
+from ..db.models import EdgeModel, NodeModel
+from ..utils import get_logger, utc_now
+from .models import Edge, EdgeRelation, Node, NodeType
 
 logger = get_logger("graph_repository")
 
@@ -17,6 +18,11 @@ class GraphRepository:
 
     Handles storage and retrieval of nodes and edges with
     temporal versioning support.
+
+    Note: This repository does NOT auto-commit transactions.
+    Callers must explicitly call commit() to persist changes,
+    or rollback() to discard them. This allows batching multiple
+    operations into a single atomic transaction.
     """
 
     def __init__(self, session: Session):
@@ -34,15 +40,12 @@ class GraphRepository:
         )
         self.session.add(db_node)
         self.session.flush()
-        self.session.commit()
         logger.debug(f"Added node: {node.id} ({node.node_type.value})")
         return node.id
 
-    def get_node(self, node_id: str) -> Optional[Node]:
+    def get_node(self, node_id: str) -> Node | None:
         """Retrieve a node by ID."""
-        db_node = self.session.query(NodeModel).filter(
-            NodeModel.id == node_id
-        ).first()
+        db_node = self.session.query(NodeModel).filter(NodeModel.id == node_id).first()
 
         if not db_node:
             return None
@@ -51,9 +54,7 @@ class GraphRepository:
 
     def update_node_data(self, node_id: str, updates: dict[str, Any]) -> bool:
         """Update a node's data payload."""
-        db_node = self.session.query(NodeModel).filter(
-            NodeModel.id == node_id
-        ).first()
+        db_node = self.session.query(NodeModel).filter(NodeModel.id == node_id).first()
 
         if not db_node:
             return False
@@ -62,7 +63,6 @@ class GraphRepository:
         existing.update(updates)
         db_node.data = existing
         self.session.flush()
-        self.session.commit()
         return True
 
     def add_edge(self, edge: Edge) -> str:
@@ -77,106 +77,115 @@ class GraphRepository:
         )
         self.session.add(db_edge)
         self.session.flush()
-        self.session.commit()
         logger.debug(f"Added edge: {edge.src_id} -[{edge.relation.value}]-> {edge.dst_id}")
         return edge.id
 
-    def get_edge(self, edge_id: str) -> Optional[Edge]:
+    def get_edge(self, edge_id: str) -> Edge | None:
         """Retrieve an edge by ID."""
-        db_edge = self.session.query(EdgeModel).filter(
-            EdgeModel.id == edge_id
-        ).first()
+        db_edge = self.session.query(EdgeModel).filter(EdgeModel.id == edge_id).first()
 
         if not db_edge:
             return None
 
         return self._db_to_edge(db_edge)
 
-    def get_nodes_by_type(self,
-                          node_type: NodeType,
-                          valid_only: bool = True,
-                          limit: int = 100) -> list[Node]:
-        """Get all nodes of a specific type."""
-        query = self.session.query(NodeModel).filter(
-            NodeModel.node_type == node_type.value
-        )
+    def get_nodes_by_type(
+        self,
+        node_type: NodeType,
+        valid_only: bool = True,
+        limit: int = 100,
+        with_edges: bool = False,
+    ) -> list[Node]:
+        """Get all nodes of a specific type with optional eager loading of edges."""
+        query = self.session.query(NodeModel).filter(NodeModel.node_type == node_type.value)
+
+        if with_edges:
+            query = query.options(
+                selectinload(NodeModel.outgoing_edges), selectinload(NodeModel.incoming_edges)
+            )
 
         if valid_only:
             now = utc_now()
             query = query.filter(
                 NodeModel.valid_from <= now,
-                (NodeModel.valid_to.is_(None)) | (NodeModel.valid_to >= now)
+                (NodeModel.valid_to.is_(None)) | (NodeModel.valid_to >= now),
             )
 
         query = query.order_by(NodeModel.created_at.desc()).limit(limit)
 
         return [self._db_to_node(n) for n in query.all()]
 
-    def get_outgoing_edges(self,
-                           node_id: str,
-                           relation: Optional[EdgeRelation] = None) -> list[Edge]:
+    def get_outgoing_edges(
+        self, node_id: str, relation: EdgeRelation | None = None
+    ) -> list[Edge]:
         """Get edges originating from a node."""
-        query = self.session.query(EdgeModel).filter(
-            EdgeModel.src_id == node_id
-        )
+        query = self.session.query(EdgeModel).filter(EdgeModel.src_id == node_id)
 
         if relation:
             query = query.filter(EdgeModel.relation == relation.value)
 
         return [self._db_to_edge(e) for e in query.all()]
 
-    def get_incoming_edges(self,
-                           node_id: str,
-                           relation: Optional[EdgeRelation] = None) -> list[Edge]:
+    def get_incoming_edges(
+        self, node_id: str, relation: EdgeRelation | None = None
+    ) -> list[Edge]:
         """Get edges pointing to a node."""
-        query = self.session.query(EdgeModel).filter(
-            EdgeModel.dst_id == node_id
-        )
+        query = self.session.query(EdgeModel).filter(EdgeModel.dst_id == node_id)
 
         if relation:
             query = query.filter(EdgeModel.relation == relation.value)
 
         return [self._db_to_edge(e) for e in query.all()]
 
-    def get_neighbors(self,
-                      node_id: str,
-                      relation: Optional[EdgeRelation] = None,
-                      direction: str = "outgoing") -> list[Node]:
-        """Get neighboring nodes."""
+    def get_neighbors(
+        self,
+        node_id: str,
+        relation: EdgeRelation | None = None,
+        direction: str = "outgoing",
+        valid_only: bool = True,
+        limit: int = 100,
+    ) -> list[Node]:
+        """Get neighboring nodes with eager loading."""
         if direction == "outgoing":
-            edges = self.get_outgoing_edges(node_id, relation)
-            neighbor_ids = [e.dst_id for e in edges]
+            query = (
+                self.session.query(NodeModel)
+                .join(EdgeModel, EdgeModel.dst_id == NodeModel.id)
+                .filter(EdgeModel.src_id == node_id)
+            )
         else:
-            edges = self.get_incoming_edges(node_id, relation)
-            neighbor_ids = [e.src_id for e in edges]
+            query = (
+                self.session.query(NodeModel)
+                .join(EdgeModel, EdgeModel.src_id == NodeModel.id)
+                .filter(EdgeModel.dst_id == node_id)
+            )
 
-        if not neighbor_ids:
-            return []
+        if relation:
+            query = query.filter(EdgeModel.relation == relation.value)
 
-        db_nodes = self.session.query(NodeModel).filter(
-            NodeModel.id.in_(neighbor_ids)
-        ).all()
+        if valid_only:
+            now = utc_now()
+            query = query.filter(
+                NodeModel.valid_from <= now,
+                (NodeModel.valid_to.is_(None)) | (NodeModel.valid_to >= now),
+            )
 
+        db_nodes = query.limit(limit).all()
         return [self._db_to_node(n) for n in db_nodes]
 
-    def invalidate_node(self, node_id: str, at: Optional[datetime] = None) -> bool:
+    def invalidate_node(self, node_id: str, at: datetime | None = None) -> bool:
         """Mark a node as no longer valid."""
-        db_node = self.session.query(NodeModel).filter(
-            NodeModel.id == node_id
-        ).first()
+        db_node = self.session.query(NodeModel).filter(NodeModel.id == node_id).first()
 
         if not db_node:
             return False
 
         db_node.valid_to = at or utc_now()
         self.session.flush()
-        self.session.commit()
         return True
 
-    def query_at_time(self,
-                      node_type: Optional[NodeType] = None,
-                      at: Optional[datetime] = None,
-                      limit: int = 100) -> list[Node]:
+    def query_at_time(
+        self, node_type: NodeType | None = None, at: datetime | None = None, limit: int = 100
+    ) -> list[Node]:
         """
         Query nodes valid at a specific point in time.
 
@@ -186,7 +195,7 @@ class GraphRepository:
 
         query = self.session.query(NodeModel).filter(
             NodeModel.valid_from <= timestamp,
-            (NodeModel.valid_to.is_(None)) | (NodeModel.valid_to >= timestamp)
+            (NodeModel.valid_to.is_(None)) | (NodeModel.valid_to >= timestamp),
         )
 
         if node_type:
@@ -196,36 +205,49 @@ class GraphRepository:
 
         return [self._db_to_node(n) for n in query.all()]
 
-    def get_lineage(self, node_id: str, max_depth: int = 10) -> list[tuple[Node, Edge]]:
+    def get_lineage(
+        self,
+        node_id: str,
+        max_depth: int = 10,
+        max_branches: int = 5,
+    ) -> list[tuple[Node, Edge, int]]:
         """
-        Get the causal lineage of a node.
+        Get the causal lineage of a node as a tree structure.
 
-        Traverses CAUSED_BY edges to find the causal chain.
-        Returns list of (node, edge) tuples from effect to cause.
+        Traverses CAUSED_BY edges to find all causal chains.
+        Returns list of (node, edge, depth) tuples in depth-first order.
+        The depth indicator shows how far each cause is from the original node.
+
+        Args:
+            node_id: The starting node ID
+            max_depth: Maximum depth to traverse
+            max_branches: Maximum number of cause branches per node
+
+        Returns:
+            List of (node, edge, depth) tuples representing the cause tree
         """
-        lineage = []
-        current_id = node_id
-        visited = set()
+        result: list[tuple[Node, Edge, int]] = []
+        visited: set[str] = {node_id}
 
-        for _ in range(max_depth):
-            if current_id in visited:
-                break
-            visited.add(current_id)
+        def traverse(current_id: str, depth: int) -> None:
+            if depth >= max_depth:
+                return
 
-            # Get incoming CAUSED_BY edges
+            # Get incoming CAUSED_BY edges for current node
             edges = self.get_incoming_edges(current_id, EdgeRelation.CAUSED_BY)
-            if not edges:
-                break
 
-            edge = edges[0]  # Take first cause
-            cause_node = self.get_node(edge.src_id)
-            if not cause_node:
-                break
+            for edge in edges[:max_branches]:  # Limit branches per node
+                if edge.src_id in visited:
+                    continue
+                visited.add(edge.src_id)
 
-            lineage.append((cause_node, edge))
-            current_id = cause_node.id
+                cause_node = self.get_node(edge.src_id)
+                if cause_node:
+                    result.append((cause_node, edge, depth + 1))
+                    traverse(edge.src_id, depth + 1)
 
-        return lineage
+        traverse(node_id, 0)
+        return result
 
     def get_failure_evolution(self, failure_class: str, limit: int = 50) -> list[Node]:
         """
@@ -235,17 +257,22 @@ class GraphRepository:
         EVOLVED_INTO edges where present.
         """
         # Get all failure nodes of this class
-        failures = self.session.query(NodeModel).filter(
-            NodeModel.node_type == NodeType.FAILURE_MODE.value,
-            NodeModel.data["primary_class"].astext == failure_class
-        ).order_by(NodeModel.created_at.asc()).limit(limit).all()
+        failures = (
+            self.session.query(NodeModel)
+            .filter(
+                NodeModel.node_type == NodeType.FAILURE_MODE.value,
+                NodeModel.data["primary_class"].astext == failure_class,
+            )
+            .order_by(NodeModel.created_at.asc())
+            .limit(limit)
+            .all()
+        )
 
         return [self._db_to_node(f) for f in failures]
 
-    def search_nodes(self,
-                     data_filter: dict[str, Any],
-                     node_type: Optional[NodeType] = None,
-                     limit: int = 100) -> list[Node]:
+    def search_nodes(
+        self, data_filter: dict[str, Any], node_type: NodeType | None = None, limit: int = 100
+    ) -> list[Node]:
         """
         Search nodes by data field values.
 
@@ -259,13 +286,9 @@ class GraphRepository:
         # Apply JSONB filters
         for key, value in data_filter.items():
             if isinstance(value, str):
-                query = query.filter(
-                    NodeModel.data[key].astext == value
-                )
+                query = query.filter(NodeModel.data[key].astext == value)
             else:
-                query = query.filter(
-                    NodeModel.data[key] == value
-                )
+                query = query.filter(NodeModel.data[key] == value)
 
         query = query.order_by(NodeModel.created_at.desc()).limit(limit)
 
@@ -292,3 +315,11 @@ class GraphRepository:
             created_at=db_edge.created_at,
             metadata=db_edge.metadata or {},
         )
+
+    def commit(self) -> None:
+        """Commit the current transaction."""
+        self.session.commit()
+
+    def rollback(self) -> None:
+        """Rollback the current transaction."""
+        self.session.rollback()

@@ -4,10 +4,10 @@ This module provides a central registry for trace adapters,
 enabling automatic format detection and adapter selection.
 """
 
-from typing import Any, Optional, Type
+from typing import Any
 
-from .base import TraceAdapter, Trace, IngestResult
 from ..utils import get_logger
+from .base import IngestResult, Trace, TraceAdapter
 
 logger = get_logger("ingest.registry")
 
@@ -33,12 +33,12 @@ class AdapterRegistry:
     """
 
     def __init__(self):
-        self._adapters: dict[str, Type[TraceAdapter]] = {}
+        self._adapters: dict[str, type[TraceAdapter]] = {}
         self._instances: dict[str, TraceAdapter] = {}
 
     def register(
         self,
-        adapter_class: Type[TraceAdapter],
+        adapter_class: type[TraceAdapter],
         override: bool = False,
     ) -> None:
         """Register an adapter class.
@@ -59,9 +59,7 @@ class AdapterRegistry:
                 continue
 
             self._adapters[format_id] = adapter_class
-            logger.debug(
-                f"Registered adapter {adapter_class.__name__} for '{format_id}'"
-            )
+            logger.debug(f"Registered adapter {adapter_class.__name__} for '{format_id}'")
 
     def unregister(self, format_id: str) -> bool:
         """Unregister an adapter by format ID.
@@ -76,7 +74,7 @@ class AdapterRegistry:
             return True
         return False
 
-    def get_adapter(self, format_id: str) -> Optional[TraceAdapter]:
+    def get_adapter(self, format_id: str) -> TraceAdapter | None:
         """Get an adapter instance by format ID.
 
         Args:
@@ -96,7 +94,7 @@ class AdapterRegistry:
 
         return self._instances[format_id]
 
-    def detect_format(self, data: Any) -> Optional[str]:
+    def detect_format(self, data: Any) -> str | None:
         """Attempt to detect the format of trace data.
 
         Args:
@@ -133,13 +131,15 @@ class AdapterRegistry:
             if "subsegments" in data or "origin" in data:
                 return "xray"
 
-        # Datadog v2
+        # JSON or Datadog v2 format
         if "traces" in data:
             traces = data["traces"]
             if traces and isinstance(traces[0], dict):
+                # JSON format has trace_id, Datadog v2 doesn't
+                if "trace_id" in traces[0]:
+                    return "json"
                 if "spans" in traces[0]:
                     return "datadog_v2"
-            # Generic JSON format
             return "json"
 
         return None
@@ -147,7 +147,7 @@ class AdapterRegistry:
     def parse_auto(
         self,
         data: Any,
-        format_hint: Optional[str] = None,
+        format_hint: str | None = None,
     ) -> list[Trace]:
         """Automatically detect format and parse traces.
 
@@ -168,9 +168,7 @@ class AdapterRegistry:
                 is_valid, errors = adapter.validate(data)
                 if is_valid:
                     return list(adapter.parse(data))
-                logger.debug(
-                    f"Format hint '{format_hint}' validation failed: {errors}"
-                )
+                logger.debug(f"Format hint '{format_hint}' validation failed: {errors}")
 
         # Auto-detect
         detected = self.detect_format(data)
@@ -180,9 +178,7 @@ class AdapterRegistry:
                 is_valid, errors = adapter.validate(data)
                 if is_valid:
                     return list(adapter.parse(data))
-                logger.warning(
-                    f"Detected format '{detected}' but validation failed: {errors}"
-                )
+                logger.warning(f"Detected format '{detected}' but validation failed: {errors}")
 
         # Try all adapters
         for format_id, adapter_class in self._adapters.items():
@@ -192,16 +188,13 @@ class AdapterRegistry:
                 if is_valid:
                     return list(adapter.parse(data))
 
-        raise ValueError(
-            "Could not detect or parse trace format. "
-            "Try specifying format_hint."
-        )
+        raise ValueError("Could not detect or parse trace format. Try specifying format_hint.")
 
     async def ingest_auto(
         self,
         data: Any,
-        storage: Optional[Any] = None,
-        format_hint: Optional[str] = None,
+        storage: Any | None = None,
+        format_hint: str | None = None,
     ) -> IngestResult:
         """Automatically detect format and ingest traces.
 
@@ -230,9 +223,7 @@ class AdapterRegistry:
                 if is_valid:
                     return await adapter.ingest(data, storage)
 
-        return IngestResult.failure_result(
-            "Could not detect or parse trace format"
-        )
+        return IngestResult.failure_result("Could not detect or parse trace format")
 
     @property
     def registered_formats(self) -> list[str]:
@@ -242,14 +233,11 @@ class AdapterRegistry:
     @property
     def registered_adapters(self) -> dict[str, str]:
         """Get mapping of formats to adapter class names."""
-        return {
-            fmt: cls.__name__
-            for fmt, cls in self._adapters.items()
-        }
+        return {fmt: cls.__name__ for fmt, cls in self._adapters.items()}
 
 
 # Default registry instance
-_default_registry: Optional[AdapterRegistry] = None
+_default_registry: AdapterRegistry | None = None
 
 
 def get_default_registry() -> AdapterRegistry:
@@ -257,10 +245,10 @@ def get_default_registry() -> AdapterRegistry:
     global _default_registry
 
     if _default_registry is None:
-        from .otlp import OTLPAdapter
         from .datadog import DatadogAdapter, DatadogV2Adapter
-        from .xray import XRayAdapter
         from .json_adapter import JSONAdapter, SimplifiedJSONAdapter
+        from .otlp import OTLPAdapter
+        from .xray import XRayAdapter
 
         _default_registry = AdapterRegistry()
         _default_registry.register(OTLPAdapter)
@@ -273,28 +261,28 @@ def get_default_registry() -> AdapterRegistry:
     return _default_registry
 
 
-def get_adapter(format_id: str) -> Optional[TraceAdapter]:
+def get_adapter(format_id: str) -> TraceAdapter | None:
     """Get an adapter from the default registry."""
     return get_default_registry().get_adapter(format_id)
 
 
 def register_adapter(
-    adapter_class: Type[TraceAdapter],
+    adapter_class: type[TraceAdapter],
     override: bool = False,
 ) -> None:
     """Register an adapter to the default registry."""
     get_default_registry().register(adapter_class, override)
 
 
-def parse_traces(data: Any, format_hint: Optional[str] = None) -> list[Trace]:
+def parse_traces(data: Any, format_hint: str | None = None) -> list[Trace]:
     """Parse traces using the default registry."""
     return get_default_registry().parse_auto(data, format_hint)
 
 
 async def ingest_traces(
     data: Any,
-    storage: Optional[Any] = None,
-    format_hint: Optional[str] = None,
+    storage: Any | None = None,
+    format_hint: str | None = None,
 ) -> IngestResult:
     """Ingest traces using the default registry."""
     return await get_default_registry().ingest_auto(data, storage, format_hint)

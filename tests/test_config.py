@@ -58,12 +58,18 @@ def test_settings_defaults():
 
 def test_settings_from_dict():
     """Test settings can be created from dict."""
-    settings = Settings.from_dict({
-        "mode": "shadow",
-        "database_url": "postgresql://test",
-        "model_provider": "anthropic",
-    })
+    settings = Settings.from_dict(
+        {
+            "mode": "shadow",
+            "database": {
+                "url": "postgresql://test",
+            },
+            "models": {
+                "default": "anthropic",
+            },
+        }
+    )
 
     assert settings.mode == OperatingMode.SHADOW
     assert settings.database_url == "postgresql://test"
-    assert settings.model_provider == "anthropic"
+    assert settings.models.default == "anthropic"

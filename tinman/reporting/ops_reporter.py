@@ -3,18 +3,19 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
+from ..config.modes import OperatingMode
 from ..memory.graph import MemoryGraph
 from ..memory.models import NodeType
-from ..config.modes import OperatingMode
-from ..utils import utc_now, generate_id, get_logger
+from ..utils import generate_id, get_logger, utc_now
 
 logger = get_logger("ops_reporter")
 
 
 class AlertSeverity(str, Enum):
     """Alert severity levels."""
+
     INFO = "info"
     WARNING = "warning"
     ERROR = "error"
@@ -24,6 +25,7 @@ class AlertSeverity(str, Enum):
 @dataclass
 class Alert:
     """An operational alert."""
+
     id: str = field(default_factory=generate_id)
     severity: AlertSeverity = AlertSeverity.INFO
     title: str = ""
@@ -36,17 +38,19 @@ class Alert:
 @dataclass
 class HealthMetric:
     """A health metric for monitoring."""
+
     name: str
     value: float
     unit: str = ""
     status: str = "ok"  # ok, warning, critical
-    threshold_warning: Optional[float] = None
-    threshold_critical: Optional[float] = None
+    threshold_warning: float | None = None
+    threshold_critical: float | None = None
 
 
 @dataclass
 class OpsReport:
     """Operational health report."""
+
     id: str = field(default_factory=generate_id)
     generated_at: datetime = field(default_factory=utc_now)
     mode: OperatingMode = OperatingMode.LAB
@@ -67,8 +71,8 @@ class OpsReport:
 
     # System info
     uptime_hours: float = 0.0
-    last_experiment: Optional[datetime] = None
-    last_failure: Optional[datetime] = None
+    last_experiment: datetime | None = None
+    last_failure: datetime | None = None
 
 
 class OpsReporter:
@@ -82,10 +86,12 @@ class OpsReporter:
     - Key metrics
     """
 
-    def __init__(self,
-                 graph: Optional[MemoryGraph] = None,
-                 mode: OperatingMode = OperatingMode.LAB,
-                 start_time: Optional[datetime] = None):
+    def __init__(
+        self,
+        graph: MemoryGraph | None = None,
+        mode: OperatingMode = OperatingMode.LAB,
+        start_time: datetime | None = None,
+    ):
         self.graph = graph
         self.mode = mode
         self.start_time = start_time or utc_now()
@@ -150,13 +156,15 @@ class OpsReporter:
         else:
             failure_rate = 0.0
 
-        metrics.append(HealthMetric(
-            name="failure_rate",
-            value=failure_rate,
-            unit="per_hour",
-            threshold_warning=1.0,
-            threshold_critical=5.0,
-        ))
+        metrics.append(
+            HealthMetric(
+                name="failure_rate",
+                value=failure_rate,
+                unit="per_hour",
+                threshold_warning=1.0,
+                threshold_critical=5.0,
+            )
+        )
 
         # Rollback rate
         if report.recent_rollbacks > 0:
@@ -164,30 +172,36 @@ class OpsReporter:
         else:
             rollback_rate = 0.0
 
-        metrics.append(HealthMetric(
-            name="rollback_rate",
-            value=rollback_rate,
-            unit="per_hour",
-            threshold_warning=0.5,
-            threshold_critical=2.0,
-        ))
+        metrics.append(
+            HealthMetric(
+                name="rollback_rate",
+                value=rollback_rate,
+                unit="per_hour",
+                threshold_warning=0.5,
+                threshold_critical=2.0,
+            )
+        )
 
         # Graph stats
         if self.graph:
             stats = self.graph.get_stats()
             total_nodes = sum(stats.values())
-            metrics.append(HealthMetric(
-                name="total_graph_nodes",
-                value=float(total_nodes),
-                unit="nodes",
-            ))
+            metrics.append(
+                HealthMetric(
+                    name="total_graph_nodes",
+                    value=float(total_nodes),
+                    unit="nodes",
+                )
+            )
 
         # Uptime
-        metrics.append(HealthMetric(
-            name="uptime",
-            value=report.uptime_hours,
-            unit="hours",
-        ))
+        metrics.append(
+            HealthMetric(
+                name="uptime",
+                value=report.uptime_hours,
+                unit="hours",
+            )
+        )
 
         # Apply thresholds
         for metric in metrics:
@@ -308,7 +322,9 @@ class OpsReporter:
                 "interventions": report.recent_interventions,
                 "rollbacks": report.recent_rollbacks,
             },
-            "last_experiment": report.last_experiment.isoformat() if report.last_experiment else None,
+            "last_experiment": report.last_experiment.isoformat()
+            if report.last_experiment
+            else None,
             "last_failure": report.last_failure.isoformat() if report.last_failure else None,
         }
 
@@ -336,11 +352,13 @@ class OpsReporter:
         # Export custom metrics
         for metric in report.metrics:
             safe_name = metric.name.replace(".", "_").replace("-", "_")
-            lines.extend([
-                f"# HELP tinman_{safe_name} {metric.name}",
-                f"# TYPE tinman_{safe_name} gauge",
-                f"tinman_{safe_name} {metric.value}",
-                "",
-            ])
+            lines.extend(
+                [
+                    f"# HELP tinman_{safe_name} {metric.name}",
+                    f"# TYPE tinman_{safe_name} gauge",
+                    f"tinman_{safe_name} {metric.value}",
+                    "",
+                ]
+            )
 
         return "\n".join(lines)

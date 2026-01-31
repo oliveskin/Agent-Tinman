@@ -1,7 +1,6 @@
 """Time and timestamp utilities."""
 
 from datetime import datetime, timezone
-from typing import Optional
 
 
 def utc_now() -> datetime:
@@ -22,16 +21,19 @@ def parse_timestamp(s: str) -> datetime:
 def seconds_ago(seconds: int) -> datetime:
     """Get timestamp N seconds ago."""
     from datetime import timedelta
+
     return utc_now() - timedelta(seconds=seconds)
 
 
 def days_ago(days: int) -> datetime:
     """Get timestamp N days ago."""
     from datetime import timedelta
+
     return utc_now() - timedelta(days=days)
 
 
 def is_expired(dt: datetime, ttl_seconds: int) -> bool:
     """Check if timestamp has expired given TTL."""
     from datetime import timedelta
+
     return utc_now() > dt + timedelta(seconds=ttl_seconds)

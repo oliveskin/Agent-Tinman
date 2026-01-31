@@ -4,18 +4,19 @@ This adapter handles a simple, flexible JSON format for traces,
 useful for custom integrations and testing.
 """
 
+from collections.abc import Iterator
 from datetime import datetime, timezone
-from typing import Any, Iterator, Optional
+from typing import Any
 
+from ..utils import get_logger
 from .base import (
-    TraceAdapter,
-    Trace,
     Span,
     SpanEvent,
     SpanLink,
     SpanStatus,
+    Trace,
+    TraceAdapter,
 )
-from ..utils import get_logger
 
 logger = get_logger("ingest.json")
 
@@ -125,9 +126,7 @@ class JSONAdapter(TraceAdapter):
             if field in span:
                 value = span[field]
                 if not isinstance(value, (str, int, float)):
-                    errors.append(
-                        f"{prefix}.{field} must be string (ISO8601) or number"
-                    )
+                    errors.append(f"{prefix}.{field} must be string (ISO8601) or number")
 
         return errors
 
@@ -137,8 +136,7 @@ class JSONAdapter(TraceAdapter):
             trace_id = str(trace_data.get("trace_id", ""))
 
             spans = [
-                self._parse_span(span_data, trace_id)
-                for span_data in trace_data.get("spans", [])
+                self._parse_span(span_data, trace_id) for span_data in trace_data.get("spans", [])
             ]
 
             yield Trace(
@@ -160,25 +158,16 @@ class JSONAdapter(TraceAdapter):
 
         # Parse timestamps
         start_time = self._parse_time(data.get("start_time"))
-        end_time = self._parse_time(
-            data.get("end_time"),
-            default=start_time
-        )
+        end_time = self._parse_time(data.get("end_time"), default=start_time)
 
         # Parse status
         status = self._parse_status(data.get("status", "unset"))
 
         # Parse events
-        events = [
-            self._parse_event(e)
-            for e in data.get("events", [])
-        ]
+        events = [self._parse_event(e) for e in data.get("events", [])]
 
         # Parse links
-        links = [
-            self._parse_link(link)
-            for link in data.get("links", [])
-        ]
+        links = [self._parse_link(link) for link in data.get("links", [])]
 
         return Span(
             trace_id=trace_id,
@@ -215,8 +204,8 @@ class JSONAdapter(TraceAdapter):
 
     def _parse_time(
         self,
-        value: Optional[str | int | float],
-        default: Optional[datetime] = None,
+        value: str | int | float | None,
+        default: datetime | None = None,
     ) -> datetime:
         """Parse a timestamp value."""
         if value is None:
@@ -238,10 +227,7 @@ class JSONAdapter(TraceAdapter):
 
             # Try epoch as string
             try:
-                return datetime.fromtimestamp(
-                    float(value),
-                    tz=timezone.utc
-                )
+                return datetime.fromtimestamp(float(value), tz=timezone.utc)
             except ValueError:
                 pass
 
@@ -314,24 +300,27 @@ class SimplifiedJSONAdapter(TraceAdapter):
             # Calculate times based on duration
             if duration_ms > 0:
                 from datetime import timedelta
+
                 end_time = start_time + timedelta(milliseconds=duration_ms)
 
             is_error = span_data.get("error", False)
             status = SpanStatus.ERROR if is_error else SpanStatus.OK
 
-            spans.append(Span(
-                trace_id=trace_id,
-                span_id=span_id,
-                parent_span_id=spans[-1].span_id if spans else None,
-                name=span_data.get("name", f"span_{i}"),
-                start_time=start_time,
-                end_time=end_time,
-                status=status,
-                status_message=span_data.get("error_message"),
-                kind=span_data.get("kind", "internal"),
-                service_name=span_data.get("service"),
-                attributes=span_data.get("attributes", {}),
-            ))
+            spans.append(
+                Span(
+                    trace_id=trace_id,
+                    span_id=span_id,
+                    parent_span_id=spans[-1].span_id if spans else None,
+                    name=span_data.get("name", f"span_{i}"),
+                    start_time=start_time,
+                    end_time=end_time,
+                    status=status,
+                    status_message=span_data.get("error_message"),
+                    kind=span_data.get("kind", "internal"),
+                    service_name=span_data.get("service"),
+                    attributes=span_data.get("attributes", {}),
+                )
+            )
 
         if spans:
             yield Trace(

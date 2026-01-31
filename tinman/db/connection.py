@@ -1,13 +1,13 @@
 """Database connection management."""
 
+import os
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator, Optional
 
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import QueuePool
 from sqlalchemy.engine.url import make_url
-import os
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import QueuePool
 
 from .models import Base
 
@@ -23,6 +23,7 @@ class Database:
             pool_size=pool_size,
             max_overflow=20,
             pool_pre_ping=True,
+            pool_recycle=3600,
         )
         self.SessionLocal = sessionmaker(
             autocommit=False,
@@ -104,6 +105,7 @@ def check_database(url: str) -> dict:
         with engine.connect():
             pass
         from sqlalchemy import inspect
+
         inspector = inspect(engine)
         tables = inspector.get_table_names()
         return {"connected": True, "tables": tables}
@@ -111,7 +113,7 @@ def check_database(url: str) -> dict:
         engine.dispose()
 
 
-_db_instance: Optional[Database] = None
+_db_instance: Database | None = None
 
 
 def init_db(url: str, pool_size: int = 10) -> Database:

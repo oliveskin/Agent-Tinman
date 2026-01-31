@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Optional
+from typing import Any
 
 from ..config.modes import OperatingMode
-from .pipeline_adapter import PipelineAdapter, FailureDetectionHook, PipelineContext
+from .pipeline_adapter import FailureDetectionHook, PipelineAdapter, PipelineContext
 
 
 def _run_async(coro: Any) -> None:
@@ -25,8 +25,8 @@ def record_llm_interaction(
     messages: list[dict[str, str]],
     model: str,
     response_text: str,
-    error: Optional[str] = None,
-    metadata: Optional[dict[str, Any]] = None,
+    error: str | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> PipelineContext:
     """
     Record a single LLM interaction via the PipelineAdapter.

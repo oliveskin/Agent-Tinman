@@ -3,17 +3,18 @@
 This adapter handles traces from Datadog's APM format.
 """
 
+from collections.abc import Iterator
 from datetime import datetime, timezone
-from typing import Any, Iterator
+from typing import Any
 
+from ..utils import get_logger
 from .base import (
-    TraceAdapter,
-    Trace,
     Span,
     SpanEvent,
     SpanStatus,
+    Trace,
+    TraceAdapter,
 )
-from ..utils import get_logger
 
 logger = get_logger("ingest.datadog")
 
@@ -59,9 +60,7 @@ class DatadogAdapter(TraceAdapter):
                 required = ["trace_id", "span_id", "name", "start", "duration"]
                 for field in required:
                     if field not in span:
-                        errors.append(
-                            f"Trace {i} span {j} missing required field '{field}'"
-                        )
+                        errors.append(f"Trace {i} span {j} missing required field '{field}'")
 
         return len(errors) == 0, errors
 
@@ -75,10 +74,7 @@ class DatadogAdapter(TraceAdapter):
             first_span = trace_spans[0]
             trace_id = str(first_span.get("trace_id", ""))
 
-            spans = [
-                self._parse_span(span_data)
-                for span_data in trace_spans
-            ]
+            spans = [self._parse_span(span_data) for span_data in trace_spans]
 
             yield Trace(
                 trace_id=trace_id,
@@ -98,14 +94,8 @@ class DatadogAdapter(TraceAdapter):
         start_ns = data.get("start", 0)
         duration_ns = data.get("duration", 0)
 
-        start_time = datetime.fromtimestamp(
-            start_ns / 1_000_000_000,
-            tz=timezone.utc
-        )
-        end_time = datetime.fromtimestamp(
-            (start_ns + duration_ns) / 1_000_000_000,
-            tz=timezone.utc
-        )
+        start_time = datetime.fromtimestamp(start_ns / 1_000_000_000, tz=timezone.utc)
+        end_time = datetime.fromtimestamp((start_ns + duration_ns) / 1_000_000_000, tz=timezone.utc)
 
         # Parse error status from meta or error field
         meta = data.get("meta", {})

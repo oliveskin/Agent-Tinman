@@ -1,12 +1,12 @@
 """Prompt library for Tinman's reasoning tasks."""
 
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
 class PromptTemplate:
     """A reusable prompt template."""
+
     name: str
     template: str
     description: str
@@ -213,7 +213,7 @@ Be intellectually honest in both directions.""",
     )
 
     @classmethod
-    def get(cls, name: str) -> Optional[PromptTemplate]:
+    def get(cls, name: str) -> PromptTemplate | None:
         """Get a prompt template by name."""
         for attr_name in dir(cls):
             attr = getattr(cls, attr_name)

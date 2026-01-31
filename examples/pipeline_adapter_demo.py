@@ -105,7 +105,9 @@ async def run(config_path: str | None, url: str, inject_failure: bool) -> None:
             severity=classification.suggested_severity,
             trigger_signature=classification.indicators_matched,
             reproducibility=1.0 if inject_failure else 0.0,
-            description="Injected failure from pipeline adapter demo." if inject_failure else "No injected failure.",
+            description="Injected failure from pipeline adapter demo."
+            if inject_failure
+            else "No injected failure.",
             is_novel=True,
         )
 

@@ -1,12 +1,13 @@
 """Human approval gate for high-risk actions."""
 
+import collections
+import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Optional, Callable
-import threading
 
-from ..utils import generate_id, utc_now, get_logger
+from ..utils import generate_id, get_logger, utc_now
 from .event_bus import EventBus, Topics
 from .risk_evaluator import RiskAssessment
 
@@ -15,6 +16,7 @@ logger = get_logger("approval_gate")
 
 class ApprovalStatus(str, Enum):
     """Status of an approval request."""
+
     PENDING = "pending"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -24,18 +26,19 @@ class ApprovalStatus(str, Enum):
 @dataclass
 class ApprovalRequest:
     """A request for human approval."""
+
     id: str = field(default_factory=generate_id)
     intervention_id: str = ""
     risk_summary: str = ""
     impact_summary: str = ""
     rollback_plan: str = ""
-    risk_assessment: Optional[RiskAssessment] = None
+    risk_assessment: RiskAssessment | None = None
     status: ApprovalStatus = ApprovalStatus.PENDING
     created_at: datetime = field(default_factory=utc_now)
-    expires_at: Optional[datetime] = None
-    decided_at: Optional[datetime] = None
-    decided_by: Optional[str] = None
-    decision_reason: Optional[str] = None
+    expires_at: datetime | None = None
+    decided_at: datetime | None = None
+    decided_by: str | None = None
+    decision_reason: str | None = None
 
 
 class ApprovalGate:
@@ -49,23 +52,31 @@ class ApprovalGate:
     - Callback notifications
     """
 
-    def __init__(self, event_bus: Optional[EventBus] = None,
-                 default_ttl_hours: int = 24):
+    def __init__(
+        self,
+        event_bus: EventBus | None = None,
+        default_ttl_hours: int = 24,
+        max_history_size: int = 1000,
+    ):
         self.event_bus = event_bus
         self.default_ttl_hours = default_ttl_hours
         self._pending: dict[str, ApprovalRequest] = {}
-        self._history: list[ApprovalRequest] = []
+        self._history: collections.deque[ApprovalRequest] = collections.deque(
+            maxlen=max_history_size
+        )
         self._lock = threading.Lock()
         self._approval_callbacks: list[Callable[[ApprovalRequest], None]] = []
         self._rejection_callbacks: list[Callable[[ApprovalRequest], None]] = []
 
-    def request_approval(self,
-                         intervention_id: str,
-                         risk_summary: str,
-                         impact_summary: str = "",
-                         rollback_plan: str = "",
-                         risk_assessment: Optional[RiskAssessment] = None,
-                         ttl_hours: Optional[int] = None) -> ApprovalRequest:
+    def request_approval(
+        self,
+        intervention_id: str,
+        risk_summary: str,
+        impact_summary: str = "",
+        rollback_plan: str = "",
+        risk_assessment: RiskAssessment | None = None,
+        ttl_hours: int | None = None,
+    ) -> ApprovalRequest:
         """
         Create a new approval request.
 
@@ -89,9 +100,9 @@ class ApprovalGate:
         logger.info(f"Approval request created: {request.id} for intervention {intervention_id}")
         return request
 
-    def approve(self, request_id: str,
-                approved_by: str,
-                reason: Optional[str] = None) -> Optional[ApprovalRequest]:
+    def approve(
+        self, request_id: str, approved_by: str, reason: str | None = None
+    ) -> ApprovalRequest | None:
         """
         Approve a pending request.
 
@@ -144,9 +155,7 @@ class ApprovalGate:
 
         return request
 
-    def reject(self, request_id: str,
-               rejected_by: str,
-               reason: str) -> Optional[ApprovalRequest]:
+    def reject(self, request_id: str, rejected_by: str, reason: str) -> ApprovalRequest | None:
         """
         Reject a pending request.
 
@@ -214,7 +223,7 @@ class ApprovalGate:
 
             return list(self._pending.values())
 
-    def get_request(self, request_id: str) -> Optional[ApprovalRequest]:
+    def get_request(self, request_id: str) -> ApprovalRequest | None:
         """Get a specific request by ID."""
         with self._lock:
             if request_id in self._pending:
@@ -227,7 +236,8 @@ class ApprovalGate:
     def get_history(self, limit: int = 100) -> list[ApprovalRequest]:
         """Get recent approval history."""
         with self._lock:
-            return self._history[-limit:]
+            history_list = list(self._history)
+            return history_list[-limit:]
 
     def on_approval(self, callback: Callable[[ApprovalRequest], None]) -> None:
         """Register callback for approval events."""

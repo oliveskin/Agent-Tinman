@@ -10,16 +10,16 @@ The risk policy is the central configuration for safety behavior:
 - Mode-specific behaviors
 """
 
-from dataclasses import dataclass, field
-from enum import Enum
-from pathlib import Path
-from typing import Any, Optional
 import os
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
 import yaml
 
-from .risk_evaluator import RiskTier, Severity, ActionType, Action, RiskAssessment
 from ..config.modes import Mode
 from ..utils import get_logger
+from .risk_evaluator import Action, ActionType, RiskAssessment, RiskTier, Severity
 
 logger = get_logger("risk_policy")
 
@@ -27,8 +27,9 @@ logger = get_logger("risk_policy")
 @dataclass
 class ActionOverride:
     """Override for specific action types."""
+
     action_type: ActionType
-    mode: Optional[Mode] = None  # None means "any mode"
+    mode: Mode | None = None  # None means "any mode"
     tier: RiskTier = RiskTier.BLOCK
     reason: str = ""
 
@@ -36,6 +37,7 @@ class ActionOverride:
 @dataclass
 class CostThreshold:
     """Cost thresholds for auto-approval."""
+
     mode: Mode
     max_auto_approve_usd: float = 1.0
     max_with_review_usd: float = 10.0
@@ -49,6 +51,7 @@ class RiskPolicy:
     This dataclass represents the full risk policy, which can be loaded
     from YAML or constructed programmatically.
     """
+
     # The base matrix: maps (mode, severity) -> tier
     # Structure: {mode.value: {severity.value: tier.value}}
     base_matrix: dict[str, dict[str, str]] = field(default_factory=dict)
@@ -170,12 +173,14 @@ class RiskPolicy:
 
             tier = RiskTier(override_data.get("tier", "block"))
 
-            action_overrides.append(ActionOverride(
-                action_type=action_type,
-                mode=mode,
-                tier=tier,
-                reason=override_data.get("reason", ""),
-            ))
+            action_overrides.append(
+                ActionOverride(
+                    action_type=action_type,
+                    mode=mode,
+                    tier=tier,
+                    reason=override_data.get("reason", ""),
+                )
+            )
 
         # Parse cost thresholds
         cost_thresholds = {}
@@ -245,7 +250,9 @@ class RiskPolicy:
 
         return self.default_tier
 
-    def check_action_override(self, action_type: ActionType, mode: Mode) -> Optional[ActionOverride]:
+    def check_action_override(
+        self, action_type: ActionType, mode: Mode
+    ) -> ActionOverride | None:
         """Check if there's an override for this action type."""
         for override in self.action_overrides:
             if override.action_type == action_type:
@@ -261,13 +268,22 @@ class RiskPolicy:
             return self.default_tier, ""
 
         if cost_usd > threshold.block_above_usd:
-            return RiskTier.BLOCK, f"Cost ${cost_usd:.2f} exceeds block threshold ${threshold.block_above_usd:.2f}"
+            return (
+                RiskTier.BLOCK,
+                f"Cost ${cost_usd:.2f} exceeds block threshold ${threshold.block_above_usd:.2f}",
+            )
 
         if cost_usd > threshold.max_with_review_usd:
-            return RiskTier.BLOCK, f"Cost ${cost_usd:.2f} exceeds max review threshold ${threshold.max_with_review_usd:.2f}"
+            return (
+                RiskTier.REVIEW,
+                f"Cost ${cost_usd:.2f} exceeds max review threshold ${threshold.max_with_review_usd:.2f}",
+            )
 
         if cost_usd > threshold.max_auto_approve_usd:
-            return RiskTier.REVIEW, f"Cost ${cost_usd:.2f} exceeds auto-approve threshold ${threshold.max_auto_approve_usd:.2f}"
+            return (
+                RiskTier.REVIEW,
+                f"Cost ${cost_usd:.2f} exceeds auto-approve threshold ${threshold.max_auto_approve_usd:.2f}",
+            )
 
         return RiskTier.SAFE, ""
 
@@ -279,9 +295,11 @@ class PolicyDrivenRiskEvaluator:
     policy-driven evaluation.
     """
 
-    def __init__(self, policy: Optional[RiskPolicy] = None):
+    def __init__(self, policy: RiskPolicy | None = None):
         self.policy = policy or RiskPolicy.default()
-        logger.info(f"PolicyDrivenRiskEvaluator initialized (policy version: {self.policy.version})")
+        logger.info(
+            f"PolicyDrivenRiskEvaluator initialized (policy version: {self.policy.version})"
+        )
 
     def update_policy(self, policy: RiskPolicy) -> None:
         """Update the risk policy."""
@@ -341,18 +359,26 @@ class PolicyDrivenRiskEvaluator:
                     details={"blocked_by": "cost_threshold"},
                 )
             elif cost_tier == RiskTier.REVIEW:
-                # Cost triggers review, continue to check matrix for possible escalation
+                # Cost triggers review - this will be factored in below
                 pass
 
         # 5. Look up in base matrix
         base_tier = self.policy.lookup_tier(mode, action.predicted_severity)
+
+        # 5b. Use the more restrictive tier between cost_tier and base_tier
+        # Cost threshold REVIEW should escalate SAFE to REVIEW
+        if action.estimated_cost > 0:
+            cost_tier_check, _ = self.policy.check_cost_threshold(mode, action.estimated_cost)
+            if cost_tier_check == RiskTier.REVIEW and base_tier == RiskTier.SAFE:
+                base_tier = RiskTier.REVIEW
 
         # 6. Determine if approval is needed
         requires_approval = base_tier == RiskTier.REVIEW
         auto_approve = (
             base_tier == RiskTier.SAFE
             and self.policy.auto_approve_safe
-            and action.estimated_cost <= self.policy.cost_thresholds.get(
+            and action.estimated_cost
+            <= self.policy.cost_thresholds.get(
                 mode.value, CostThreshold(mode=mode)
             ).max_auto_approve_usd
         )
@@ -393,8 +419,11 @@ class PolicyDrivenRiskEvaluator:
             score += 0.1
 
         high_severity_classes = {
-            "DESTRUCTIVE_CALL", "SAFETY_REGRESSION", "MEMORY_POISONING",
-            "REWARD_HACKING", "TOOL_HALLUCINATION"
+            "DESTRUCTIVE_CALL",
+            "SAFETY_REGRESSION",
+            "MEMORY_POISONING",
+            "REWARD_HACKING",
+            "TOOL_HALLUCINATION",
         }
         if failure_class.upper() in high_severity_classes:
             score += 0.3
@@ -411,7 +440,7 @@ class PolicyDrivenRiskEvaluator:
             return Severity.S0
 
 
-def load_policy(path: Optional[Path] = None) -> RiskPolicy:
+def load_policy(path: Path | None = None) -> RiskPolicy:
     """Load risk policy from YAML file.
 
     Searches in order:
@@ -428,11 +457,13 @@ def load_policy(path: Optional[Path] = None) -> RiskPolicy:
         search_paths.append(path)
 
     # Standard locations
-    search_paths.extend([
-        Path(".tinman/risk_policy.yaml"),
-        Path("tinman_risk_policy.yaml"),
-        Path("risk_policy.yaml"),
-    ])
+    search_paths.extend(
+        [
+            Path(".tinman/risk_policy.yaml"),
+            Path("tinman_risk_policy.yaml"),
+            Path("risk_policy.yaml"),
+        ]
+    )
 
     # Environment variable
     env_path = os.environ.get("TINMAN_RISK_POLICY")
@@ -466,7 +497,7 @@ def save_policy(policy: RiskPolicy, path: Path) -> None:
 
 
 # Default policy instance
-_default_policy: Optional[RiskPolicy] = None
+_default_policy: RiskPolicy | None = None
 
 
 def get_risk_policy() -> RiskPolicy:

@@ -10,32 +10,29 @@ The audit log is immutable - records can only be appended, never modified or del
 This provides a complete history for compliance, debugging, and analysis.
 """
 
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Any, Optional
-from enum import Enum
-import json
 import uuid
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 from sqlalchemy import (
+    JSON,
+    Boolean,
     Column,
+    DateTime,
+    Float,
+    Index,
+    Integer,
     String,
     Text,
-    Float,
-    Integer,
-    Boolean,
-    DateTime,
-    Index,
-    event,
 )
-from sqlalchemy.dialects.postgresql import UUID, JSONB
-from sqlalchemy import JSON
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 JSONType = JSON().with_variant(JSONB, "postgresql")
 from sqlalchemy.orm import Session
 
-from .models import Base
 from ..utils import get_logger, utc_now
+from .models import Base
 
 logger = get_logger("audit")
 
@@ -46,6 +43,7 @@ def generate_uuid():
 
 class AuditEventType(str, Enum):
     """Types of audit events."""
+
     # Approval events
     APPROVAL_REQUESTED = "approval_requested"
     APPROVAL_GRANTED = "approval_granted"
@@ -90,6 +88,7 @@ class AuditLog(Base):
     This table stores all audit events with full context.
     Records cannot be modified or deleted (enforced by triggers if needed).
     """
+
     __tablename__ = "audit_log"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -143,6 +142,7 @@ class ApprovalDecision(Base):
     This provides a focused view of all approval decisions,
     linked to the main audit log for full context.
     """
+
     __tablename__ = "approval_decisions"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -188,6 +188,7 @@ class ModeTransition(Base):
 
     Tracks when and why the system changed modes.
     """
+
     __tablename__ = "mode_transitions"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -219,6 +220,7 @@ class ToolExecution(Base):
 
     Tracks every guarded tool call with full context.
     """
+
     __tablename__ = "tool_executions"
 
     id = Column(UUID(as_uuid=False), primary_key=True, default=generate_uuid)
@@ -279,8 +281,8 @@ class AuditLogger:
 
     def __init__(self, session: Session):
         self.session = session
-        self._session_id: Optional[str] = None
-        self._mode: Optional[str] = None
+        self._session_id: str | None = None
+        self._mode: str | None = None
 
     def set_context(self, session_id: str, mode: str) -> None:
         """Set the current context for audit logs."""
@@ -291,18 +293,18 @@ class AuditLogger:
         self,
         event_type: AuditEventType,
         actor_type: str = "system",
-        actor_id: Optional[str] = None,
-        target_type: Optional[str] = None,
-        target_id: Optional[str] = None,
-        severity: Optional[str] = None,
-        risk_tier: Optional[str] = None,
-        action_type: Optional[str] = None,
-        event_data: Optional[dict[str, Any]] = None,
-        success: Optional[bool] = None,
-        error_message: Optional[str] = None,
-        duration_ms: Optional[int] = None,
-        estimated_cost_usd: Optional[float] = None,
-        actual_cost_usd: Optional[float] = None,
+        actor_id: str | None = None,
+        target_type: str | None = None,
+        target_id: str | None = None,
+        severity: str | None = None,
+        risk_tier: str | None = None,
+        action_type: str | None = None,
+        event_data: dict[str, Any] | None = None,
+        success: bool | None = None,
+        error_message: str | None = None,
+        duration_ms: int | None = None,
+        estimated_cost_usd: float | None = None,
+        actual_cost_usd: float | None = None,
     ) -> AuditLog:
         """Log a generic audit event."""
         log_entry = AuditLog(
@@ -339,18 +341,20 @@ class AuditLogger:
         risk_tier: str,
         severity: str,
         decision: str,
-        decided_by: Optional[str] = None,
-        decision_reason: Optional[str] = None,
-        risk_reasoning: Optional[str] = None,
-        requester_agent: Optional[str] = None,
-        estimated_cost_usd: Optional[float] = None,
-        affected_systems: Optional[list[str]] = None,
-        rollback_plan: Optional[str] = None,
+        decided_by: str | None = None,
+        decision_reason: str | None = None,
+        risk_reasoning: str | None = None,
+        requester_agent: str | None = None,
+        estimated_cost_usd: float | None = None,
+        affected_systems: list[str] | None = None,
+        rollback_plan: str | None = None,
     ) -> ApprovalDecision:
         """Log an approval decision."""
         # First create audit log entry
         audit_entry = self.log_event(
-            event_type=AuditEventType.APPROVAL_GRANTED if decision == "approved" else AuditEventType.APPROVAL_DENIED,
+            event_type=AuditEventType.APPROVAL_GRANTED
+            if decision == "approved"
+            else AuditEventType.APPROVAL_DENIED,
             actor_type="human" if decided_by else "system",
             actor_id=decided_by,
             target_type="approval",
@@ -400,13 +404,15 @@ class AuditLogger:
         from_mode: str,
         to_mode: str,
         success: bool,
-        initiated_by: Optional[str] = None,
-        reason: Optional[str] = None,
-        blocked_reason: Optional[str] = None,
-        metadata: Optional[dict[str, Any]] = None,
+        initiated_by: str | None = None,
+        reason: str | None = None,
+        blocked_reason: str | None = None,
+        metadata: dict[str, Any] | None = None,
     ) -> ModeTransition:
         """Log a mode transition."""
-        event_type = AuditEventType.MODE_TRANSITION if success else AuditEventType.MODE_TRANSITION_BLOCKED
+        event_type = (
+            AuditEventType.MODE_TRANSITION if success else AuditEventType.MODE_TRANSITION_BLOCKED
+        )
 
         audit_entry = self.log_event(
             event_type=event_type,
@@ -450,23 +456,23 @@ class AuditLogger:
         action_type: str,
         description: str,
         mode: str,
-        input_params: Optional[dict[str, Any]] = None,
-        output_summary: Optional[str] = None,
-        risk_tier: Optional[str] = None,
-        severity: Optional[str] = None,
+        input_params: dict[str, Any] | None = None,
+        output_summary: str | None = None,
+        risk_tier: str | None = None,
+        severity: str | None = None,
         approval_required: bool = False,
-        approval_granted: Optional[bool] = None,
-        approval_decision_id: Optional[str] = None,
+        approval_granted: bool | None = None,
+        approval_decision_id: str | None = None,
         success: bool = False,
-        error_message: Optional[str] = None,
+        error_message: str | None = None,
         blocked: bool = False,
-        block_reason: Optional[str] = None,
-        started_at: Optional[datetime] = None,
-        completed_at: Optional[datetime] = None,
-        duration_ms: Optional[int] = None,
-        estimated_cost_usd: Optional[float] = None,
-        actual_cost_usd: Optional[float] = None,
-        requester_agent: Optional[str] = None,
+        block_reason: str | None = None,
+        started_at: datetime | None = None,
+        completed_at: datetime | None = None,
+        duration_ms: int | None = None,
+        estimated_cost_usd: float | None = None,
+        actual_cost_usd: float | None = None,
+        requester_agent: str | None = None,
     ) -> ToolExecution:
         """Log a tool execution."""
         # Determine event type
@@ -541,8 +547,15 @@ class AuditLogger:
     def _sanitize_params(self, params: dict[str, Any]) -> dict[str, Any]:
         """Remove potential secrets from parameters."""
         sensitive_keys = {
-            "password", "secret", "token", "api_key", "apikey",
-            "auth", "credential", "private", "key",
+            "password",
+            "secret",
+            "token",
+            "api_key",
+            "apikey",
+            "auth",
+            "credential",
+            "private",
+            "key",
         }
 
         def sanitize(obj: Any, depth: int = 0) -> Any:
@@ -551,7 +564,9 @@ class AuditLogger:
 
             if isinstance(obj, dict):
                 return {
-                    k: "[REDACTED]" if any(s in k.lower() for s in sensitive_keys) else sanitize(v, depth + 1)
+                    k: "[REDACTED]"
+                    if any(s in k.lower() for s in sensitive_keys)
+                    else sanitize(v, depth + 1)
                     for k, v in obj.items()
                 }
             elif isinstance(obj, list):
@@ -567,7 +582,7 @@ class AuditLogger:
 
     def get_recent_events(
         self,
-        event_type: Optional[AuditEventType] = None,
+        event_type: AuditEventType | None = None,
         limit: int = 100,
     ) -> list[AuditLog]:
         """Get recent audit events."""
@@ -580,9 +595,9 @@ class AuditLogger:
 
     def get_approval_decisions(
         self,
-        mode: Optional[str] = None,
-        decision: Optional[str] = None,
-        since: Optional[datetime] = None,
+        mode: str | None = None,
+        decision: str | None = None,
+        since: datetime | None = None,
         limit: int = 100,
     ) -> list[ApprovalDecision]:
         """Get approval decisions with filters."""
@@ -599,7 +614,7 @@ class AuditLogger:
 
     def get_mode_transitions(
         self,
-        since: Optional[datetime] = None,
+        since: datetime | None = None,
         limit: int = 100,
     ) -> list[ModeTransition]:
         """Get mode transitions."""
@@ -612,9 +627,9 @@ class AuditLogger:
 
     def get_tool_executions(
         self,
-        tool_name: Optional[str] = None,
-        success: Optional[bool] = None,
-        since: Optional[datetime] = None,
+        tool_name: str | None = None,
+        success: bool | None = None,
+        since: datetime | None = None,
         limit: int = 100,
     ) -> list[ToolExecution]:
         """Get tool executions with filters."""
@@ -629,7 +644,7 @@ class AuditLogger:
 
         return query.order_by(ToolExecution.timestamp.desc()).limit(limit).all()
 
-    def get_audit_summary(self, since: Optional[datetime] = None) -> dict[str, Any]:
+    def get_audit_summary(self, since: datetime | None = None) -> dict[str, Any]:
         """Get summary statistics from audit log."""
         from sqlalchemy import func
 
@@ -641,8 +656,7 @@ class AuditLogger:
 
         # Count by event type
         by_type = (
-            query
-            .with_entities(AuditLog.event_type, func.count(AuditLog.id))
+            query.with_entities(AuditLog.event_type, func.count(AuditLog.id))
             .group_by(AuditLog.event_type)
             .all()
         )
@@ -653,8 +667,7 @@ class AuditLogger:
             approvals = approvals.filter(ApprovalDecision.timestamp >= since)
 
         approval_stats = (
-            approvals
-            .with_entities(ApprovalDecision.decision, func.count(ApprovalDecision.id))
+            approvals.with_entities(ApprovalDecision.decision, func.count(ApprovalDecision.id))
             .group_by(ApprovalDecision.decision)
             .all()
         )
@@ -680,10 +693,10 @@ class AuditLogger:
 
 
 # Global audit logger instance
-_audit_logger: Optional[AuditLogger] = None
+_audit_logger: AuditLogger | None = None
 
 
-def get_audit_logger(session: Optional[Session] = None) -> Optional[AuditLogger]:
+def get_audit_logger(session: Session | None = None) -> AuditLogger | None:
     """Get the global audit logger instance."""
     global _audit_logger
     if session and _audit_logger is None:

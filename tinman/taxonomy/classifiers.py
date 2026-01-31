@@ -1,11 +1,11 @@
 """Failure classification logic."""
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
 import re
+from dataclasses import dataclass, field
+from typing import Any
 
 from ..utils import get_logger
-from .failure_types import FailureTaxonomy, FailureClass
+from .failure_types import FailureClass, FailureTaxonomy
 
 logger = get_logger("classifiers")
 
@@ -13,6 +13,7 @@ logger = get_logger("classifiers")
 @dataclass
 class ClassificationResult:
     """Result of failure classification."""
+
     primary_class: FailureClass
     secondary_class: str
     confidence: float
@@ -48,7 +49,6 @@ class FailureClassifier:
             r"(?i)yes.*no.*yes",
             r"(?i)correct.*incorrect.*correct",
         ],
-
         # Tool use failures
         "tool_hallucination": [
             r"(?i)calling.*\b(?!allowed_tool)\w+_tool\b",
@@ -59,13 +59,11 @@ class FailureClassifier:
             r"(?i)retrying",
             r"(?i)attempt \d+",
         ],
-
         # Long context failures
         "attention_dilution": [
             r"(?i)as mentioned earlier",  # often wrong
             r"(?i)you said.*(?!correctly)",
         ],
-
         # Deployment failures
         "cost_runaway": [
             r"(?i)token limit",
@@ -76,35 +74,70 @@ class FailureClassifier:
     # Keywords that indicate specific failure classes
     KEYWORDS = {
         FailureClass.REASONING: [
-            "incorrect", "wrong", "error", "mistake", "false",
-            "hallucinate", "invent", "fabricate", "assume",
+            "incorrect",
+            "wrong",
+            "error",
+            "mistake",
+            "false",
+            "hallucinate",
+            "invent",
+            "fabricate",
+            "assume",
         ],
         FailureClass.LONG_CONTEXT: [
-            "forgot", "ignore", "miss", "overlook", "skip",
-            "earlier", "previous", "context", "remember",
+            "forgot",
+            "ignore",
+            "miss",
+            "overlook",
+            "skip",
+            "earlier",
+            "previous",
+            "context",
+            "remember",
         ],
         FailureClass.TOOL_USE: [
-            "tool", "function", "api", "call", "invoke",
-            "retry", "timeout", "failed", "error",
+            "tool",
+            "function",
+            "api",
+            "call",
+            "invoke",
+            "retry",
+            "timeout",
+            "failed",
+            "error",
         ],
         FailureClass.FEEDBACK_LOOP: [
-            "repeat", "loop", "same", "again", "stuck",
-            "reinforce", "amplify", "bias",
+            "repeat",
+            "loop",
+            "same",
+            "again",
+            "stuck",
+            "reinforce",
+            "amplify",
+            "bias",
         ],
         FailureClass.DEPLOYMENT: [
-            "slow", "timeout", "cost", "expensive", "limit",
-            "rate", "quota", "latency",
+            "slow",
+            "timeout",
+            "cost",
+            "expensive",
+            "limit",
+            "rate",
+            "quota",
+            "latency",
         ],
     }
 
-    def __init__(self, allowed_tools: Optional[list[str]] = None):
+    def __init__(self, allowed_tools: list[str] | None = None):
         self.allowed_tools = allowed_tools or []
 
-    def classify(self,
-                 output: Optional[str] = None,
-                 trace: Optional[dict[str, Any]] = None,
-                 context: Optional[str] = None,
-                 description: Optional[str] = None) -> ClassificationResult:
+    def classify(
+        self,
+        output: str | None = None,
+        trace: dict[str, Any] | None = None,
+        context: str | None = None,
+        description: str | None = None,
+    ) -> ClassificationResult:
         """
         Classify a potential failure based on output and traces.
 
@@ -119,6 +152,9 @@ class FailureClassifier:
         indicators = []
         scores: dict[str, float] = {}
 
+        # Define text for pattern matching
+        text = output or description or ""
+
         # Check patterns
         for failure_type, patterns in self.PATTERNS.items():
             for pattern in patterns:
@@ -127,7 +163,6 @@ class FailureClassifier:
                     scores[failure_type] = scores.get(failure_type, 0) + 0.3
 
         # Check keywords by class
-        text = output or description or ""
         output_lower = text.lower()
         class_scores: dict[FailureClass, float] = {}
 
@@ -141,14 +176,16 @@ class FailureClassifier:
         if trace:
             tool_failures = self._analyze_tool_trace(trace)
             if tool_failures:
-                class_scores[FailureClass.TOOL_USE] = class_scores.get(
-                    FailureClass.TOOL_USE, 0) + 0.5
+                class_scores[FailureClass.TOOL_USE] = (
+                    class_scores.get(FailureClass.TOOL_USE, 0) + 0.5
+                )
                 indicators.extend(tool_failures)
 
         # Check for context issues
         if isinstance(context, str) and context and self._check_context_issues(text, context):
-            class_scores[FailureClass.LONG_CONTEXT] = class_scores.get(
-                FailureClass.LONG_CONTEXT, 0) + 0.4
+            class_scores[FailureClass.LONG_CONTEXT] = (
+                class_scores.get(FailureClass.LONG_CONTEXT, 0) + 0.4
+            )
             indicators.append("context_mismatch")
 
         # Determine primary class
@@ -166,9 +203,7 @@ class FailureClassifier:
         confidence = min(class_scores[primary_class], 1.0)
 
         # Determine secondary class
-        secondary_class = self._determine_secondary_class(
-            primary_class, indicators, scores
-        )
+        secondary_class = self._determine_secondary_class(primary_class, indicators, scores)
 
         # Get suggested severity
         severity = FailureTaxonomy.get_typical_severity(secondary_class)
@@ -221,10 +256,9 @@ class FailureClassifier:
 
         return False
 
-    def _determine_secondary_class(self,
-                                    primary_class: FailureClass,
-                                    indicators: list[str],
-                                    scores: dict[str, float]) -> str:
+    def _determine_secondary_class(
+        self, primary_class: FailureClass, indicators: list[str], scores: dict[str, float]
+    ) -> str:
         """Determine the secondary (specific) failure class."""
         # Get all types in primary class
         types_in_class = FailureTaxonomy.get_types_by_class(primary_class)
@@ -239,8 +273,7 @@ class FailureClassifier:
         # Default to first type in class
         return types_in_class[0] if types_in_class else "unknown"
 
-    def _build_reasoning(self, primary_class: FailureClass,
-                         indicators: list[str]) -> str:
+    def _build_reasoning(self, primary_class: FailureClass, indicators: list[str]) -> str:
         """Build human-readable reasoning for classification."""
         parts = [f"Classified as {primary_class.value} failure."]
 
@@ -263,10 +296,9 @@ class EnsembleClassifier:
         self.heuristic = FailureClassifier()
         self.ml_classifier = None  # Placeholder for ML model
 
-    def classify(self,
-                 output: str,
-                 trace: Optional[dict[str, Any]] = None,
-                 context: Optional[str] = None) -> ClassificationResult:
+    def classify(
+        self, output: str, trace: dict[str, Any] | None = None, context: str | None = None
+    ) -> ClassificationResult:
         """Classify using ensemble of methods."""
         # Start with heuristic
         result = self.heuristic.classify(output, trace, context)
@@ -279,10 +311,9 @@ class EnsembleClassifier:
 
         return result
 
-    def _ml_classify(self,
-                     output: str,
-                     trace: Optional[dict[str, Any]],
-                     context: Optional[str]) -> Optional[ClassificationResult]:
+    def _ml_classify(
+        self, output: str, trace: dict[str, Any] | None, context: str | None
+    ) -> ClassificationResult | None:
         """ML-based classification (placeholder)."""
         # This would integrate with a trained model
         # For now, returns None to fall back to heuristic

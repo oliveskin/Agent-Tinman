@@ -50,11 +50,7 @@ class SafetyValidationHook(PipelineHook):
     def hook_points(self) -> list[HookPoint]:
         return [HookPoint.POST_REQUEST, HookPoint.POST_TOOL]
 
-    async def execute(
-        self,
-        hook_point: HookPoint,
-        context: PipelineContext
-    ) -> HookResult:
+    async def execute(self, hook_point: HookPoint, context: PipelineContext) -> HookResult:
         """Check response for safety concerns."""
         if not context.response:
             return HookResult(allow=True)
@@ -108,18 +104,12 @@ class LatencyMonitoringHook(PipelineHook):
     def hook_points(self) -> list[HookPoint]:
         return [HookPoint.POST_REQUEST]
 
-    async def execute(
-        self,
-        hook_point: HookPoint,
-        context: PipelineContext
-    ) -> HookResult:
+    async def execute(self, hook_point: HookPoint, context: PipelineContext) -> HookResult:
         """Record and analyze latency."""
         from datetime import datetime
 
         # Calculate latency
-        latency_ms = int(
-            (datetime.utcnow() - context.started_at).total_seconds() * 1000
-        )
+        latency_ms = int((datetime.utcnow() - context.started_at).total_seconds() * 1000)
         self.latencies.append(latency_ms)
 
         context.metadata["latency_ms"] = latency_ms
@@ -160,11 +150,7 @@ class RequestLoggingHook(PipelineHook):
     def hook_points(self) -> list[HookPoint]:
         return [HookPoint.PRE_REQUEST, HookPoint.POST_REQUEST, HookPoint.ON_ERROR]
 
-    async def execute(
-        self,
-        hook_point: HookPoint,
-        context: PipelineContext
-    ) -> HookResult:
+    async def execute(self, hook_point: HookPoint, context: PipelineContext) -> HookResult:
         """Log the request/response."""
         log_entry = {
             "context_id": context.id,
@@ -297,8 +283,7 @@ async def main():
     if safety_hook.warnings:
         print("\nSafety Warnings:")
         for warning in safety_hook.warnings:
-            print(f"  - Context {warning['context_id'][:8]}: "
-                  f"{warning['patterns_detected']}")
+            print(f"  - Context {warning['context_id'][:8]}: {warning['patterns_detected']}")
 
 
 if __name__ == "__main__":

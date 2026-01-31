@@ -299,7 +299,7 @@ class TestIntegrationWithAgents:
         )
 
         # Just test that the class accepts approval_handler parameter
-        assert hasattr(ExperimentExecutor, '__init__')
+        assert hasattr(ExperimentExecutor, "__init__")
 
     @pytest.mark.asyncio
     async def test_intervention_engine_accepts_approval_handler(self):
@@ -311,7 +311,7 @@ class TestIntegrationWithAgents:
             approval_mode=ApprovalMode.INTERACTIVE,
         )
 
-        assert hasattr(InterventionEngine, '__init__')
+        assert hasattr(InterventionEngine, "__init__")
 
     @pytest.mark.asyncio
     async def test_simulation_engine_accepts_approval_handler(self):
@@ -323,7 +323,7 @@ class TestIntegrationWithAgents:
             approval_mode=ApprovalMode.INTERACTIVE,
         )
 
-        assert hasattr(SimulationEngine, '__init__')
+        assert hasattr(SimulationEngine, "__init__")
 
 
 class TestCLIFallback:

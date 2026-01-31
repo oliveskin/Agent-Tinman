@@ -13,6 +13,7 @@ from typing import Any, Optional
 # RECIPE 1: Basic Research Cycle
 # ============================================================================
 
+
 async def run_basic_research():
     """Run a basic research cycle with default settings."""
     from tinman import create_tinman
@@ -38,6 +39,7 @@ async def run_basic_research():
 # ============================================================================
 # RECIPE 2: Continuous Research with Cost Limits
 # ============================================================================
+
 
 async def continuous_research_with_budget(
     budget_usd: float = 10.0,
@@ -90,6 +92,7 @@ async def continuous_research_with_budget(
 # RECIPE 3: Targeted Failure Discovery
 # ============================================================================
 
+
 async def discover_failures_by_class(
     failure_class: str,
     min_severity: str = "S2",
@@ -121,8 +124,7 @@ async def discover_failures_by_class(
 
         # Filter results to target class
         target_failures = [
-            f for f in results.get("failures", [])
-            if f.get("primary_class") == failure_class
+            f for f in results.get("failures", []) if f.get("primary_class") == failure_class
         ]
 
         return target_failures
@@ -134,6 +136,7 @@ async def discover_failures_by_class(
 # ============================================================================
 # RECIPE 4: Generate Reports for Stakeholders
 # ============================================================================
+
 
 async def generate_weekly_report(output_dir: str = "./reports"):
     """Generate comprehensive weekly report."""
@@ -195,6 +198,7 @@ async def generate_weekly_report(output_dir: str = "./reports"):
 # RECIPE 5: Ingest and Analyze External Traces
 # ============================================================================
 
+
 async def analyze_otlp_traces(otlp_data: dict):
     """Ingest OTLP traces and analyze for failures."""
     from tinman import create_tinman
@@ -212,13 +216,16 @@ async def analyze_otlp_traces(otlp_data: dict):
         error_summaries = []
         for trace in traces:
             for span in trace.error_spans:
-                error_summaries.append({
-                    "service": span.service_name,
-                    "operation": span.name,
-                    "error_type": span.get_exceptions()[0].get("type", "unknown")
-                    if span.has_exception() else "unknown",
-                    "duration_ms": span.duration_ms,
-                })
+                error_summaries.append(
+                    {
+                        "service": span.service_name,
+                        "operation": span.name,
+                        "error_type": span.get_exceptions()[0].get("type", "unknown")
+                        if span.has_exception()
+                        else "unknown",
+                        "duration_ms": span.duration_ms,
+                    }
+                )
 
         if error_summaries:
             # Ask Tinman to analyze
@@ -242,6 +249,7 @@ async def analyze_otlp_traces(otlp_data: dict):
 # ============================================================================
 # RECIPE 6: Mode Transition with Validation
 # ============================================================================
+
 
 async def safe_mode_transition(
     from_mode: str,
@@ -294,6 +302,7 @@ async def safe_mode_transition(
 # RECIPE 7: Custom Approval Handler
 # ============================================================================
 
+
 async def setup_custom_approvals():
     """Configure custom approval handling."""
     from tinman import create_tinman
@@ -328,6 +337,7 @@ async def setup_custom_approvals():
 # RECIPE 8: Prometheus Metrics Integration
 # ============================================================================
 
+
 async def setup_metrics_server():
     """Start Tinman with Prometheus metrics server."""
     from tinman import create_tinman
@@ -354,6 +364,7 @@ async def setup_metrics_server():
 # RECIPE 9: Database-Backed Session
 # ============================================================================
 
+
 async def create_persistent_session(db_url: str):
     """Create a session with database persistence."""
     from tinman import create_tinman
@@ -372,9 +383,8 @@ async def create_persistent_session(db_url: str):
         if tinman.db:
             # Get recent failures
             from tinman.db.models import Failure
-            failures = tinman.db.query(Failure).order_by(
-                Failure.created_at.desc()
-            ).limit(10).all()
+
+            failures = tinman.db.query(Failure).order_by(Failure.created_at.desc()).limit(10).all()
             print(f"Recent failures: {len(failures)}")
 
         return tinman
@@ -387,6 +397,7 @@ async def create_persistent_session(db_url: str):
 # ============================================================================
 # RECIPE 10: FastAPI Service Integration
 # ============================================================================
+
 
 def create_fastapi_integration():
     """Example FastAPI integration with Tinman."""

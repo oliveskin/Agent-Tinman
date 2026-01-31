@@ -4,19 +4,19 @@ This adapter handles traces in OpenTelemetry Protocol format,
 both protobuf and JSON representations.
 """
 
+from collections.abc import Iterator
 from datetime import datetime, timezone
-from typing import Any, Iterator, Optional
+from typing import Any
 
+from ..utils import get_logger
 from .base import (
-    TraceAdapter,
-    Trace,
     Span,
     SpanEvent,
     SpanLink,
     SpanStatus,
-    IngestResult,
+    Trace,
+    TraceAdapter,
 )
-from ..utils import get_logger
 
 logger = get_logger("ingest.otlp")
 
@@ -68,8 +68,7 @@ class OTLPAdapter(TraceAdapter):
 
             if "scopeSpans" not in rs and "instrumentationLibrarySpans" not in rs:
                 errors.append(
-                    f"resourceSpans[{i}] missing 'scopeSpans' or "
-                    "'instrumentationLibrarySpans'"
+                    f"resourceSpans[{i}] missing 'scopeSpans' or 'instrumentationLibrarySpans'"
                 )
 
         return len(errors) == 0, errors
@@ -82,14 +81,11 @@ class OTLPAdapter(TraceAdapter):
 
         for resource_span in data.get("resourceSpans", []):
             resource = resource_span.get("resource", {})
-            resource_attrs = self._parse_attributes(
-                resource.get("attributes", [])
-            )
+            resource_attrs = self._parse_attributes(resource.get("attributes", []))
 
             # Handle both scopeSpans and instrumentationLibrarySpans
             scope_spans_list = resource_span.get(
-                "scopeSpans",
-                resource_span.get("instrumentationLibrarySpans", [])
+                "scopeSpans", resource_span.get("instrumentationLibrarySpans", [])
             )
 
             for scope_spans in scope_spans_list:
@@ -109,11 +105,7 @@ class OTLPAdapter(TraceAdapter):
                 spans=spans,
                 source=self.name,
                 ingested_at=datetime.now(timezone.utc),
-                metadata={
-                    "resource_attributes": resource_attrs_by_trace.get(
-                        trace_id, {}
-                    )
-                },
+                metadata={"resource_attributes": resource_attrs_by_trace.get(trace_id, {})},
             )
 
     def _parse_span(
@@ -141,16 +133,10 @@ class OTLPAdapter(TraceAdapter):
         attributes = self._parse_attributes(data.get("attributes", []))
 
         # Parse events
-        events = [
-            self._parse_event(e)
-            for e in data.get("events", [])
-        ]
+        events = [self._parse_event(e) for e in data.get("events", [])]
 
         # Parse links
-        links = [
-            self._parse_link(link)
-            for link in data.get("links", [])
-        ]
+        links = [self._parse_link(link) for link in data.get("links", [])]
 
         # Get service name from resource attributes
         service_name = resource_attrs.get("service.name")
@@ -233,10 +219,7 @@ class OTLPAdapter(TraceAdapter):
         if "boolValue" in value:
             return bool(value["boolValue"])
         if "arrayValue" in value:
-            return [
-                self._parse_attribute_value(v)
-                for v in value["arrayValue"].get("values", [])
-            ]
+            return [self._parse_attribute_value(v) for v in value["arrayValue"].get("values", [])]
         if "kvlistValue" in value:
             return {
                 kv["key"]: self._parse_attribute_value(kv.get("value", {}))
@@ -268,6 +251,7 @@ class OTLPAdapter(TraceAdapter):
         # Try base64 decode
         try:
             import base64
+
             decoded = base64.b64decode(value)
             return decoded.hex()
         except Exception:

@@ -1,11 +1,11 @@
 """Adaptive Memory - learns from discoveries to improve over time."""
 
+from collections import defaultdict
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
-from collections import defaultdict
+from typing import Any
 
-from ..utils import generate_id, utc_now, get_logger
+from ..utils import generate_id, get_logger, utc_now
 
 logger = get_logger("adaptive_memory")
 
@@ -13,6 +13,7 @@ logger = get_logger("adaptive_memory")
 @dataclass
 class LearnedPattern:
     """A pattern learned from research."""
+
     id: str = field(default_factory=generate_id)
     pattern_type: str = ""  # hypothesis, failure, intervention
     description: str = ""
@@ -27,6 +28,7 @@ class LearnedPattern:
 @dataclass
 class PriorBelief:
     """A belief about model behavior that informs hypothesis generation."""
+
     id: str = field(default_factory=generate_id)
     belief: str = ""
     strength: float = 0.5  # 0-1, how strongly held
@@ -61,11 +63,9 @@ class AdaptiveMemory:
         self._failure_signatures: dict[str, int] = defaultdict(int)
         self._failure_cooccurrence: dict[tuple[str, str], int] = defaultdict(int)
 
-    def record_hypothesis_outcome(self,
-                                   hypothesis_type: str,
-                                   target_surface: str,
-                                   validated: bool,
-                                   confidence: float) -> None:
+    def record_hypothesis_outcome(
+        self, hypothesis_type: str, target_surface: str, validated: bool, confidence: float
+    ) -> None:
         """Record whether a hypothesis was validated."""
         key = f"{hypothesis_type}:{target_surface}"
         self._hypothesis_outcomes[key].append(validated)
@@ -88,10 +88,9 @@ class AdaptiveMemory:
 
         logger.info(f"Recorded hypothesis outcome: {key} = {validated}")
 
-    def record_intervention_outcome(self,
-                                     intervention_type: str,
-                                     failure_class: str,
-                                     effective: bool) -> None:
+    def record_intervention_outcome(
+        self, intervention_type: str, failure_class: str, effective: bool
+    ) -> None:
         """Record whether an intervention was effective."""
         key = f"{intervention_type}:{failure_class}"
         self._intervention_outcomes[key].append(effective)
@@ -118,14 +117,11 @@ class AdaptiveMemory:
 
         # Track co-occurrence
         for i, s1 in enumerate(signature):
-            for s2 in signature[i+1:]:
+            for s2 in signature[i + 1 :]:
                 pair = tuple(sorted([s1, s2]))
                 self._failure_cooccurrence[pair] += 1
 
-    def update_belief(self,
-                      belief_text: str,
-                      evidence: str,
-                      supports: bool) -> PriorBelief:
+    def update_belief(self, belief_text: str, evidence: str, supports: bool) -> PriorBelief:
         """Update a belief based on new evidence."""
         # Find existing belief or create new
         belief_key = belief_text[:100]  # Use truncated text as key
@@ -171,7 +167,8 @@ class AdaptiveMemory:
 
         # Check if this intervention type has worked for other failures
         type_outcomes = [
-            outcomes for key, outcomes in self._intervention_outcomes.items()
+            outcomes
+            for key, outcomes in self._intervention_outcomes.items()
             if key.startswith(f"{intervention_type}:")
         ]
 
@@ -183,11 +180,7 @@ class AdaptiveMemory:
 
     def get_likely_failure_patterns(self, top_k: int = 5) -> list[tuple[str, int]]:
         """Get most common failure patterns."""
-        sorted_patterns = sorted(
-            self._failure_signatures.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )
+        sorted_patterns = sorted(self._failure_signatures.items(), key=lambda x: x[1], reverse=True)
         return sorted_patterns[:top_k]
 
     def get_correlated_failures(self, failure_sig: str, min_cooccurrence: int = 2) -> list[str]:
@@ -205,10 +198,7 @@ class AdaptiveMemory:
 
     def get_strong_beliefs(self, min_strength: float = 0.7) -> list[PriorBelief]:
         """Get beliefs held with high confidence."""
-        return [
-            b for b in self._beliefs.values()
-            if b.strength >= min_strength
-        ]
+        return [b for b in self._beliefs.values() if b.strength >= min_strength]
 
     def get_research_suggestions(self) -> list[str]:
         """Generate research suggestions based on learned patterns."""
@@ -216,7 +206,8 @@ class AdaptiveMemory:
 
         # Suggest investigating successful hypothesis patterns
         high_success_hypotheses = [
-            p for p in self._patterns.values()
+            p
+            for p in self._patterns.values()
             if p.pattern_type == "hypothesis" and p.success_rate > 0.7 and p.evidence_count >= 3
         ]
 
@@ -228,14 +219,13 @@ class AdaptiveMemory:
 
         # Suggest trying effective interventions elsewhere
         high_success_interventions = [
-            p for p in self._patterns.values()
+            p
+            for p in self._patterns.values()
             if p.pattern_type == "intervention" and p.success_rate > 0.6
         ]
 
         for pattern in high_success_interventions[:3]:
-            suggestions.append(
-                f"Consider applying: {pattern.description} to other failures"
-            )
+            suggestions.append(f"Consider applying: {pattern.description} to other failures")
 
         # Suggest investigating common failure patterns
         common_failures = self.get_likely_failure_patterns(3)
@@ -247,14 +237,13 @@ class AdaptiveMemory:
 
         # Suggest revisiting uncertain beliefs
         uncertain_beliefs = [
-            b for b in self._beliefs.values()
+            b
+            for b in self._beliefs.values()
             if 0.3 < b.strength < 0.7 and len(b.evidence_for) + len(b.evidence_against) >= 2
         ]
 
         for belief in uncertain_beliefs[:2]:
-            suggestions.append(
-                f"Gather more evidence on: {belief.belief[:100]}"
-            )
+            suggestions.append(f"Gather more evidence on: {belief.belief[:100]}")
 
         return suggestions
 
@@ -262,8 +251,7 @@ class AdaptiveMemory:
         """Get adaptive memory context to inform reasoning."""
         return {
             "strong_beliefs": [
-                {"belief": b.belief, "strength": b.strength}
-                for b in self.get_strong_beliefs()
+                {"belief": b.belief, "strength": b.strength} for b in self.get_strong_beliefs()
             ],
             "successful_patterns": [
                 {"description": p.description, "success_rate": p.success_rate}

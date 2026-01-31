@@ -1,21 +1,32 @@
 """Experiment Architect - designs experiments to test hypotheses using LLM reasoning."""
 
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import Any
 
-from .base import BaseAgent, AgentContext, AgentResult
-from .hypothesis_engine import Hypothesis
 from ..memory.graph import MemoryGraph
-from ..taxonomy.failure_types import FailureClass
 from ..reasoning.llm_backbone import LLMBackbone, ReasoningContext, ReasoningMode
+from ..taxonomy.failure_types import FailureClass
 from ..utils import generate_id, get_logger
+from .base import AgentContext, AgentResult, BaseAgent
+from .hypothesis_engine import Hypothesis
 
 logger = get_logger("experiment_architect")
+
+
+def safe_get(data: dict, *keys, default=None):
+    """Safely get nested dictionary values."""
+    for key in keys:
+        if isinstance(data, dict):
+            data = data.get(key, default)
+        else:
+            return default
+    return data
 
 
 @dataclass
 class ExperimentDesign:
     """Design specification for an experiment."""
+
     id: str = field(default_factory=generate_id)
     hypothesis_id: str = ""
     name: str = ""
@@ -121,10 +132,12 @@ class ExperimentArchitect(BaseAgent):
         ],
     }
 
-    def __init__(self,
-                 graph: Optional[MemoryGraph] = None,
-                 llm_backbone: Optional[LLMBackbone] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        graph: MemoryGraph | None = None,
+        llm_backbone: LLMBackbone | None = None,
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.graph = graph
         self.llm = llm_backbone
@@ -205,11 +218,13 @@ class ExperimentArchitect(BaseAgent):
             # Get prior experiments for this failure class
             prior_experiments = self.graph.get_experiments(valid_only=True, limit=5)
             for e in prior_experiments:
-                observations.append({
-                    "type": "prior_experiment",
-                    "description": f"Previously ran {e.data.get('stress_type')} test",
-                    "data": e.data,
-                })
+                observations.append(
+                    {
+                        "type": "prior_experiment",
+                        "description": f"Previously ran {e.data.get('stress_type')} test",
+                        "data": e.data,
+                    }
+                )
 
         context = ReasoningContext(
             mode=ReasoningMode.EXPERIMENT_DESIGN,
@@ -231,31 +246,70 @@ Generate concrete test cases with actual prompts/inputs to use.""",
 
         designs = []
 
-        # Parse LLM-generated experiment design
-        method = output.get("method", {})
-        test_cases = output.get("test_cases", [])
+        try:
+            # Validate structured output exists and is a dict
+            if not isinstance(output, dict):
+                logger.warning("LLM output is not a dict, falling back to template-based design")
+                return self._design_for_hypothesis(hypothesis)
 
-        design = ExperimentDesign(
-            hypothesis_id=hypothesis.id,
-            name=f"{hypothesis.target_surface}_{method.get('stress_type', 'llm_designed')}",
-            description=output.get("objective", method.get("description", "")),
-            stress_type=method.get("stress_type", "adversarial"),
-            mode=method.get("mode", "single"),
-            parameters={
-                "objective": output.get("objective", ""),
-                "controls": output.get("controls", []),
-                "metrics": output.get("metrics", []),
-            },
-            constraints=self._default_constraints(hypothesis.failure_class),
-            success_criteria=[output.get("success_criteria", "")] if output.get("success_criteria") else [],
-            failure_indicators=[],
-            test_cases=test_cases,
-            estimated_runs=output.get("estimated_runs", len(test_cases) or 5),
-            estimated_tokens=self._estimate_tokens(method.get("stress_type", "generic")),
-        )
+            # Parse LLM-generated experiment design with safe access
+            method = output.get("method", {})
+            if not isinstance(method, dict):
+                logger.warning("LLM output 'method' is not a dict, using empty dict")
+                method = {}
 
-        designs.append(design)
-        logger.info(f"LLM designed experiment with {len(test_cases)} test cases")
+            test_cases = output.get("test_cases", [])
+            if not isinstance(test_cases, list):
+                logger.warning("LLM output 'test_cases' is not a list, using empty list")
+                test_cases = []
+
+            # Safely extract values with defaults
+            stress_type = safe_get(method, "stress_type", default="llm_designed")
+            mode = safe_get(method, "mode", default="single")
+            description = output.get("objective") or safe_get(method, "description", default="")
+            objective = output.get("objective", "")
+            controls = output.get("controls", [])
+            metrics = output.get("metrics", [])
+            success_criteria_val = output.get("success_criteria", "")
+            estimated_runs_val = output.get("estimated_runs")
+
+            # Validate types for nested values
+            if not isinstance(controls, list):
+                logger.warning("LLM output 'controls' is not a list, using empty list")
+                controls = []
+            if not isinstance(metrics, list):
+                logger.warning("LLM output 'metrics' is not a list, using empty list")
+                metrics = []
+
+            design = ExperimentDesign(
+                hypothesis_id=hypothesis.id,
+                name=f"{hypothesis.target_surface}_{stress_type}",
+                description=description,
+                stress_type=stress_type,
+                mode=mode,
+                parameters={
+                    "objective": objective,
+                    "controls": controls,
+                    "metrics": metrics,
+                },
+                constraints=self._default_constraints(hypothesis.failure_class),
+                success_criteria=[success_criteria_val] if success_criteria_val else [],
+                failure_indicators=[],
+                test_cases=test_cases,
+                estimated_runs=estimated_runs_val
+                if isinstance(estimated_runs_val, int)
+                else (len(test_cases) or 5),
+                estimated_tokens=self._estimate_tokens(stress_type),
+            )
+
+            designs.append(design)
+            logger.info(f"LLM designed experiment with {len(test_cases)} test cases")
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to parse LLM experiment design output: {e}, falling back to template-based design"
+            )
+            return self._design_for_hypothesis(hypothesis)
 
         return designs
 

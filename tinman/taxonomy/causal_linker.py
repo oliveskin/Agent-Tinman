@@ -3,15 +3,16 @@
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any
 
-from ..utils import generate_id, utc_now, get_logger
+from ..utils import generate_id, get_logger, utc_now
 
 logger = get_logger("causal_linker")
 
 
 class CauseType(str, Enum):
     """Types of root causes."""
+
     MODEL_BEHAVIOR = "model_behavior"
     POLICY = "policy"
     INFRASTRUCTURE = "infrastructure"
@@ -24,13 +25,14 @@ class CauseType(str, Enum):
 @dataclass
 class CausalLink:
     """A link in the causal chain."""
+
     id: str = field(default_factory=generate_id)
     cause_type: CauseType = CauseType.UNKNOWN
     description: str = ""
     depth: int = 1  # 1 = immediate cause, higher = deeper
     confidence: float = 0.5
     evidence: list[str] = field(default_factory=list)
-    parent_id: Optional[str] = None
+    parent_id: str | None = None
     created_at: datetime = field(default_factory=utc_now)
     created_by: str = "auto"  # 'auto' or 'human:<user_id>'
 
@@ -38,6 +40,7 @@ class CausalLink:
 @dataclass
 class CausalGraph:
     """Complete causal graph for a failure."""
+
     failure_id: str
     root_causes: list[CausalLink] = field(default_factory=list)
     intermediate_causes: list[CausalLink] = field(default_factory=list)
@@ -66,39 +69,73 @@ class CausalLinker:
     # Heuristic patterns for cause type detection
     CAUSE_PATTERNS = {
         CauseType.MODEL_BEHAVIOR: [
-            "model", "generate", "predict", "output", "response",
-            "hallucinate", "reasoning", "inference",
+            "model",
+            "generate",
+            "predict",
+            "output",
+            "response",
+            "hallucinate",
+            "reasoning",
+            "inference",
         ],
         CauseType.POLICY: [
-            "policy", "rule", "constraint", "limit", "restrict",
-            "allow", "deny", "permission",
+            "policy",
+            "rule",
+            "constraint",
+            "limit",
+            "restrict",
+            "allow",
+            "deny",
+            "permission",
         ],
         CauseType.INFRASTRUCTURE: [
-            "timeout", "network", "connection", "server", "api",
-            "rate limit", "quota", "resource",
+            "timeout",
+            "network",
+            "connection",
+            "server",
+            "api",
+            "rate limit",
+            "quota",
+            "resource",
         ],
         CauseType.DATA: [
-            "data", "input", "training", "dataset", "context",
-            "retrieval", "embedding", "vector",
+            "data",
+            "input",
+            "training",
+            "dataset",
+            "context",
+            "retrieval",
+            "embedding",
+            "vector",
         ],
         CauseType.CONFIGURATION: [
-            "config", "setting", "parameter", "threshold",
-            "temperature", "max_tokens",
+            "config",
+            "setting",
+            "parameter",
+            "threshold",
+            "temperature",
+            "max_tokens",
         ],
         CauseType.EXTERNAL: [
-            "external", "third-party", "upstream", "dependency",
-            "service", "provider",
+            "external",
+            "third-party",
+            "upstream",
+            "dependency",
+            "service",
+            "provider",
         ],
     }
 
     def __init__(self):
         self._graphs: dict[str, CausalGraph] = {}
 
-    def analyze(self,
-                failure_id: str,
-                failure_description: str,
-                trace: Optional[dict[str, Any]] = None,
-                context: Optional[str] = None) -> CausalGraph:
+    def analyze(
+        self,
+        failure_id: str,
+        failure_description: str,
+        trace: dict[str, Any] | None = None,
+        context: str | None = None,
+    ) -> CausalGraph:
         """
         Analyze a failure and build initial causal graph.
 
@@ -108,9 +145,7 @@ class CausalLinker:
         graph = CausalGraph(failure_id=failure_id)
 
         # Immediate cause from failure description
-        immediate_cause = self._extract_immediate_cause(
-            failure_description, trace
-        )
+        immediate_cause = self._extract_immediate_cause(failure_description, trace)
         graph.intermediate_causes.append(immediate_cause)
 
         # Try to identify deeper causes
@@ -129,9 +164,9 @@ class CausalLinker:
         self._graphs[failure_id] = graph
         return graph
 
-    def _extract_immediate_cause(self,
-                                  description: str,
-                                  trace: Optional[dict[str, Any]]) -> CausalLink:
+    def _extract_immediate_cause(
+        self, description: str, trace: dict[str, Any] | None
+    ) -> CausalLink:
         """Extract the immediate/proximate cause."""
         # Detect cause type from description
         cause_type = self._detect_cause_type(description)
@@ -153,9 +188,7 @@ class CausalLinker:
             created_by="auto",
         )
 
-    def _analyze_trace_for_causes(self,
-                                   trace: dict[str, Any],
-                                   parent_id: str) -> list[CausalLink]:
+    def _analyze_trace_for_causes(self, trace: dict[str, Any], parent_id: str) -> list[CausalLink]:
         """Analyze execution trace for contributing causes."""
         causes = []
         depth = 2
@@ -163,46 +196,52 @@ class CausalLinker:
         # Check for tool errors
         if "errors" in trace and trace["errors"]:
             for error in trace["errors"][:3]:  # Limit to 3
-                causes.append(CausalLink(
-                    cause_type=CauseType.INFRASTRUCTURE,
-                    description=f"Tool error: {str(error)[:100]}",
-                    depth=depth,
-                    confidence=0.7,
-                    evidence=[f"Error from trace: {error}"],
-                    parent_id=parent_id,
-                    created_by="auto",
-                ))
+                causes.append(
+                    CausalLink(
+                        cause_type=CauseType.INFRASTRUCTURE,
+                        description=f"Tool error: {str(error)[:100]}",
+                        depth=depth,
+                        confidence=0.7,
+                        evidence=[f"Error from trace: {error}"],
+                        parent_id=parent_id,
+                        created_by="auto",
+                    )
+                )
                 depth += 1
 
         # Check for retries (indicates transient issues)
         if trace.get("retry_count", 0) > 2:
-            causes.append(CausalLink(
-                cause_type=CauseType.INFRASTRUCTURE,
-                description=f"Excessive retries: {trace['retry_count']}",
-                depth=depth,
-                confidence=0.6,
-                evidence=["High retry count suggests instability"],
-                parent_id=parent_id,
-                created_by="auto",
-            ))
+            causes.append(
+                CausalLink(
+                    cause_type=CauseType.INFRASTRUCTURE,
+                    description=f"Excessive retries: {trace['retry_count']}",
+                    depth=depth,
+                    confidence=0.6,
+                    evidence=["High retry count suggests instability"],
+                    parent_id=parent_id,
+                    created_by="auto",
+                )
+            )
 
         # Check for context issues
         if trace.get("context_length", 0) > 100000:
-            causes.append(CausalLink(
-                cause_type=CauseType.DATA,
-                description="Very long context may cause attention issues",
-                depth=depth,
-                confidence=0.5,
-                evidence=[f"Context length: {trace['context_length']}"],
-                parent_id=parent_id,
-                created_by="auto",
-            ))
+            causes.append(
+                CausalLink(
+                    cause_type=CauseType.DATA,
+                    description="Very long context may cause attention issues",
+                    depth=depth,
+                    confidence=0.5,
+                    evidence=[f"Context length: {trace['context_length']}"],
+                    parent_id=parent_id,
+                    created_by="auto",
+                )
+            )
 
         return causes
 
-    def _hypothesize_root_cause(self,
-                                 intermediate_causes: list[CausalLink],
-                                 description: str) -> Optional[CausalLink]:
+    def _hypothesize_root_cause(
+        self, intermediate_causes: list[CausalLink], description: str
+    ) -> CausalLink | None:
         """Attempt to identify a root cause."""
         if not intermediate_causes:
             return None
@@ -253,13 +292,15 @@ class CausalLinker:
             return max(scores, key=scores.get)
         return CauseType.UNKNOWN
 
-    def add_manual_cause(self,
-                         failure_id: str,
-                         cause_type: CauseType,
-                         description: str,
-                         parent_id: Optional[str] = None,
-                         is_root: bool = False,
-                         user_id: str = "unknown") -> CausalLink:
+    def add_manual_cause(
+        self,
+        failure_id: str,
+        cause_type: CauseType,
+        description: str,
+        parent_id: str | None = None,
+        is_root: bool = False,
+        user_id: str = "unknown",
+    ) -> CausalLink:
         """
         Add a manually-identified cause.
 
@@ -295,18 +336,18 @@ class CausalLinker:
 
         return cause
 
-    def _find_cause(self, graph: CausalGraph, cause_id: str) -> Optional[CausalLink]:
+    def _find_cause(self, graph: CausalGraph, cause_id: str) -> CausalLink | None:
         """Find a cause by ID in the graph."""
         for cause in graph.intermediate_causes + graph.root_causes:
             if cause.id == cause_id:
                 return cause
         return None
 
-    def get_graph(self, failure_id: str) -> Optional[CausalGraph]:
+    def get_graph(self, failure_id: str) -> CausalGraph | None:
         """Get causal graph for a failure."""
         return self._graphs.get(failure_id)
 
-    def export_graph(self, failure_id: str) -> Optional[dict[str, Any]]:
+    def export_graph(self, failure_id: str) -> dict[str, Any] | None:
         """Export causal graph as dictionary."""
         graph = self._graphs.get(failure_id)
         if not graph:

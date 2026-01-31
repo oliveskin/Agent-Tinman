@@ -3,17 +3,18 @@
 This adapter handles traces from AWS X-Ray format.
 """
 
+from collections.abc import Iterator
 from datetime import datetime, timezone
-from typing import Any, Iterator, Optional
+from typing import Any
 
+from ..utils import get_logger
 from .base import (
-    TraceAdapter,
-    Trace,
     Span,
     SpanEvent,
     SpanStatus,
+    Trace,
+    TraceAdapter,
 )
-from ..utils import get_logger
 
 logger = get_logger("ingest.xray")
 
@@ -55,9 +56,7 @@ class XRayAdapter(TraceAdapter):
             elif "trace_id" not in data and "TraceId" not in data:
                 # Single segment needs trace_id
                 if "Id" not in data:
-                    errors.append(
-                        "Single segment must have 'trace_id', 'TraceId', or 'Id'"
-                    )
+                    errors.append("Single segment must have 'trace_id', 'TraceId', or 'Id'")
         elif isinstance(data, list):
             for i, item in enumerate(data):
                 if not isinstance(item, dict):
@@ -104,7 +103,7 @@ class XRayAdapter(TraceAdapter):
                 ingested_at=datetime.now(timezone.utc),
             )
 
-    def _get_trace_id(self, segment: dict[str, Any]) -> Optional[str]:
+    def _get_trace_id(self, segment: dict[str, Any]) -> str | None:
         """Extract trace ID from segment."""
         # X-Ray trace IDs can be in multiple formats
         trace_id = segment.get("trace_id") or segment.get("TraceId")
@@ -163,19 +162,15 @@ class XRayAdapter(TraceAdapter):
         self,
         data: dict[str, Any],
         trace_id: str,
-        parent_id: Optional[str],
+        parent_id: str | None,
     ) -> Span:
         """Parse a single X-Ray segment or subsegment."""
         span_id = data.get("id") or data.get("Id", "")
 
         # X-Ray uses epoch seconds for timestamps
-        start_time = datetime.fromtimestamp(
-            data.get("start_time", 0),
-            tz=timezone.utc
-        )
+        start_time = datetime.fromtimestamp(data.get("start_time", 0), tz=timezone.utc)
         end_time = datetime.fromtimestamp(
-            data.get("end_time", data.get("start_time", 0)),
-            tz=timezone.utc
+            data.get("end_time", data.get("start_time", 0)), tz=timezone.utc
         )
 
         # Determine status
@@ -219,9 +214,7 @@ class XRayAdapter(TraceAdapter):
 
             if response:
                 attributes["http.status_code"] = response.get("status")
-                attributes["http.response_content_length"] = response.get(
-                    "content_length"
-                )
+                attributes["http.response_content_length"] = response.get("content_length")
 
         # Add AWS data if present
         aws_data = data.get("aws", {})
@@ -245,16 +238,18 @@ class XRayAdapter(TraceAdapter):
         if cause:
             exceptions = cause.get("exceptions", [])
             for exc in exceptions:
-                events.append(SpanEvent(
-                    name="exception",
-                    timestamp=start_time,
-                    attributes={
-                        "exception.type": exc.get("type", "Exception"),
-                        "exception.message": exc.get("message", ""),
-                        "exception.id": exc.get("id"),
-                        "exception.remote": exc.get("remote", False),
-                    },
-                ))
+                events.append(
+                    SpanEvent(
+                        name="exception",
+                        timestamp=start_time,
+                        attributes={
+                            "exception.type": exc.get("type", "Exception"),
+                            "exception.message": exc.get("message", ""),
+                            "exception.id": exc.get("id"),
+                            "exception.remote": exc.get("remote", False),
+                        },
+                    )
+                )
 
         # Determine span kind
         kind = self._determine_kind(data)
@@ -297,7 +292,7 @@ class XRayAdapter(TraceAdapter):
 
         return "internal"
 
-    def _get_status_message(self, data: dict[str, Any]) -> Optional[str]:
+    def _get_status_message(self, data: dict[str, Any]) -> str | None:
         """Extract status message from segment."""
         cause = data.get("cause", {})
         if cause:

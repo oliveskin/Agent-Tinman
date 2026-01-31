@@ -1,4 +1,4 @@
-﻿"""Hugging Face Inference API demo wired into Tinman PipelineAdapter."""
+"""Hugging Face Inference API demo wired into Tinman PipelineAdapter."""
 
 import argparse
 import asyncio
