@@ -535,7 +535,11 @@ tinman/
 │   ├── model_client.py
 │   ├── openai_client.py
 │   ├── anthropic_client.py
-│   └── pipeline_adapter.py
+│   ├── pipeline_adapter.py
+│   └── gateway_plugin/  # Real-time gateway monitoring
+│       ├── base.py      # GatewayAdapter ABC
+│       ├── monitor.py   # Event loop + trace buffer
+│       └── alerter.py   # Console, File, Webhook alerts
 ├── memory/              # Knowledge graph
 │   ├── graph.py
 │   ├── models.py
@@ -598,6 +602,20 @@ Run in PRODUCTION mode with human approval gates to actively protect against dis
 
 ### Compliance & Audit
 Use the memory graph to demonstrate due diligence: what failures were discovered, what interventions were applied, and what the outcomes were.
+
+### Real-Time Gateway Monitoring
+Connect to AI gateway WebSockets for instant event analysis. The gateway plugin buffers events, converts to traces, runs FailureClassifier, and alerts on findings as they happen.
+
+```python
+from tinman.integrations.gateway_plugin import GatewayMonitor, ConsoleAlerter
+
+monitor = GatewayMonitor(your_adapter)
+monitor.add_alerter(ConsoleAlerter())
+await monitor.start()
+```
+
+Platform adapters available:
+- **OpenClaw**: [tinman-openclaw-eval](https://github.com/oliveskin/tinman-openclaw-eval)
 
 ---
 
