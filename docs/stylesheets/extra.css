@@ -1,0 +1,143 @@
+/* Agent Tinman - Custom Styles */
+
+:root {
+  --md-primary-fg-color: #7c3aed;
+  --md-primary-fg-color--light: #a78bfa;
+  --md-primary-fg-color--dark: #5b21b6;
+  --md-accent-fg-color: #f59e0b;
+}
+
+/* Hero section styling */
+.md-typeset .hero {
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.md-typeset .hero h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.md-typeset .hero .tagline {
+  font-size: 1.25rem;
+  opacity: 0.8;
+  margin-bottom: 1.5rem;
+}
+
+/* Buttons */
+.md-typeset .md-button {
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+}
+
+.md-typeset .md-button--primary {
+  background-color: var(--md-primary-fg-color);
+  border-color: var(--md-primary-fg-color);
+}
+
+.md-typeset .md-button--primary:hover {
+  background-color: var(--md-primary-fg-color--dark);
+  border-color: var(--md-primary-fg-color--dark);
+}
+
+/* Feature cards */
+.md-typeset .grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.md-typeset .grid .card {
+  background: var(--md-code-bg-color);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--md-default-fg-color--lightest);
+}
+
+.md-typeset .grid .card h3 {
+  margin-top: 0;
+  font-size: 1.1rem;
+}
+
+.md-typeset .grid .card p {
+  margin-bottom: 0;
+  opacity: 0.9;
+  font-size: 0.9rem;
+}
+
+/* Code blocks */
+.md-typeset pre > code {
+  border-radius: 0.5rem;
+}
+
+/* Tables */
+.md-typeset table:not([class]) {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.md-typeset table:not([class]) th {
+  background: var(--md-primary-fg-color);
+  color: white;
+}
+
+/* Admonitions */
+.md-typeset .admonition {
+  border-radius: 0.5rem;
+}
+
+/* Footer */
+.md-footer {
+  margin-top: 2rem;
+}
+
+/* Comparison table */
+.md-typeset .comparison {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.md-typeset .comparison > div {
+  background: var(--md-code-bg-color);
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+}
+
+.md-typeset .comparison h3 {
+  margin-top: 0;
+}
+
+/* Badge styling */
+.md-typeset .badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+.md-typeset .badges img {
+  height: 20px;
+}
+
+/* Blockquote styling */
+.md-typeset blockquote {
+  border-left: 4px solid var(--md-primary-fg-color);
+  background: var(--md-code-bg-color);
+  padding: 1rem 1.5rem;
+  border-radius: 0 0.5rem 0.5rem 0;
+  font-style: normal;
+}
+
+/* Research cycle diagram */
+.md-typeset .cycle-diagram {
+  background: var(--md-code-bg-color);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  overflow-x: auto;
+}
