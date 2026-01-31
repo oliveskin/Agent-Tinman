@@ -34,14 +34,14 @@ theme:
   palette:
     # Dark mode (default)
     - scheme: slate
-      primary: deep purple
+      primary: deep orange
       accent: amber
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
     # Light mode
     - scheme: default
-      primary: deep purple
+      primary: deep orange
       accent: amber
       toggle:
         icon: material/brightness-7

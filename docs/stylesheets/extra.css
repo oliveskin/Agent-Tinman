@@ -1,10 +1,16 @@
 /* Agent Tinman - Custom Styles */
 
 :root {
-  --md-primary-fg-color: #7c3aed;
-  --md-primary-fg-color--light: #a78bfa;
-  --md-primary-fg-color--dark: #5b21b6;
-  --md-accent-fg-color: #f59e0b;
+  --md-primary-fg-color: #d97706;
+  --md-primary-fg-color--light: #f59e0b;
+  --md-primary-fg-color--dark: #b45309;
+  --md-accent-fg-color: #fbbf24;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #ea580c;
+  --md-primary-fg-color--light: #f97316;
+  --md-primary-fg-color--dark: #c2410c;
 }
 
 /* Hero section styling */

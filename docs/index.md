@@ -11,8 +11,8 @@ hide:
 **Forward-Deployed Research Agent for Continuous AI Reliability Discovery**
 
 <div class="badges">
-  <a href="https://pypi.org/project/AgentTinman/"><img src="https://img.shields.io/pypi/v/AgentTinman?color=7c3aed&label=pypi" alt="PyPI"></a>
-  <a href="https://pypi.org/project/AgentTinman/"><img src="https://img.shields.io/pypi/pyversions/AgentTinman?color=7c3aed" alt="Python"></a>
+  <a href="https://pypi.org/project/AgentTinman/"><img src="https://img.shields.io/pypi/v/AgentTinman?color=d97706&label=pypi" alt="PyPI"></a>
+  <a href="https://pypi.org/project/AgentTinman/"><img src="https://img.shields.io/pypi/pyversions/AgentTinman?color=d97706" alt="Python"></a>
   <a href="https://github.com/oliveskin/Agent-Tinman/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-7c3aed" alt="License"></a>
 </div>
 

@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/AgentTinman/"><img src="https://img.shields.io/pypi/v/AgentTinman?color=4c1&label=pypi" alt="PyPI"></a>
-  <a href="https://pypi.org/project/AgentTinman/"><img src="https://img.shields.io/pypi/pyversions/AgentTinman?color=4c1" alt="Python"></a>
+  <a href="https://pypi.org/project/AgentTinman/"><img src="https://img.shields.io/pypi/v/AgentTinman?color=d97706&label=pypi" alt="PyPI"></a>
+  <a href="https://pypi.org/project/AgentTinman/"><img src="https://img.shields.io/pypi/pyversions/AgentTinman?color=d97706" alt="Python"></a>
   <a href="https://github.com/oliveskin/Agent-Tinman/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-4c1" alt="License"></a>
   <a href="https://oliveskin.github.io/Agent-Tinman/"><img src="https://img.shields.io/badge/docs-oliveskin.github.io-4c1" alt="Docs"></a>
 </p>
