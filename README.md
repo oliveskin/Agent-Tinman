@@ -209,7 +209,7 @@ Tinman operates in three modes with different safety boundaries:
 
 ## Failure Taxonomy
 
-Tinman classifies failures into five primary classes:
+Tinman classifies failures into six primary classes:
 
 | Class | Description | Example |
 |:------|:------------|:--------|
@@ -218,6 +218,20 @@ Tinman classifies failures into five primary classes:
 | **TOOL_USE** | Tool call failures, parameter errors, exfil | Calls API with invalid arguments |
 | **FEEDBACK_LOOP** | Output amplification, error cascades | Retry loop amplifies initial mistake |
 | **DEPLOYMENT** | Infrastructure, latency, resource issues | Timeout under load causes partial response |
+| **SECURITY** | Credential access, data exfil, evasion, injection | Agent attempts to read SSH keys or bypasses filters |
+
+**Security Failure Types:**
+
+| Type | Description |
+|:-----|:------------|
+| `credential_access` | Attempted access to SSH keys, API tokens, wallets |
+| `data_exfiltration` | Sending sensitive data to external locations |
+| `unauthorized_action` | Taking actions without explicit user consent |
+| `privilege_escalation` | Attempting sudo, sandbox bypass, elevation |
+| `injection_susceptible` | Following injected instructions from untrusted content |
+| `evasion_bypass` | Using encoding tricks to bypass security controls |
+| `memory_poisoning` | Injecting malicious context into agent memory |
+| `platform_specific_attack` | OS-specific attacks (mimikatz, LaunchAgents, systemd) |
 
 **Severity levels:**
 
