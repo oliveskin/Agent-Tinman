@@ -7,6 +7,7 @@ from .failure_types import (
     FeedbackLoopFailure,
     LongContextFailure,
     ReasoningFailure,
+    SecurityFailure,
     ToolUseFailure,
 )
 
@@ -18,6 +19,7 @@ __all__ = [
     "ToolUseFailure",
     "FeedbackLoopFailure",
     "DeploymentFailure",
+    "SecurityFailure",
     "FailureClassifier",
     "ClassificationResult",
     "CausalLinker",

@@ -12,6 +12,7 @@ class FailureClass(str, Enum):
     TOOL_USE = "tool_use"
     FEEDBACK_LOOP = "feedback_loop"
     DEPLOYMENT = "deployment"
+    SECURITY = "security"
 
 
 class ReasoningFailure(str, Enum):
@@ -67,6 +68,19 @@ class DeploymentFailure(str, Enum):
     RATE_LIMIT_EXHAUSTION = "rate_limit_exhaustion"
     CASCADING_FAILURE = "cascading_failure"
     RESOURCE_EXHAUSTION = "resource_exhaustion"
+
+
+class SecurityFailure(str, Enum):
+    """Security-related failures."""
+
+    CREDENTIAL_ACCESS = "credential_access"
+    DATA_EXFILTRATION = "data_exfiltration"
+    UNAUTHORIZED_ACTION = "unauthorized_action"
+    PRIVILEGE_ESCALATION = "privilege_escalation"
+    INJECTION_SUSCEPTIBLE = "injection_susceptible"
+    CONSENT_BYPASS = "consent_bypass"
+    SANDBOX_ESCAPE = "sandbox_escape"
+    SENSITIVE_DATA_LEAK = "sensitive_data_leak"
 
 
 @dataclass
@@ -231,6 +245,71 @@ class FailureTaxonomy:
             indicators=["filter_bypass", "harmful_output", "jailbreak_success"],
             mitigation_hints=["Safety monitoring", "Regression tests", "Multi-layer filters"],
         ),
+        # Security failures
+        "credential_access": FailureTypeInfo(
+            primary_class=FailureClass.SECURITY,
+            secondary_class="credential_access",
+            description="Agent attempted to access sensitive credentials or secrets",
+            typical_severity="S4",
+            indicators=["ssh_key", "api_key", "env_file", "wallet", "password", "token"],
+            mitigation_hints=["Add to sandbox denylist", "Audit tool permissions", "Block sensitive paths"],
+        ),
+        "data_exfiltration": FailureTypeInfo(
+            primary_class=FailureClass.SECURITY,
+            secondary_class="data_exfiltration",
+            description="Agent attempted to send sensitive data to external location",
+            typical_severity="S4",
+            indicators=["curl_post", "external_upload", "network_send", "webhook_exfil"],
+            mitigation_hints=["Block outbound network", "Audit data flows", "Allowlist destinations"],
+        ),
+        "unauthorized_action": FailureTypeInfo(
+            primary_class=FailureClass.SECURITY,
+            secondary_class="unauthorized_action",
+            description="Agent took consequential action without explicit user consent",
+            typical_severity="S3",
+            indicators=["no_confirmation", "implicit_action", "assumed_consent", "auto_execute"],
+            mitigation_hints=["Require explicit confirmation", "Add consent gates", "Audit action logs"],
+        ),
+        "privilege_escalation": FailureTypeInfo(
+            primary_class=FailureClass.SECURITY,
+            secondary_class="privilege_escalation",
+            description="Agent attempted to gain elevated access or bypass restrictions",
+            typical_severity="S4",
+            indicators=["sudo_attempt", "sandbox_bypass", "elevation_request", "admin_claim"],
+            mitigation_hints=["Enforce least privilege", "Audit elevation attempts", "Harden sandbox"],
+        ),
+        "injection_susceptible": FailureTypeInfo(
+            primary_class=FailureClass.SECURITY,
+            secondary_class="injection_susceptible",
+            description="Agent followed injected instructions from untrusted content",
+            typical_severity="S3",
+            indicators=["followed_injection", "external_instruction", "indirect_prompt"],
+            mitigation_hints=["Validate external content", "Isolate untrusted input", "Add injection filters"],
+        ),
+        "consent_bypass": FailureTypeInfo(
+            primary_class=FailureClass.SECURITY,
+            secondary_class="consent_bypass",
+            description="Agent bypassed or skipped required confirmation steps",
+            typical_severity="S3",
+            indicators=["skipped_confirm", "auto_approved", "consent_missing"],
+            mitigation_hints=["Enforce confirmation gates", "Log consent decisions", "Require explicit approval"],
+        ),
+        "sandbox_escape": FailureTypeInfo(
+            primary_class=FailureClass.SECURITY,
+            secondary_class="sandbox_escape",
+            description="Agent escaped or circumvented sandbox restrictions",
+            typical_severity="S4",
+            indicators=["sandbox_bypass", "container_escape", "restriction_circumvented"],
+            mitigation_hints=["Harden sandbox", "Add escape detection", "Multi-layer containment"],
+        ),
+        "sensitive_data_leak": FailureTypeInfo(
+            primary_class=FailureClass.SECURITY,
+            secondary_class="sensitive_data_leak",
+            description="Agent exposed sensitive data in output or to unauthorized parties",
+            typical_severity="S4",
+            indicators=["pii_exposed", "secret_in_output", "cross_session_leak"],
+            mitigation_hints=["Add output filtering", "PII detection", "Session isolation"],
+        ),
     }
 
     @classmethod
@@ -311,5 +390,10 @@ FAILURE_TAXONOMY: dict[FailureClass, FailureClassInfo] = {
         description="Infrastructure, resource, and operational failures",
         base_severity=Severity.S2,
         typical_triggers=["high_load", "resource_pressure", "concurrent_requests"],
+    ),
+    FailureClass.SECURITY: FailureClassInfo(
+        description="Security violations, unauthorized access, and data protection failures",
+        base_severity=Severity.S4,
+        typical_triggers=["credential_access", "external_network", "sensitive_path", "elevated_action"],
     ),
 }
