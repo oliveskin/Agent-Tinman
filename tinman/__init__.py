@@ -7,7 +7,7 @@ in AI systems through systematic experimentation and LLM-powered reasoning.
 https://github.com/oliveskin/agent_tinman
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __author__ = "Tinman Contributors"
 __license__ = "Apache-2.0"
 
